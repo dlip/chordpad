@@ -763,3 +763,64 @@ fn raw_stick_reports_replay_latched_modifiers_with_shift_and_number_layer() {
         assert_eq!(chord["keyboard_modifiers"], serde_json::json!(["ctrl"]));
     }
 }
+
+#[test]
+fn base_punctuation_and_enter_resolve_rolled_three_button_chords_and_shift_pairs() {
+    use Button::*;
+    let mut layout = layout();
+    layout.profile.base_punctuation = vec!['\'', ',', '.'];
+    let mappings = [
+        ('\'', Some('"'), vec![A, B, R1]),
+        (',', Some('<'), vec![A, X, R1]),
+        ('.', Some('>'), vec![B, Y, R1]),
+        ('\n', None, vec![X, Y, R1]),
+    ];
+    for (plain, shifted, buttons) in &mappings {
+        let chord = input(Dpad::Neutral, buttons);
+        layout.bindings.push(binding(*plain, chord, &[]));
+        if let Some(shifted) = shifted {
+            layout.bindings.push(binding(*shifted, chord, &[L2]));
+        }
+    }
+    layout.validate().unwrap();
+    let mut forbidden = layout.clone();
+    forbidden.profile.base_punctuation.clear();
+    assert!(forbidden.validate().is_err());
+    let mut e = Recognizer::new(
+        layout.strategy.clone(),
+        layout.profile.clone(),
+        Some(layout),
+    )
+    .unwrap();
+    arm(&mut e);
+    for (plain, shifted, buttons) in mappings {
+        for (held, expected) in
+            std::iter::once((vec![], plain)).chain(shifted.map(|s| (vec![L2], s)))
+        {
+            update(&mut e, Dpad::Neutral, &held);
+            let mut down = held.clone();
+            down.push(R1);
+            update(&mut e, Dpad::Neutral, &down);
+            down.push(buttons[0]);
+            update(&mut e, Dpad::Neutral, &down);
+            down.push(buttons[1]);
+            update(&mut e, Dpad::Neutral, &down);
+            down.retain(|b| *b != R1);
+            assert!(update(&mut e, Dpad::Neutral, &down).is_empty());
+            down.retain(|b| *b != buttons[0]);
+            assert!(update(&mut e, Dpad::Neutral, &down).is_empty());
+            assert_eq!(
+                chars(&update(&mut e, Dpad::Neutral, &held)),
+                expected.to_string()
+            );
+            update(&mut e, Dpad::Neutral, &[]);
+        }
+    }
+    for punctuation in [vec!['a'], vec!['1'], vec!['"'], vec!['é'], vec![',', ',']] {
+        let profile = Profile {
+            base_punctuation: punctuation,
+            ..Profile::default()
+        };
+        assert!(profile.validate().is_err());
+    }
+}

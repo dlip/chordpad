@@ -101,8 +101,9 @@ cargo run --release -- generate \
 cargo run -- render --layout independent.json --output independent.html
 ```
 
-The equivalent configuration is [examples/independent.json](examples/independent.json).
-Use it with your own corpus. This preset enforces these rules during generation
+[examples/independent.json](examples/independent.json) adds pinned base punctuation
+and Enter to this preset. Use it with `--config examples/independent.json` and your
+own corpus. This preset enforces these rules during generation
 and layout validation:
 
 | Control | Role |
@@ -112,6 +113,17 @@ and layout validation:
 | L1 alone | Backspace in every layer |
 | L2 | Held Shift; uppercase uses the lowercase chord |
 | R2 | Held numbers/symbols layer; combine with L2 for shifted symbols |
+
+`profile.base_punctuation` permits selected unshifted ASCII punctuation on the
+base bank, with its usual L2 Shift pair. Other numbers and symbols require R2.
+The example configuration permits apostrophe, comma, and period and pins:
+
+| Base chord | Output | With L2 Shift |
+| --- | --- | --- |
+| R1 + A + B | `'` | `"` |
+| R1 + A + X | `,` | `<` |
+| R1 + B + Y | `.` | `>` |
+| R1 + X + Y | Enter | |
 
 Both triggers work with either hand and can stay held across sequential strokes,
 including Space and Backspace. Hold modifiers before starting an ordinary stroke,
@@ -217,7 +229,7 @@ Costs are estimates. Results are candidates for controller testing, not measured
 typing speeds or a guarantee of global optimality. The search has one
 binding per output. Legacy strategies use systematic US Shift pairs and at most
 one held layer. Independent layouts constrain letters to base and numbers/symbols
-to the R2 layer, with L2 Shift.
+to the R2 layer, with L2 Shift and configurable base punctuation.
 It does not yet search one-shot/persistent modes, multiple access paths per output,
 or explicit shortcut/navigation tasks.
 

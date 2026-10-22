@@ -1,9 +1,75 @@
 {
   "profile": {
     "exclude_opposite_face_pairs": true,
-    "costs": { "same_hand_transition": 1.0 }
+    "costs": {
+      "same_hand_transition": 1.0
+    },
+    "base_punctuation": [
+      "'",
+      ",",
+      "."
+    ]
   },
   "strategies": [
-    { "name": "independent", "independent": true, "shift": "L2", "layer": "R2" }
+    {
+      "name": "independent",
+      "independent": true,
+      "shift": "L2",
+      "layer": "R2"
+    }
+  ],
+  "pinned_bindings": [
+    {
+      "action": {
+        "type": "character",
+        "value": "'"
+      },
+      "chord": {
+        "buttons": [
+          "A",
+          "B",
+          "R1"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ","
+      },
+      "chord": {
+        "buttons": [
+          "A",
+          "X",
+          "R1"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "."
+      },
+      "chord": {
+        "buttons": [
+          "B",
+          "Y",
+          "R1"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "\n"
+      },
+      "chord": {
+        "buttons": [
+          "X",
+          "Y",
+          "R1"
+        ]
+      }
+    }
   ]
 }

@@ -476,6 +476,8 @@ impl Default for Weights {
 pub struct Profile {
     #[serde(default, skip_serializing_if = "is_false")]
     pub exclude_opposite_face_pairs: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub base_punctuation: Vec<char>,
     pub diagonals: bool,
     pub disabled_buttons: Vec<Button>,
     pub modifier_only_buttons: Vec<Button>,
@@ -489,6 +491,7 @@ impl Default for Profile {
     fn default() -> Self {
         Self {
             exclude_opposite_face_pairs: false,
+            base_punctuation: vec![],
             diagonals: true,
             disabled_buttons: vec![],
             modifier_only_buttons: vec![Button::L2, Button::R2],
@@ -504,6 +507,19 @@ impl Profile {
     pub fn validate(&self) -> Result<()> {
         button_mask(&self.disabled_buttons)?;
         button_mask(&self.modifier_only_buttons)?;
+        let mut punctuation = BTreeSet::new();
+        for &c in &self.base_punctuation {
+            if !c.is_ascii_punctuation()
+                || Action::Character(c).group(true).1
+                || !punctuation.insert(c)
+            {
+                return Err(
+                    "base_punctuation must list distinct unshifted ASCII punctuation characters"
+                        .into(),
+                );
+            }
+        }
+
         if self.max_chord_size.is_some_and(|n| n == 0 || n > 10) {
             return Err("max_chord_size must be between 1 and 10".into());
         }
@@ -601,7 +617,12 @@ pub fn independent_fixed_action(input: Input) -> Option<Action> {
     }
 }
 
-pub fn independent_binding_allowed(action: &Action, input: Input, context: Input) -> bool {
+pub fn independent_binding_allowed(
+    profile: &Profile,
+    action: &Action,
+    input: Input,
+    context: Input,
+) -> bool {
     if let Some(fixed) = independent_fixed_action(input) {
         return *action == fixed && context.controls() == 0;
     }
@@ -610,6 +631,7 @@ pub fn independent_binding_allowed(action: &Action, input: Input, context: Input
         Action::Character(c) if c.is_alphabetic() => context.mask & Button::R2.bit() == 0,
         Action::Character(c) if !c.is_whitespace() && !c.is_control() => {
             context.mask & Button::R2.bit() != 0
+                || matches!(action.group(true).0, Action::Character(base) if profile.base_punctuation.contains(&base))
         }
         _ => true,
     }
@@ -810,7 +832,7 @@ impl Layout {
             let context = binding.context()?;
             if self.strategy.independent {
                 validate_independent_input(&self.profile, input, context)?;
-                if !independent_binding_allowed(&binding.action, input, context) {
+                if !independent_binding_allowed(&self.profile, &binding.action, input, context) {
                     return Err("independent layouts require base letters, R2 numbers/symbols, R1 Space and L1 Backspace".into());
                 }
             }

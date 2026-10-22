@@ -409,3 +409,59 @@ fn independent_generation_scores_and_renders_every_binding_reproducibly() {
         .success()
     );
 }
+
+#[test]
+fn independent_example_pins_base_punctuation_enter_and_their_shift_pairs() {
+    use padtype::model::{Action, Button, Layout};
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("config.json"),
+        include_str!("../examples/independent.json"),
+    )
+    .unwrap();
+    success(run(
+        dir.path(),
+        &[
+            "generate",
+            "--config",
+            "config.json",
+            "--iterations",
+            "10",
+            "--restarts",
+            "1",
+        ],
+    ));
+    let layout: Layout =
+        serde_json::from_slice(&fs::read(dir.path().join("layout.json")).unwrap()).unwrap();
+    layout.validate().unwrap();
+    assert_eq!(layout.profile.base_punctuation, ['\'', ',', '.']);
+    for (plain, shifted, buttons) in [
+        ('\'', Some('"'), vec![Button::A, Button::B, Button::R1]),
+        (',', Some('<'), vec![Button::A, Button::X, Button::R1]),
+        ('.', Some('>'), vec![Button::B, Button::Y, Button::R1]),
+        ('\n', None, vec![Button::X, Button::Y, Button::R1]),
+    ] {
+        let base = layout
+            .bindings
+            .iter()
+            .find(|b| b.action == Action::Character(plain))
+            .unwrap();
+        assert_eq!(base.chord.buttons, buttons);
+        assert!(base.held.is_empty());
+        if let Some(shifted) = shifted {
+            let upper = layout
+                .bindings
+                .iter()
+                .find(|b| b.action == Action::Character(shifted))
+                .unwrap();
+            assert_eq!(upper.chord, base.chord);
+            assert_eq!(upper.held, [Button::L2]);
+        }
+    }
+    success(run(dir.path(), &["render", "--layout", "layout.json"]));
+    fs::write(dir.path().join("task.txt"), "'\",.<>\n").unwrap();
+    success(run(
+        dir.path(),
+        &["score", "--layout", "layout.json", "--corpus", "task.txt"],
+    ));
+}

@@ -107,6 +107,7 @@ impl Problem {
                             if strategy.independent {
                                 validate_independent_input(&p.profile, slot.input, context).is_ok()
                                     && independent_binding_allowed(
+                                        &p.profile,
                                         &p.actions[action],
                                         slot.input,
                                         context,
