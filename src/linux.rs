@@ -31,6 +31,8 @@ pub struct Axis {
 pub struct DeviceInfo {
     pub path: PathBuf,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub driver: Option<String>,
     pub id: DeviceId,
     pub keys: Vec<u16>,
     pub axes: BTreeMap<u16, Axis>,
@@ -82,6 +84,20 @@ fn gamepad_capabilities(keys: &[u16], axes: &[u16]) -> bool {
             || [544, 545, 546, 547].iter().all(|code| keys.contains(code)))
 }
 
+fn kernel_driver(path: &Path) -> Option<String> {
+    let node = fs::canonicalize(path).ok()?;
+    let sysfs = fs::canonicalize(
+        Path::new("/sys/class/input")
+            .join(node.file_name()?)
+            .join("device"),
+    )
+    .ok()?;
+    sysfs.ancestors().find_map(|parent| {
+        let driver = fs::read_link(parent.join("driver")).ok()?;
+        driver.file_name()?.to_str().map(str::to_owned)
+    })
+}
+
 fn info(device: &RawDevice, path: &Path) -> Result<DeviceInfo> {
     let id = device.input_id();
     let axes = device
@@ -101,6 +117,7 @@ fn info(device: &RawDevice, path: &Path) -> Result<DeviceInfo> {
     Ok(DeviceInfo {
         path: path.into(),
         name: device.name().unwrap_or("Unnamed gamepad").into(),
+        driver: kernel_driver(path),
         id: DeviceId {
             vendor: id.vendor(),
             product: id.product(),
@@ -183,6 +200,11 @@ fn mapping(device: &DeviceInfo) -> Result<Calibration> {
         device: Some(device.id.clone()),
         ..Calibration::default()
     };
+    if device.driver.as_deref() == Some("xpad") {
+        // xpad uses the legacy BTN_X/BTN_Y aliases rather than geometric positions.
+        map.buttons.insert(Button::X, KeyCode::BTN_NORTH.0);
+        map.buttons.insert(Button::Y, KeyCode::BTN_WEST.0);
+    }
     if !(device.axes.contains_key(&16) && device.axes.contains_key(&17)) {
         map.dpad = DpadSource::Buttons {
             up: 544,
@@ -672,8 +694,7 @@ pub fn calibrate(args: CalibrateArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn automatic_mapping_includes_both_sticks_with_unsigned_centers() {
+    fn test_device(driver: Option<&str>) -> DeviceInfo {
         let mut axes = BTreeMap::new();
         for code in 0..=5 {
             axes.insert(
@@ -695,16 +716,22 @@ mod tests {
                 },
             );
         }
-        let info = DeviceInfo {
+        DeviceInfo {
             path: "/dev/input/test".into(),
             name: "test".into(),
+            driver: driver.map(str::to_owned),
             id: DeviceId {
                 vendor: 1,
                 product: 1,
             },
             keys: vec![304, 305, 307, 308, 310, 311],
             axes,
-        };
+        }
+    }
+
+    #[test]
+    fn automatic_mapping_includes_both_sticks_with_unsigned_centers() {
+        let info = test_device(None);
         let calibration = mapping(&info).unwrap();
         assert_eq!(calibration.schema_version, 2);
         assert_eq!(calibration.thumbsticks.len(), 2);
@@ -717,6 +744,120 @@ mod tests {
                 .unwrap()
                 .is_neutral()
         );
+    }
+
+    #[test]
+    fn xpad_mapping_keeps_adjacent_x_and_y_chords_valid() {
+        use crate::{
+            chord::{Event, Recognizer},
+            model::*,
+        };
+        let binding = |c, buttons, held| Binding {
+            action: Action::Character(c),
+            chord: Chord {
+                dpad: Dpad::Neutral,
+                buttons,
+            },
+            held,
+            held_dpad: Dpad::Neutral,
+        };
+        let layout = Layout {
+            schema_version: SCHEMA_VERSION,
+            cost_model_version: COST_MODEL_VERSION,
+            strategy: Strategy {
+                independent: true,
+                name: "independent".into(),
+                shift: Some(Button::L2),
+                layer: Some(Button::R2),
+            },
+            profile: Profile {
+                exclude_opposite_face_pairs: true,
+                ..Profile::default()
+            },
+            weights: Weights::default(),
+            normalization: Metrics {
+                effort: 1.0,
+                activations: 1.0,
+                movement: 1.0,
+                coverage: 1.0,
+                learning: 1.0,
+            },
+            recognition: "independent-release".into(),
+            bindings: vec![
+                binding('g', vec![Button::B, Button::Y], vec![]),
+                binding('G', vec![Button::B, Button::Y], vec![Button::L2]),
+                binding('x', vec![Button::A, Button::X], vec![]),
+                binding('X', vec![Button::A, Button::X], vec![Button::L2]),
+            ],
+        };
+        let calibration = mapping(&test_device(Some("xpad"))).unwrap();
+        assert_eq!(calibration.buttons[&Button::X], 307);
+        assert_eq!(calibration.buttons[&Button::Y], 308);
+        let mut normalizer = Normalizer::new(calibration).unwrap();
+        let mut engine = Recognizer::new(
+            layout.strategy.clone(),
+            layout.profile.clone(),
+            Some(layout),
+        )
+        .unwrap();
+        let raw = |code, value| RawEvent {
+            event_type: KEY,
+            code,
+            value,
+        };
+        engine.update(&normalizer.apply(&[]).unwrap());
+        for (shifted, codes, expected) in [
+            (false, [305, 308], 'g'),
+            (false, [304, 307], 'x'),
+            (true, [305, 308], 'G'),
+            (true, [304, 307], 'X'),
+        ] {
+            let shift = RawEvent {
+                event_type: ABS,
+                code: 2,
+                value: if shifted { 255 } else { 0 },
+            };
+            engine.update(&normalizer.apply(&[shift, raw(codes[0], 1)]).unwrap());
+            engine.update(&normalizer.apply(&[raw(codes[1], 1)]).unwrap());
+            assert!(
+                engine
+                    .update(&normalizer.apply(&[raw(codes[0], 0)]).unwrap())
+                    .is_empty()
+            );
+            let events = engine.update(&normalizer.apply(&[raw(codes[1], 0)]).unwrap());
+            assert!(
+                matches!(events.as_slice(),[Event::Chord { action:Some(Action::Character(c)), .. }] if *c == expected),
+                "{events:?}"
+            );
+        }
+        engine.update(
+            &normalizer
+                .apply(&[
+                    RawEvent {
+                        event_type: ABS,
+                        code: 2,
+                        value: 0,
+                    },
+                    raw(304, 1),
+                    raw(308, 1),
+                ])
+                .unwrap(),
+        );
+        let events = engine.update(&normalizer.apply(&[raw(304, 0), raw(308, 0)]).unwrap());
+        assert!(matches!(events.as_slice(), [Event::Cancelled { .. }]));
+        let generic = mapping(&test_device(Some("hid-generic"))).unwrap();
+        assert_eq!(generic.buttons[&Button::X], KeyCode::BTN_WEST.0);
+        assert_eq!(generic.buttons[&Button::Y], KeyCode::BTN_NORTH.0);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("custom.json");
+        fs::write(
+            &path,
+            serde_json::to_string(&Calibration::default()).unwrap(),
+        )
+        .unwrap();
+        let custom = load_mapping(Some(&path), &test_device(Some("xpad"))).unwrap();
+        assert_eq!(custom.buttons[&Button::X], 308);
+        assert_eq!(custom.buttons[&Button::Y], 307);
     }
 
     #[test]

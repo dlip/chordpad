@@ -393,8 +393,12 @@ displayed without character assignments. `--duration 10` stops after ten seconds
 otherwise Ctrl-C stops the session. `--json` emits machine-readable views.
 
 Standard Linux mappings use physical face-button positions (A south, B east,
-X west, Y north). Hat-axis D-pad reports take precedence over duplicate button
-reports. Digital D-pads and trigger buttons are also supported. Controllers must
+X west, Y north). Automatic detection identifies the kernel driver through sysfs.
+For [`xpad`](https://github.com/torvalds/linux/blob/master/drivers/input/joystick/xpad.c)
+controllers, Xbox X/Y use the driver's [legacy codes](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h)
+(307/308), which reverse the generic geometric mapping. `devices --json` includes the detected
+driver. Explicit calibration files keep their supplied button codes.
+Hat-axis D-pad reports take precedence over duplicate button reports. Digital D-pads and trigger buttons are also supported. Controllers must
 expose the standard face, shoulder, and D-pad capabilities. Keyboard devices
 advertising gamepad button codes are excluded from discovery. A calibration file
 can override individual raw event codes for device-specific mappings.
