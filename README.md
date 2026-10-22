@@ -7,8 +7,9 @@ Inputs are the D-pad, A/B/X/Y, L1/R1, and L2/R2. Direct typing chords use the
 D-pad and A/B/X/Y/L1/R1 by default. The analog L2/R2 triggers are reserved for
 held Shift or layers. The generator chooses combinations within those roles.
 
-The layout generator, controller inspector, and Linux virtual-keyboard runtime
-are implemented. Desktop editor and terminal testing is still pending.
+The layout generator, visual layout exporter, controller inspector, and Linux
+virtual-keyboard runtime are implemented. Desktop editor and terminal testing is
+still pending.
 
 ## Generate a layout
 
@@ -129,6 +130,38 @@ typing speeds or a guarantee of global optimality. This first version has one
 binding per output, systematic US Shift pairs, and at most one held layer. It
 does not yet search one-shot/persistent modes, multiple access paths per output,
 or explicit shortcut/navigation tasks.
+
+## Create a visual layout reference
+
+```sh
+cargo run -- render --layout layout.json --output layout.html
+```
+
+Open `layout.html` in a browser. It is a self-contained document with SVG
+controller diagrams, so it works offline without a server, external fonts, or
+images. The overview shows simple base bindings directly on the controller.
+Navigation keys use short labels; an ellipsis marks longer action names. Hover
+over a control or find its card to read the full action.
+Every binding also gets a chord card, grouped by its actual held Shift/layer
+state. Solid blue controls mean press; dashed amber controls mean hold. Each card
+includes text instructions and an accessible description of its chord.
+
+Search for a literal character to find its exact binding: `a` and `A` are distinct,
+and a literal space selects Space. Action names such as `Space`, `Backspace`, and
+`Ctrl + C` also work. Select a modifier-state filter to narrow the list. Clicking
+a card shows its full-size controller preview; Reset overview restores the base
+bindings. All cards remain readable without JavaScript.
+
+Use **Print / Save PDF** to produce reference sheets. Printing includes every
+binding even if the screen is filtered, starts each modifier state on a new page,
+and keeps individual chord cards together. Long sections can continue onto
+additional pages. The print layout defaults to A4 landscape; browser print
+settings can change paper size or scale.
+
+Re-run the command after generating a new layout. The document is derived from
+the validated bindings and records their strategy name. Existing HTML output is
+updated atomically; invalid layouts leave it intact. The output path cannot
+resolve to the input layout, including through symlinks.
 
 ## Type on Linux
 

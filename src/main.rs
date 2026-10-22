@@ -53,6 +53,13 @@ enum Command {
     Replay(inspector::ReplayArgs),
     /// Type with a generated layout using a Linux virtual keyboard (starts paused).
     Type(padtype::typing::TypeArgs),
+    /// Export a searchable, printable visual reference for a generated layout.
+    Render {
+        #[arg(long)]
+        layout: PathBuf,
+        #[arg(short, long, default_value = "layout.html")]
+        output: PathBuf,
+    },
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -165,6 +172,17 @@ fn run(cli: Cli) -> Result<()> {
         }
         Command::Generate(args) => generate(args),
         Command::Replay(args) => inspector::replay(args),
+        Command::Render { layout, output } => {
+            if resolved_path(&layout)? == resolved_path(&output)? {
+                return Err("render output must not overwrite the input layout".into());
+            }
+            let layout: Layout = read_json(&layout)?;
+            let html = padtype::render::html(&layout)?;
+            stage_file(&output, &html)?.persist(&output)
+                .map_err(|e| format!("{}: {e}", output.display()))?;
+            println!("Visual layout: {}", output.display());
+            Ok(())
+        }
         #[cfg(target_os="linux")]
         Command::Devices{json}=>padtype::linux::devices(json),
         #[cfg(target_os="linux")]

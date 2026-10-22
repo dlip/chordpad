@@ -233,8 +233,13 @@ and local; ordinary typing is not collected as training data.
 ## Implementation status
 
 The generator, controller inspector/chord tester, and Linux typing runtime are
-implemented. The
-inspector provides device discovery, read-only evdev input, trigger endpoint
+implemented. The visual exporter produces a self-contained HTML reference with
+SVG controller diagrams, base-control annotations, chord cards grouped by held
+state, exact character/action search, and full-size chord previews. It prints all
+bindings regardless of screen filters, with separate modifier-state sections.
+The document uses the same layout validation as the runtime and generator.
+
+The inspector provides device discovery, read-only evdev input, trigger endpoint
 calibration with hysteresis, release-to-commit recognition, optional generated
 layout lookup, JSONL recording, and deterministic replay. Replay fixtures and
 tests cover press/release order, diagonals, held modifiers, cancellation,

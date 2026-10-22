@@ -7,6 +7,7 @@ pub mod linux;
 pub mod model;
 #[cfg(target_os = "linux")]
 pub mod output;
+pub mod render;
 pub mod search;
 pub mod typing;
 
