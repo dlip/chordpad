@@ -12,6 +12,7 @@ mod hardware;
 
 fn layout() -> Layout {
     let binding = |action, buttons, held| Binding {
+        held_dpad: Dpad::Neutral,
         action,
         chord: Chord {
             buttons,
@@ -23,6 +24,7 @@ fn layout() -> Layout {
         schema_version: SCHEMA_VERSION,
         cost_model_version: COST_MODEL_VERSION,
         strategy: Strategy {
+            independent: false,
             name: "typing-test".into(),
             shift: Some(Button::R2),
             layer: Some(Button::L2),
@@ -60,6 +62,8 @@ fn state(buttons: &[Button]) -> Snapshot {
         dpad: Some(Dpad::Neutral),
         l2: 0.0,
         r2: 0.0,
+        left_stick: Dpad::Neutral,
+        right_stick: Dpad::Neutral,
     }
 }
 

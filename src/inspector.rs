@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    chord::{Engine, Event, Phase},
+    chord::{Event, Phase, Recognizer},
     controller::{Calibration, Normalizer, RawEvent, Snapshot},
     model::*,
 };
@@ -70,6 +70,7 @@ impl Header {
             .unwrap_or_else(|| {
                 (
                     Strategy {
+                        independent: false,
                         name: "inspector".into(),
                         shift: Some(Button::L2),
                         layer: Some(Button::R2),
@@ -106,7 +107,7 @@ pub struct View {
 
 struct Run {
     normalizer: Normalizer,
-    engine: Engine,
+    engine: Recognizer,
     last: Option<Snapshot>,
     at_us: u64,
     ended: bool,
@@ -119,7 +120,7 @@ impl Run {
         }
         Ok(Self {
             normalizer: Normalizer::new(header.calibration)?,
-            engine: Engine::new(header.strategy, header.profile, header.layout)?,
+            engine: Recognizer::new(header.strategy, header.profile, header.layout)?,
             last: None,
             at_us: 0,
             ended: false,
@@ -152,7 +153,7 @@ impl Run {
                 Ok(Some(View {
                     at_us,
                     snapshot: Some(snapshot),
-                    phase: self.engine.phase,
+                    phase: self.engine.phase(),
                     events,
                 }))
             }
@@ -164,7 +165,7 @@ impl Run {
                 Ok(Some(View {
                     at_us,
                     snapshot: None,
-                    phase: self.engine.phase,
+                    phase: self.engine.phase(),
                     events: vec![event],
                 }))
             }
@@ -294,6 +295,16 @@ fn display(view: &View, json: bool) -> Result<()> {
                 snapshot.r2 * 100.0
             )
             .map_err(|e| e.to_string())?;
+            if snapshot.left_stick != Dpad::Neutral || snapshot.right_stick != Dpad::Neutral {
+                writeln!(
+                    out,
+                    "Sticks: left {:?}, right {:?} | keyboard {:?}",
+                    snapshot.left_stick,
+                    snapshot.right_stick,
+                    snapshot.modifiers()
+                )
+                .map_err(|e| e.to_string())?;
+            }
         }
         for event in &view.events {
             let text = match event {
@@ -306,21 +317,34 @@ fn display(view: &View, json: bool) -> Result<()> {
                     chord,
                     held,
                     action,
+                    held_dpad,
+                    keyboard_modifiers,
                 } => format!(
-                    "CHORD {:?}+{} | held {}{}",
+                    "CHORD {:?}+{} | held {}{}{}",
                     chord.dpad,
                     buttons(&chord.buttons),
-                    buttons(held),
+                    held_controls(held, *held_dpad),
+                    if keyboard_modifiers.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" | keyboard {keyboard_modifiers:?}")
+                    },
                     action
                         .as_ref()
                         .map(|a| format!(" => {}", a.label()))
                         .unwrap_or_default()
                 ),
-                Event::Unmapped { chord, held } => format!(
-                    "UNMAPPED {:?}+{} | held {}",
+                Event::Unmapped {
+                    chord,
+                    held,
+                    held_dpad,
+                    keyboard_modifiers,
+                } => format!(
+                    "UNMAPPED {:?}+{} | held {} | keyboard {:?}",
                     chord.dpad,
                     buttons(&chord.buttons),
-                    buttons(held)
+                    held_controls(held, *held_dpad),
+                    keyboard_modifiers
                 ),
             };
             writeln!(out, "{text}").map_err(|e| e.to_string())?;
@@ -338,6 +362,14 @@ fn buttons(buttons: &[Button]) -> String {
             .map(|b| format!("{b:?}"))
             .collect::<Vec<_>>()
             .join("+")
+    }
+}
+
+fn held_controls(held: &[Button], dpad: Dpad) -> String {
+    if dpad == Dpad::Neutral {
+        buttons(held)
+    } else {
+        format!("D-pad {dpad:?} + {}", buttons(held))
     }
 }
 

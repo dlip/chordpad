@@ -151,6 +151,27 @@ pub fn stroke(action: &Action) -> Result<Vec<KeyCode>> {
     }
 }
 
+pub fn stroke_with_modifiers(action: &Action, modifiers: &[Modifier]) -> Result<Vec<KeyCode>> {
+    let keys = stroke(action)?;
+    if modifiers.is_empty() {
+        return Ok(keys);
+    }
+    let key = *keys.last().unwrap();
+    let mut combined = vec![];
+    for (modifier, code) in [
+        (Modifier::Ctrl, KeyCode::KEY_LEFTCTRL),
+        (Modifier::Alt, KeyCode::KEY_LEFTALT),
+        (Modifier::Shift, KeyCode::KEY_LEFTSHIFT),
+        (Modifier::Meta, KeyCode::KEY_LEFTMETA),
+    ] {
+        if modifiers.contains(&modifier) || keys[..keys.len() - 1].contains(&code) {
+            combined.push(code);
+        }
+    }
+    combined.push(key);
+    Ok(combined)
+}
+
 pub fn validate_layout(layout: &Layout) -> Result<()> {
     layout.validate()?;
     for binding in &layout.bindings {
@@ -197,7 +218,11 @@ impl<S: KeySink> Keyboard<S> {
 
 impl<S: KeySink> Output for Keyboard<S> {
     fn send(&mut self, action: &Action) -> Result<()> {
-        let keys = stroke(action)?;
+        self.send_modified(action, &[])
+    }
+
+    fn send_modified(&mut self, action: &Action, modifiers: &[Modifier]) -> Result<()> {
+        let keys = stroke_with_modifiers(action, modifiers)?;
         self.release_all()?;
         // Track attempted presses too: an error may follow a partial write.
         self.pressed = keys;

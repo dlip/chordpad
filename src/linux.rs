@@ -2,7 +2,7 @@ use crate::{
     Result,
     controller::{Packet, *},
     inspector::{self, CalibrateArgs, Header, InspectArgs, Record, Session},
-    model::{Button, Layout},
+    model::{Button, Layout, Side},
 };
 use evdev::{KeyCode, raw_stream::RawDevice};
 use serde::Serialize;
@@ -209,6 +209,25 @@ fn mapping(device: &DeviceInfo) -> Result<Calibration> {
             ));
         };
         map.triggers.insert(button, source);
+    }
+    for (side, x, y) in [(Side::Left, 0, 1), (Side::Right, 3, 4)] {
+        if device.axes.contains_key(&x) && device.axes.contains_key(&y) {
+            let axis = |code| {
+                let info = &device.axes[&code];
+                StickAxis {
+                    code,
+                    minimum: info.minimum,
+                    maximum: info.maximum,
+                    center: ((i64::from(info.minimum) + i64::from(info.maximum)) / 2) as i32,
+                    inverted: false,
+                }
+            };
+            map.thumbsticks
+                .insert(side, Thumbstick::new(axis(x), axis(y)));
+        }
+    }
+    if !map.thumbsticks.is_empty() {
+        map.schema_version = 2;
     }
     validate_mapping(&map, device)?;
     Ok(map)
@@ -440,7 +459,14 @@ fn feedback(events: &[crate::chord::Event]) {
                 eprintln!("{reason}; pending stroke discarded: {discarded}")
             }
             Event::Cancelled { reason } => eprintln!("CANCELLED: {reason}"),
-            Event::Unmapped { chord, held } => eprintln!("UNMAPPED: {chord:?}, held {held:?}"),
+            Event::Unmapped {
+                chord,
+                held,
+                held_dpad,
+                keyboard_modifiers,
+            } => eprintln!(
+                "UNMAPPED: {chord:?}, held {held:?}, held D-pad {held_dpad:?}, keyboard {keyboard_modifiers:?}"
+            ),
             Event::Chord { .. } => {}
         }
     }
@@ -646,6 +672,53 @@ pub fn calibrate(args: CalibrateArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn automatic_mapping_includes_both_sticks_with_unsigned_centers() {
+        let mut axes = BTreeMap::new();
+        for code in 0..=5 {
+            axes.insert(
+                code,
+                Axis {
+                    minimum: 0,
+                    maximum: if [2, 5].contains(&code) { 255 } else { 65535 },
+                    value: 0,
+                },
+            );
+        }
+        for code in [16, 17] {
+            axes.insert(
+                code,
+                Axis {
+                    minimum: -1,
+                    maximum: 1,
+                    value: 0,
+                },
+            );
+        }
+        let info = DeviceInfo {
+            path: "/dev/input/test".into(),
+            name: "test".into(),
+            id: DeviceId {
+                vendor: 1,
+                product: 1,
+            },
+            keys: vec![304, 305, 307, 308, 310, 311],
+            axes,
+        };
+        let calibration = mapping(&info).unwrap();
+        assert_eq!(calibration.schema_version, 2);
+        assert_eq!(calibration.thumbsticks.len(), 2);
+        assert_eq!(calibration.thumbsticks[&Side::Left].x.center, 32767);
+        assert_eq!(calibration.thumbsticks[&Side::Right].x.code, 3);
+        assert!(
+            Normalizer::new(calibration)
+                .unwrap()
+                .apply(&[])
+                .unwrap()
+                .is_neutral()
+        );
+    }
+
     #[test]
     fn virtual_keyboards_advertising_gamepad_codes_are_excluded() {
         let keys: Vec<_> = (1..560).collect();

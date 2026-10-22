@@ -1,8 +1,8 @@
 use crate::{
     Result,
-    chord::{Engine, Event},
+    chord::{Event, Recognizer},
     controller::Snapshot,
-    model::{Action, Button, Layout, button_mask},
+    model::{Action, Button, Layout, Modifier, button_mask},
 };
 use std::path::PathBuf;
 
@@ -39,6 +39,13 @@ fn parse_button(value: &str) -> Result<Button> {
 
 pub trait Output {
     fn send(&mut self, action: &Action) -> Result<()>;
+    fn send_modified(&mut self, action: &Action, modifiers: &[Modifier]) -> Result<()> {
+        if modifiers.is_empty() {
+            self.send(action)
+        } else {
+            Err("output does not support keyboard modifiers".into())
+        }
+    }
     fn release_all(&mut self) -> Result<()>;
 }
 
@@ -51,6 +58,19 @@ impl Output for DryRun {
             .map_err(|e| e.to_string())
     }
 
+    fn send_modified(&mut self, action: &Action, modifiers: &[Modifier]) -> Result<()> {
+        if modifiers.is_empty() {
+            return self.send(action);
+        }
+        use std::io::Write;
+        writeln!(
+            std::io::stdout().lock(),
+            "WOULD TYPE {:?} + {}",
+            modifiers,
+            action.label()
+        )
+        .map_err(|e| e.to_string())
+    }
     fn release_all(&mut self) -> Result<()> {
         Ok(())
     }
@@ -59,6 +79,9 @@ impl Output for DryRun {
 impl Output for Box<dyn Output> {
     fn send(&mut self, action: &Action) -> Result<()> {
         (**self).send(action)
+    }
+    fn send_modified(&mut self, action: &Action, modifiers: &[Modifier]) -> Result<()> {
+        (**self).send_modified(action, modifiers)
     }
     fn release_all(&mut self) -> Result<()> {
         (**self).release_all()
@@ -89,7 +112,7 @@ pub fn validate_pause(layout: &Layout, buttons: &[Button]) -> Result<u8> {
 }
 
 pub struct Runtime<O: Output> {
-    engine: Engine,
+    engine: Recognizer,
     output: O,
     pause_mask: u8,
     gesture_latched: bool,
@@ -101,7 +124,7 @@ impl<O: Output> Runtime<O> {
         layout.validate()?;
         let pause_mask = validate_pause(&layout, buttons)?;
         Ok(Self {
-            engine: Engine::new(
+            engine: Recognizer::new(
                 layout.strategy.clone(),
                 layout.profile.clone(),
                 Some(layout),
@@ -138,7 +161,7 @@ impl<O: Output> Runtime<O> {
     pub fn update(&mut self, snapshot: &Snapshot) -> Result<Vec<Event>> {
         let input = snapshot.input();
         if self.gesture_latched {
-            if snapshot.dpad.is_some() && input.controls() == 0 {
+            if snapshot.is_neutral() {
                 self.gesture_latched = false;
                 if !self.paused {
                     return Ok(self.engine.update(snapshot));
@@ -157,10 +180,11 @@ impl<O: Output> Runtime<O> {
         for event in &events {
             if let Event::Chord {
                 action: Some(action),
+                keyboard_modifiers,
                 ..
             } = event
             {
-                self.output.send(action)?;
+                self.output.send_modified(action, keyboard_modifiers)?;
             }
         }
         Ok(events)

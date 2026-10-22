@@ -1,0 +1,9 @@
+{
+  "profile": {
+    "exclude_opposite_face_pairs": true,
+    "costs": { "same_hand_transition": 1.0 }
+  },
+  "strategies": [
+    { "name": "independent", "independent": true, "shift": "L2", "layer": "R2" }
+  ]
+}

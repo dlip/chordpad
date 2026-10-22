@@ -16,11 +16,19 @@ pub enum Phase {
 pub enum Event {
     Ready,
     Chord {
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        keyboard_modifiers: Vec<Modifier>,
+        #[serde(skip_serializing_if = "Dpad::is_neutral")]
+        held_dpad: Dpad,
         chord: Chord,
         held: Vec<Button>,
         action: Option<Action>,
     },
     Unmapped {
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        keyboard_modifiers: Vec<Modifier>,
+        #[serde(skip_serializing_if = "Dpad::is_neutral")]
+        held_dpad: Dpad,
         chord: Chord,
         held: Vec<Button>,
     },
@@ -41,11 +49,16 @@ pub struct Engine {
     previous: Input,
     previous_buttons: u8,
     held: u8,
+    keyboard_modifiers: Vec<Modifier>,
+    previous_keyboard_modifiers: Vec<Modifier>,
     frozen: Option<Input>,
 }
 
 impl Engine {
     pub fn new(strategy: Strategy, profile: Profile, layout: Option<Layout>) -> Result<Self> {
+        if strategy.independent {
+            return Err("use the independent recognizer for independent strategies".into());
+        }
         Config {
             profile: profile.clone(),
             strategies: vec![strategy.clone()],
@@ -69,6 +82,8 @@ impl Engine {
             },
             previous_buttons: 0,
             held: 0,
+            keyboard_modifiers: vec![],
+            previous_keyboard_modifiers: vec![],
             frozen: None,
         })
     }
@@ -82,6 +97,8 @@ impl Engine {
         };
         self.previous_buttons = 0;
         self.held = 0;
+        self.keyboard_modifiers.clear();
+        self.previous_keyboard_modifiers.clear();
         self.frozen = None;
         Event::Reset {
             reason: reason.into(),
@@ -93,7 +110,7 @@ impl Engine {
         let physical = snapshot.input();
         if self.phase == Phase::Waiting {
             self.previous_buttons = physical.mask;
-            if snapshot.dpad.is_some() && physical.controls() == 0 {
+            if snapshot.is_neutral() {
                 self.phase = Phase::Idle;
                 return vec![Event::Ready];
             }
@@ -112,13 +129,19 @@ impl Engine {
             mask: physical.mask & !excluded,
             ..physical
         };
-        let new_modifier =
-            (physical.mask & !self.previous_buttons) & self.strategy.modifier_mask() != 0;
+        let keyboard_modifiers = snapshot.modifiers();
+        let new_modifier = (physical.mask & !self.previous_buttons) & self.strategy.modifier_mask()
+            != 0
+            || keyboard_modifiers
+                .iter()
+                .any(|m| !self.previous_keyboard_modifiers.contains(m));
         self.previous_buttons = physical.mask;
+        self.previous_keyboard_modifiers = keyboard_modifiers.clone();
         let result = match self.phase {
             Phase::Idle => {
                 if current.controls() != 0 {
                     self.held = physical.mask & self.strategy.modifier_mask();
+                    self.keyboard_modifiers = keyboard_modifiers;
                     self.phase = Phase::Collecting;
                 }
                 vec![]
@@ -205,9 +228,16 @@ impl Engine {
             })
             .map(|b| b.action.clone());
         if self.layout.is_some() && action.is_none() {
-            Event::Unmapped { chord, held }
+            Event::Unmapped {
+                keyboard_modifiers: self.keyboard_modifiers.clone(),
+                chord,
+                held,
+                held_dpad: Dpad::Neutral,
+            }
         } else {
             Event::Chord {
+                keyboard_modifiers: self.keyboard_modifiers.clone(),
+                held_dpad: Dpad::Neutral,
                 chord,
                 held,
                 action,
@@ -217,8 +247,48 @@ impl Engine {
 }
 
 fn direction_bits(dpad: Dpad) -> u8 {
-    let (x, y) = dpad.position();
-    u8::from(x < 0) | (u8::from(x > 0) << 1) | (u8::from(y < 0) << 2) | (u8::from(y > 0) << 3)
+    dpad.bits()
+}
+
+pub enum Recognizer {
+    Unified(Box<Engine>),
+    Independent(Box<crate::independent::Engine>),
+}
+
+impl Recognizer {
+    pub fn new(strategy: Strategy, profile: Profile, layout: Option<Layout>) -> Result<Self> {
+        if strategy.independent {
+            let layout = layout.ok_or("independent recognition requires a layout")?;
+            if layout.strategy != strategy || layout.profile != profile {
+                return Err("layout and recognizer configuration differ".into());
+            }
+            Ok(Self::Independent(Box::new(
+                crate::independent::Engine::new(layout)?,
+            )))
+        } else {
+            Ok(Self::Unified(Box::new(Engine::new(
+                strategy, profile, layout,
+            )?)))
+        }
+    }
+    pub fn update(&mut self, snapshot: &Snapshot) -> Vec<Event> {
+        match self {
+            Self::Unified(e) => e.update(snapshot),
+            Self::Independent(e) => e.update(snapshot),
+        }
+    }
+    pub fn reset(&mut self, reason: &str) -> Event {
+        match self {
+            Self::Unified(e) => e.reset(reason),
+            Self::Independent(e) => e.reset(reason),
+        }
+    }
+    pub fn phase(&self) -> Phase {
+        match self {
+            Self::Unified(e) => e.phase,
+            Self::Independent(e) => e.phase(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -230,11 +300,14 @@ mod tests {
             dpad: Some(dpad),
             l2: 0.0,
             r2: 0.0,
+            left_stick: Dpad::Neutral,
+            right_stick: Dpad::Neutral,
         }
     }
     fn engine() -> Engine {
         Engine::new(
             Strategy {
+                independent: false,
                 name: "test".into(),
                 shift: Some(Button::L2),
                 layer: Some(Button::R2),
@@ -282,6 +355,8 @@ mod tests {
                         assert_eq!(
                             events,
                             [Event::Chord {
+                                keyboard_modifiers: vec![],
+                                held_dpad: Dpad::Neutral,
                                 chord: Chord {
                                     dpad: Dpad::Neutral,
                                     buttons: vec![Button::A, Button::L1, Button::R1]
@@ -441,6 +516,8 @@ mod tests {
                     assert_eq!(
                         update(&mut e, &[]),
                         [Event::Chord {
+                            keyboard_modifiers: vec![],
+                            held_dpad: Dpad::Neutral,
                             chord: Chord {
                                 dpad: diagonal,
                                 buttons: vec![]
@@ -471,6 +548,8 @@ mod tests {
             assert_eq!(
                 update(&mut e, &[]),
                 [Event::Chord {
+                    keyboard_modifiers: vec![],
+                    held_dpad: Dpad::Neutral,
                     chord: Chord {
                         dpad: Dpad::UpLeft,
                         buttons: vec![Button::A]
@@ -532,6 +611,7 @@ mod tests {
     #[test]
     fn lookup_uses_the_generated_layout_and_reports_unmapped_chords() {
         let strategy = Strategy {
+            independent: false,
             name: "test".into(),
             shift: Some(Button::L2),
             layer: Some(Button::R2),
@@ -557,11 +637,13 @@ mod tests {
             recognition: "release-all".into(),
             bindings: vec![
                 Binding {
+                    held_dpad: Dpad::Neutral,
                     action: Action::Character('a'),
                     chord: chord.clone(),
                     held: vec![],
                 },
                 Binding {
+                    held_dpad: Dpad::Neutral,
                     action: Action::Character('A'),
                     chord,
                     held: vec![Button::L2],

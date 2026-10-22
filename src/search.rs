@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Slot {
     pub input: Input,
     pub layer: bool,
+    pub context: Input,
 }
 
 #[derive(Clone, Copy)]
@@ -68,8 +69,15 @@ impl Problem {
             for dpad in Dpad::ALL {
                 for mask in 0..=u8::MAX {
                     let input = Input { dpad, mask };
-                    if input.controls() != 0 && mask & ordinary_exclusions == 0 {
-                        slots.push(Slot { input, layer });
+                    if input.controls() != 0
+                        && mask & ordinary_exclusions == 0
+                        && (!strategy.independent || input.typing_side().is_some())
+                    {
+                        slots.push(Slot {
+                            input,
+                            layer,
+                            context: Input::default(),
+                        });
                     }
                 }
             }
@@ -89,13 +97,24 @@ impl Problem {
         for group in 0..p.groups.len() {
             let valid = (0..p.slots.len())
                 .filter(|&s| {
-                    p.outputs.iter().filter(|o| o.group == group).all(|o| {
-                        let slot = p.slots[s];
-                        p.profile.allows(Input {
-                            dpad: slot.input.dpad,
-                            mask: slot.input.mask | p.held(slot, o.shifted),
+                    p.outputs
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, o)| o.group == group)
+                        .all(|(action, o)| {
+                            let slot = p.slots[s];
+                            let context = p.context(slot, o.shifted);
+                            if strategy.independent {
+                                validate_independent_input(&p.profile, slot.input, context).is_ok()
+                                    && independent_binding_allowed(
+                                        &p.actions[action],
+                                        slot.input,
+                                        context,
+                                    )
+                            } else {
+                                p.profile.allows(slot.input.with_context(context))
+                            }
                         })
-                    })
                 })
                 .collect::<Vec<_>>();
             if valid.is_empty() {
@@ -115,7 +134,11 @@ impl Problem {
             let slot = p
                 .slots
                 .iter()
-                .position(|s| s.input == input && p.held(*s, output.shifted) == held)
+                .position(|s| {
+                    s.input == input
+                        && p.held(*s, output.shifted) == held
+                        && s.context.dpad == pin.held_dpad
+                })
                 .ok_or_else(|| {
                     format!(
                         "pin for {} conflicts with modifier-only controls or strategy roles",
@@ -154,10 +177,17 @@ impl Problem {
         })
     }
 
-    fn physical(&self, action: usize, assignment: &[usize]) -> (Input, u8) {
+    fn context(&self, slot: Slot, shifted: bool) -> Input {
+        Input {
+            mask: self.held(slot, shifted),
+            dpad: slot.context.dpad,
+        }
+    }
+
+    fn physical(&self, action: usize, assignment: &[usize]) -> (Input, Input) {
         let output = self.outputs[action];
         let slot = self.slots[assignment[output.group]];
-        (slot.input, self.held(slot, output.shifted))
+        (slot.input, self.context(slot, output.shifted))
     }
 
     fn unary(&self, group: usize, slot: usize) -> Metrics {
@@ -170,9 +200,9 @@ impl Problem {
             .enumerate()
             .filter(|(_, o)| o.group == group)
         {
-            let held = self.held(slot, o.shifted);
-            let held_count = f64::from(held.count_ones());
-            let effort = self.profile.costs.effort(slot.input, held);
+            let held = self.context(slot, o.shifted);
+            let held_count = f64::from(held.controls());
+            let effort = self.profile.costs.effort_with_context(slot.input, held);
             let presses = f64::from(slot.input.controls());
             let frequency = self.stats.counts[action] as f64 / n;
             m.effort += effort * frequency;
@@ -199,11 +229,17 @@ impl Problem {
         let (ib, hb) = self.physical(b, assignment);
         let frequency = count as f64 / self.stats.total as f64;
         Metrics {
-            effort: f64::from((ha ^ hb).count_ones())
-                * self.profile.costs.modifier_change
-                * frequency,
-            activations: f64::from((hb & !ha).count_ones()) * frequency,
-            movement: self.movement.cost(ia, ib) * frequency,
+            effort: f64::from(
+                (ha.mask ^ hb.mask).count_ones() + (ha.dpad.bits() ^ hb.dpad.bits()).count_ones(),
+            ) * self.profile.costs.modifier_change
+                * frequency
+                + self.profile.costs.same_hand_transition
+                    * f64::from(ia.with_context(ha).hands() & ib.with_context(hb).hands() != 0)
+                    * frequency,
+            activations: f64::from(
+                (hb.mask & !ha.mask).count_ones() + (hb.dpad.bits() & !ha.dpad.bits()).count_ones(),
+            ) * frequency,
+            movement: self.movement.cost(ia.with_context(ha), ib.with_context(hb)) * frequency,
             ..Metrics::default()
         }
     }
@@ -291,11 +327,12 @@ impl Problem {
             .map(|(a, value)| {
                 let (input, held) = self.physical(a, assignment);
                 Binding {
+                    held_dpad: held.dpad,
                     action: value.clone(),
                     chord: input.chord(),
                     held: Button::ALL
                         .into_iter()
-                        .filter(|b| held & b.bit() != 0)
+                        .filter(|b| held.mask & b.bit() != 0)
                         .collect(),
                 }
             })
@@ -307,7 +344,7 @@ impl Problem {
             profile: self.profile.clone(),
             weights: weights.clone(),
             normalization,
-            recognition: "release-all".into(),
+            recognition: self.strategy.recognition().into(),
             bindings,
         }
     }
@@ -328,8 +365,9 @@ impl Problem {
             layers.insert(slot.layer);
             for o in self.outputs.iter().filter(|o| o.group == g) {
                 max_controls = max_controls.max(
-                    (slot.input.mask | self.held(slot, o.shifted)).count_ones()
-                        + slot.input.dpad.controls(),
+                    slot.input
+                        .with_context(self.context(slot, o.shifted))
+                        .controls(),
                 );
             }
         }
@@ -339,6 +377,21 @@ impl Problem {
             max_controls,
             distinct_chords: chords.len(),
             layers_used: layers.len(),
+            same_hand_transition_rate: self
+                .stats
+                .pairs
+                .iter()
+                .map(|&(a, b, n)| {
+                    let (ia, ha) = self.physical(a, assignment);
+                    let (ib, hb) = self.physical(b, assignment);
+                    if ia.with_context(ha).hands() & ib.with_context(hb).hands() != 0 {
+                        n
+                    } else {
+                        0
+                    }
+                })
+                .sum::<u64>() as f64
+                / self.stats.total.saturating_sub(1).max(1) as f64,
         }
     }
 }
@@ -422,6 +475,7 @@ impl Movement {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Score {
+    pub same_hand_transition_rate: f64,
     pub objective: f64,
     pub metrics: Metrics,
     pub max_controls: u32,
@@ -608,6 +662,7 @@ mod tests {
 
     fn strategy(shift: Option<Button>, layer: Option<Button>) -> Strategy {
         Strategy {
+            independent: false,
             name: "test".into(),
             shift,
             layer,
@@ -616,6 +671,7 @@ mod tests {
 
     fn pin(c: char, button: Button, held: Vec<Button>) -> Binding {
         Binding {
+            held_dpad: Dpad::Neutral,
             action: Action::Character(c),
             chord: Chord {
                 dpad: Dpad::Neutral,
@@ -805,36 +861,42 @@ mod tests {
 
     #[test]
     fn incremental_scores_match_full_sequence_scores_for_moves_and_swaps() {
-        let (config, p) = problem(
-            "AAAb abba! aab? BAba.",
-            strategy(Some(Button::L2), Some(Button::R2)),
-            vec![],
-        );
-        let mut assignment = p.baseline(&config.weights).unwrap();
-        let reference = p.metrics(&assignment).normalization();
-        let evaluator = Evaluator::new(&p, &config.weights, reference);
-        let mut rng = fastrand::Rng::with_seed(12);
-        for _ in 0..200 {
-            let first = rng.usize(..assignment.len());
-            let next = p.valid[first][rng.usize(..p.valid[first].len())];
-            let previous = assignment[first];
-            if next == previous {
-                continue;
+        for independent in [false, true] {
+            let mut mode = strategy(Some(Button::L2), Some(Button::R2));
+            if independent {
+                mode.independent = true;
+                mode.shift = Some(Button::L2);
+                mode.layer = Some(Button::R2);
             }
-            let second = assignment.iter().position(|&s| s == next);
-            if second.is_some_and(|g| p.valid[g].binary_search(&previous).is_err()) {
-                continue;
+            let (mut config, p) = problem("AAAb abba! aab? BAba.", mode, vec![]);
+            config.profile.costs.same_hand_transition = 1.0;
+            let p = Problem::new(&config, &p.actions, p.stats.clone(), &p.strategy).unwrap();
+            let mut assignment = p.baseline(&config.weights).unwrap();
+            let reference = p.metrics(&assignment).normalization();
+            let evaluator = Evaluator::new(&p, &config.weights, reference);
+            let mut rng = fastrand::Rng::with_seed(12);
+            for _ in 0..200 {
+                let first = rng.usize(..assignment.len());
+                let next = p.valid[first][rng.usize(..p.valid[first].len())];
+                let previous = assignment[first];
+                if next == previous {
+                    continue;
+                }
+                let second = assignment.iter().position(|&s| s == next);
+                if second.is_some_and(|g| p.valid[g].binary_search(&previous).is_err()) {
+                    continue;
+                }
+                let old_full = p.metrics(&assignment).objective(reference, &config.weights);
+                let old_part = evaluator.affected(&assignment, first, second);
+                assignment[first] = next;
+                if let Some(g) = second {
+                    assignment[g] = previous;
+                }
+                let full_delta =
+                    p.metrics(&assignment).objective(reference, &config.weights) - old_full;
+                let part_delta = evaluator.affected(&assignment, first, second) - old_part;
+                assert!((full_delta - part_delta).abs() < 1e-9);
             }
-            let old_full = p.metrics(&assignment).objective(reference, &config.weights);
-            let old_part = evaluator.affected(&assignment, first, second);
-            assignment[first] = next;
-            if let Some(g) = second {
-                assignment[g] = previous;
-            }
-            let full_delta =
-                p.metrics(&assignment).objective(reference, &config.weights) - old_full;
-            let part_delta = evaluator.affected(&assignment, first, second) - old_part;
-            assert!((full_delta - part_delta).abs() < 1e-9);
         }
     }
 
@@ -870,6 +932,97 @@ mod tests {
                 - p.metrics(&a).objective(reference, &config.weights))
             .abs()
                 < 1e-10
+        );
+    }
+
+    #[test]
+    fn independent_penalty_counts_hands_occupied_by_global_modifiers() {
+        let mut mode = strategy(Some(Button::L2), Some(Button::R2));
+        mode.independent = true;
+        let left = Binding {
+            action: Action::Character('a'),
+            chord: Chord {
+                dpad: Dpad::Up,
+                buttons: vec![],
+            },
+            held: vec![],
+            held_dpad: Dpad::Neutral,
+        };
+        let (mut config, p) = problem(
+            "abab",
+            mode.clone(),
+            vec![left.clone(), pin('b', Button::A, vec![])],
+        );
+        config.profile.costs.same_hand_transition = 2.0;
+        let p = Problem::new(&config, &p.actions, p.stats.clone(), &p.strategy).unwrap();
+        let assignment = p.baseline(&config.weights).unwrap();
+        let reference = p.metrics(&assignment).normalization();
+        assert_eq!(
+            p.summary(&assignment, &config.weights, reference)
+                .same_hand_transition_rate,
+            0.0
+        );
+        let (mut config, p) = problem(
+            "a2a2",
+            mode,
+            vec![
+                pin('a', Button::A, vec![]),
+                Binding {
+                    action: Action::Character('2'),
+                    held: vec![Button::R2],
+                    ..left
+                },
+            ],
+        );
+        config.profile.costs.same_hand_transition = 2.0;
+        let mut p = Problem::new(&config, &p.actions, p.stats.clone(), &p.strategy).unwrap();
+        let assignment = p.baseline(&config.weights).unwrap();
+        assert_eq!(
+            p.summary(&assignment, &config.weights, reference)
+                .same_hand_transition_rate,
+            1.0
+        );
+        let layout = p.layout(&assignment, &config.weights, reference);
+        let (loaded, assignment) = load_layout(&layout, p.stats.clone()).unwrap();
+        let charged = loaded.metrics(&assignment).effort;
+        p.profile.costs.same_hand_transition = 0.0;
+        assert!((charged - p.metrics(&assignment).effort - 1.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn version_one_legacy_layouts_keep_their_original_scores() {
+        let (config, p) = problem("aAa", strategy(Some(Button::L2), None), vec![]);
+        let assignment = p.baseline(&config.weights).unwrap();
+        let mut layout = p.layout(
+            &assignment,
+            &config.weights,
+            p.metrics(&assignment).normalization(),
+        );
+        let expected = p.metrics(&assignment);
+        layout.schema_version = 1;
+        layout.cost_model_version = 1;
+        let legacy_json = serde_json::to_string(&layout).unwrap();
+        assert!(!legacy_json.contains("independent"));
+        assert!(!legacy_json.contains("held_dpad"));
+        let legacy: Layout = serde_json::from_str(&legacy_json).unwrap();
+        let (loaded, assignment) = load_layout(&legacy, p.stats).unwrap();
+        let actual = loaded.metrics(&assignment);
+        assert_eq!(expected.effort, actual.effort);
+        assert_eq!(expected.activations, actual.activations);
+        assert_eq!(expected.movement, actual.movement);
+        assert_eq!(expected.coverage, actual.coverage);
+        assert_eq!(expected.learning, actual.learning);
+        let (config, single) = problem("a", strategy(None, None), vec![]);
+        let assignment = single.baseline(&config.weights).unwrap();
+        assert_eq!(
+            single
+                .summary(
+                    &assignment,
+                    &config.weights,
+                    single.metrics(&assignment).normalization()
+                )
+                .same_hand_transition_rate,
+            0.0
         );
     }
 

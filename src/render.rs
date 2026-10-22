@@ -1,5 +1,8 @@
 use crate::{Result, model::*};
-use std::{collections::BTreeMap, fmt::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write,
+};
 
 fn escape(text: &str) -> String {
     text.chars()
@@ -89,6 +92,17 @@ fn buttons(mask: u8) -> String {
         .join(" + ")
 }
 
+fn controls(input: Input) -> String {
+    let mut names = vec![];
+    if input.mask != 0 {
+        names.push(buttons(input.mask));
+    }
+    if input.dpad != Dpad::Neutral {
+        names.push(format!("D-pad {}", direction(input.dpad).1));
+    }
+    names.join(" + ")
+}
+
 fn notation(binding: &Binding) -> String {
     let mut parts = vec![];
     if binding.chord.dpad != Dpad::Neutral {
@@ -96,19 +110,20 @@ fn notation(binding: &Binding) -> String {
     }
     parts.extend(binding.chord.buttons.iter().map(|b| format!("{b:?}")));
     let press = format!("Press {}", parts.join(" + "));
-    if binding.held.is_empty() {
+    if binding.context().unwrap().controls() == 0 {
         press
     } else {
         format!(
             "Hold {}; press {}",
-            buttons(button_mask(&binding.held).unwrap()),
+            controls(binding.context().unwrap()),
             parts.join(" + ")
         )
     }
 }
 
-fn context_name(layout: &Layout, held: u8) -> String {
-    if held == 0 {
+fn context_name(layout: &Layout, context: Input) -> String {
+    let held = context.mask;
+    if context.controls() == 0 {
         return "Base".into();
     }
     let mut names = vec![];
@@ -126,15 +141,16 @@ fn context_name(layout: &Layout, held: u8) -> String {
 }
 
 fn diagram(layout: &Layout, binding: Option<&Binding>) -> String {
-    let (mask, held, dpad) = binding
+    let (mask, held, dpad, held_dpad) = binding
         .map(|b| {
             (
                 b.chord.input().unwrap().mask,
                 button_mask(&b.held).unwrap(),
                 b.chord.dpad,
+                b.held_dpad,
             )
         })
-        .unwrap_or((0, 0, Dpad::Neutral));
+        .unwrap_or((0, 0, Dpad::Neutral, Dpad::Neutral));
     let title = binding
         .map(|b| format!("{}: {}", action_name(&b.action), notation(b)))
         .unwrap_or_else(|| {
@@ -149,7 +165,9 @@ fn diagram(layout: &Layout, binding: Option<&Binding>) -> String {
         .bindings
         .iter()
         .filter(|b| {
-            b.held.is_empty() && b.chord.dpad == Dpad::Neutral && b.chord.buttons.len() == 1
+            b.context().unwrap().controls() == 0
+                && b.chord.dpad == Dpad::Neutral
+                && b.chord.buttons.len() == 1
         })
         .map(|b| (b.chord.buttons[0], &b.action))
         .collect();
@@ -227,13 +245,23 @@ fn diagram(layout: &Layout, binding: Option<&Binding>) -> String {
         (Dpad::Left, 57, 119, dx < 0),
         (Dpad::Right, 125, 119, dx > 0),
     ] {
-        let state = if active { "pressed" } else { "rest" };
+        let state = if held_dpad.bits() & dir.bits() != 0 {
+            "held"
+        } else if active {
+            "pressed"
+        } else {
+            "rest"
+        };
         write!(svg,r#"<g class="control {state}" data-direction="{}"><rect x="{x}" y="{y}" width="34" height="34" rx="6"/>"#,direction(dir).1).unwrap();
         let output = if binding.is_none() {
             layout
                 .bindings
                 .iter()
-                .find(|b| b.held.is_empty() && b.chord.buttons.is_empty() && b.chord.dpad == dir)
+                .find(|b| {
+                    b.context().unwrap().controls() == 0
+                        && b.chord.buttons.is_empty()
+                        && b.chord.dpad == dir
+                })
                 .map(|b| &b.action)
         } else {
             None
@@ -260,6 +288,47 @@ fn diagram(layout: &Layout, binding: Option<&Binding>) -> String {
     }
     svg.push_str(r#"<rect class="dpad-center" x="94" y="122" width="28" height="28" rx="4"/><circle class="center-mark" cx="240" cy="154" r="4"/></svg>"#);
     svg
+}
+
+fn thumbstick_reference() -> String {
+    let mut out = String::from(
+        "<section class=\"stick-guide\" aria-labelledby=\"stick-title\"><h2 id=\"stick-title\">Thumbstick modifiers</h2><p>Hold either stick while typing. Command sends Meta / Super on Linux. Add L2 for Shift or R2 for numbers and symbols.</p><div class=\"stick-maps\">",
+    );
+    for side in Side::ALL {
+        write!(out, "<div><h3>{side:?} stick</h3><div class=\"stick-map\">").unwrap();
+        for dpad in [
+            Dpad::UpLeft,
+            Dpad::Up,
+            Dpad::UpRight,
+            Dpad::Left,
+            Dpad::Neutral,
+            Dpad::Right,
+            Dpad::DownLeft,
+            Dpad::Down,
+            Dpad::DownRight,
+        ] {
+            let modifiers = crate::controller::thumbstick_modifiers(side, dpad);
+            let label = if modifiers.is_empty() {
+                "Neutral".into()
+            } else {
+                modifiers
+                    .iter()
+                    .map(|m| {
+                        if *m == Modifier::Meta {
+                            "Command".into()
+                        } else {
+                            format!("{m:?}")
+                        }
+                    })
+                    .collect::<Vec<String>>()
+                    .join(" + ")
+            };
+            write!(out, "<div class=\"stick-cell\" role=\"img\" aria-label=\"{side:?} stick {}: {}\"><span aria-hidden=\"true\">{}</span><span>{}</span></div>", direction(dpad).1, escape(&label), if dpad == Dpad::Neutral { "●" } else { direction(dpad).0 }, escape(&label)).unwrap();
+        }
+        out.push_str("</div></div>");
+    }
+    out.push_str("</div></section>");
+    out
 }
 
 fn category(action: &Action) -> u8 {
@@ -292,26 +361,49 @@ pub fn html(layout: &Layout) -> Result<String> {
         escape(&layout.strategy.name)
     )
     .unwrap();
+    if layout.strategy.independent {
+        out.push_str("<p class=\"mode-note\">Each half releases independently. R1 is Space and L1 is Backspace in every layer. Hold L2 for Shift: uppercase letters use the same chords as lowercase. Hold R2 for numbers and symbols across consecutive strokes; add L2 for shifted symbols. Both triggers work with either half. Hold modifiers before starting a stroke. Overlapping strokes type in start order; simultaneous starts type left first.</p>");
+    }
     out.push_str("<section class=\"overview\" aria-label=\"Controller overview\"><div class=\"preview\"><div class=\"preview-heading\"><p class=\"eyebrow\" id=\"preview-title\">BASE CONTROLS</p><button class=\"text-button js-only\" id=\"reset-preview\" type=\"button\">Reset overview</button></div><div id=\"preview-diagram\">");
     out.push_str(&diagram(layout, None));
-    out.push_str("</div><p id=\"preview-instruction\" class=\"preview-caption\">Single-control bindings are shown here. … marks a longer action name; see its card below.</p></div><div class=\"guide\"><h2>Read the controller</h2><div class=\"legend\"><span><i class=\"press-swatch\"></i>Press for this chord</span><span><i class=\"hold-swatch\"></i>Hold as a modifier</span></div><ol><li><strong>Hold</strong> the Shift or layer controls shown, if any.</li><li><strong>Press</strong> the highlighted buttons and D-pad directions together.</li><li><strong>Release</strong> ordinary controls to type. Held modifiers can stay down.</li></ol><p class=\"guide-note\">D-pad diagonals highlight two directions. A + B means press both buttons.</p></div></section><div class=\"browser-tools js-only\"><div class=\"search-field\"><label for=\"search\">Find a character or action</label><div class=\"search-row\"><span aria-hidden=\"true\">⌕</span><input id=\"search\" type=\"search\" placeholder=\"Try a, A, ?, Space, or Backspace\" autocomplete=\"off\" spellcheck=\"false\"><button id=\"clear-search\" class=\"text-button\" type=\"button\">Clear</button></div></div><p id=\"result-count\" role=\"status\" aria-live=\"polite\"></p></div><nav class=\"layer-nav js-only\" aria-label=\"Filter by held controls\"><button type=\"button\" data-filter=\"all\" aria-pressed=\"true\">All bindings</button>");
-    let mut contexts = vec![0];
-    if let Some(shift) = layout.strategy.shift {
-        contexts.push(shift.bit());
+    out.push_str("</div><p id=\"preview-instruction\" class=\"preview-caption\">Single-control bindings are shown here. … marks a longer action name; see its card below.</p></div><div class=\"guide\"><h2>Read the controller</h2><div class=\"legend\"><span><i class=\"press-swatch\"></i>Press for this chord</span><span><i class=\"hold-swatch\"></i>Hold as a modifier</span></div><ol><li><strong>Hold</strong> the modifier controls shown, if any.</li><li><strong>Press</strong> the highlighted buttons and D-pad directions together.</li><li><strong>Release</strong> ordinary controls to type. Held modifiers can stay down.</li></ol><p class=\"guide-note\">D-pad diagonals highlight two directions. A + B means press both buttons.</p></div></section>");
+    if layout.strategy.independent {
+        out.push_str(&thumbstick_reference());
     }
-    if let Some(layer) = layout.strategy.layer {
-        contexts.push(layer.bit());
-    }
-    if layout.strategy.shift.is_some() && layout.strategy.layer.is_some() {
-        contexts.push(layout.strategy.modifier_mask());
-    }
-    contexts.retain(|mask| {
-        *mask == 0
-            || layout
+    out.push_str("<div class=\"browser-tools js-only\"><div class=\"search-field\"><label for=\"search\">Find a character or action</label><div class=\"search-row\"><span aria-hidden=\"true\">⌕</span><input id=\"search\" type=\"search\" placeholder=\"Try a, A, ?, Space, or Backspace\" autocomplete=\"off\" spellcheck=\"false\"><button id=\"clear-search\" class=\"text-button\" type=\"button\">Clear</button></div></div><p id=\"result-count\" role=\"status\" aria-live=\"polite\"></p></div><nav class=\"layer-nav js-only\" aria-label=\"Filter by held controls\"><button type=\"button\" data-filter=\"all\" aria-pressed=\"true\">All bindings</button>");
+    let mut contexts = vec![Input::default()];
+    if layout.strategy.independent {
+        contexts.extend(
+            layout
                 .bindings
                 .iter()
-                .any(|b| button_mask(&b.held).unwrap() == *mask)
-    });
+                .map(|b| b.context().unwrap())
+                .filter(|c| c.controls() != 0)
+                .collect::<BTreeSet<_>>(),
+        );
+    } else {
+        for held in [
+            layout.strategy.shift.map(Button::bit),
+            layout.strategy.layer.map(Button::bit),
+            Some(layout.strategy.modifier_mask()),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let context = Input {
+                mask: held,
+                dpad: Dpad::Neutral,
+            };
+            if !contexts.contains(&context)
+                && layout
+                    .bindings
+                    .iter()
+                    .any(|b| b.context().unwrap() == context)
+            {
+                contexts.push(context);
+            }
+        }
+    }
     for (index, held) in contexts.iter().enumerate() {
         write!(
             out,
@@ -325,14 +417,14 @@ pub fn html(layout: &Layout) -> Result<String> {
         let mut bindings: Vec<_> = layout
             .bindings
             .iter()
-            .filter(|b| button_mask(&b.held).unwrap() == held)
+            .filter(|b| b.context().unwrap() == held)
             .collect();
         bindings.sort_by(|a, b| {
             category(&a.action)
                 .cmp(&category(&b.action))
                 .then(a.action.cmp(&b.action))
         });
-        write!(out,r#"<section class="layer" data-layer="{index}" aria-labelledby="layer-{index}"><div class="layer-heading"><div><p class="eyebrow">{}</p><h2 id="layer-{index}">{}</h2></div><span class="binding-count">{} bindings</span><p class="print-legend">Solid controls: press · Dashed controls: hold · Release ordinary controls to type</p></div><div class="chord-grid">"#,if held == 0 { "NO MODIFIERS".into() } else { format!("HOLD {}",buttons(held)) },escape(&context_name(layout,held)),bindings.len()).unwrap();
+        write!(out,r#"<section class="layer" data-layer="{index}" aria-labelledby="layer-{index}"><div class="layer-heading"><div><p class="eyebrow">{}</p><h2 id="layer-{index}">{}</h2></div><span class="binding-count">{} bindings</span><p class="print-legend">Solid controls: press · Dashed controls: hold · Release ordinary controls to type</p></div><div class="chord-grid">"#,if held.controls() == 0 { "NO MODIFIERS".into() } else { escape(&format!("HOLD {}",controls(held))) },escape(&context_name(layout,held)),bindings.len()).unwrap();
         let empty = bindings.is_empty();
         for binding in bindings {
             let label = action_name(&binding.action);

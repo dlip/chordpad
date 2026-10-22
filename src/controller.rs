@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    model::{Button, Dpad, Input, button_mask},
+    model::{Button, Dpad, Input, Modifier, Side, button_mask},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -186,8 +186,80 @@ impl Trigger {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct StickAxis {
+    pub code: u16,
+    pub minimum: i32,
+    pub center: i32,
+    pub maximum: i32,
+    #[serde(default)]
+    pub inverted: bool,
+}
+
+impl StickAxis {
+    fn normalized(&self, value: i32) -> f64 {
+        let delta = f64::from(value) - f64::from(self.center);
+        let span = if delta < 0.0 {
+            f64::from(self.center) - f64::from(self.minimum)
+        } else {
+            f64::from(self.maximum) - f64::from(self.center)
+        };
+        (delta / span).clamp(-1.0, 1.0) * if self.inverted { -1.0 } else { 1.0 }
+    }
+}
+
+fn stick_press_threshold() -> f64 {
+    0.55
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Thumbstick {
+    pub x: StickAxis,
+    pub y: StickAxis,
+    #[serde(default = "stick_press_threshold")]
+    pub press_threshold: f64,
+    #[serde(default = "release_threshold")]
+    pub release_threshold: f64,
+}
+
+impl Thumbstick {
+    pub fn new(x: StickAxis, y: StickAxis) -> Self {
+        Self {
+            x,
+            y,
+            press_threshold: stick_press_threshold(),
+            release_threshold: release_threshold(),
+        }
+    }
+    fn update(&self, x: i32, y: i32, previous: Dpad) -> Dpad {
+        let axis = |value: f64, old: i8| {
+            if value >= self.press_threshold {
+                1
+            } else if value <= -self.press_threshold {
+                -1
+            } else if old > 0 && value > self.release_threshold {
+                1
+            } else if old < 0 && value < -self.release_threshold {
+                -1
+            } else {
+                0
+            }
+        };
+        let (px, py) = previous.position();
+        direction(
+            axis(self.x.normalized(x), px),
+            axis(self.y.normalized(y), py),
+        )
+        .unwrap()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Calibration {
     pub schema_version: u32,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub thumbsticks: BTreeMap<Side, Thumbstick>,
     #[serde(default)]
     pub device: Option<DeviceId>,
     pub buttons: BTreeMap<Button, u16>,
@@ -199,6 +271,7 @@ impl Default for Calibration {
     fn default() -> Self {
         Self {
             schema_version: 1,
+            thumbsticks: BTreeMap::new(),
             device: None,
             buttons: [
                 (Button::A, 304),
@@ -221,7 +294,7 @@ impl Default for Calibration {
 
 impl Calibration {
     pub fn validate(&self) -> Result<()> {
-        if self.schema_version != 1 {
+        if ![1, 2].contains(&self.schema_version) {
             return Err("unsupported calibration schema version".into());
         }
         let mut sources = BTreeSet::new();
@@ -283,6 +356,26 @@ impl Calibration {
                 return Err("trigger endpoints must differ and 0 <= release_threshold < press_threshold <= 1".into());
             }
         }
+        for stick in self.thumbsticks.values() {
+            if !stick.press_threshold.is_finite()
+                || !stick.release_threshold.is_finite()
+                || stick.release_threshold < 0.0
+                || stick.press_threshold > 1.0
+                || stick.release_threshold >= stick.press_threshold
+            {
+                return Err(
+                    "stick thresholds require 0 <= release_threshold < press_threshold <= 1".into(),
+                );
+            }
+            for axis in [&stick.x, &stick.y] {
+                if axis.minimum >= axis.center || axis.center >= axis.maximum {
+                    return Err("stick axes require minimum < center < maximum".into());
+                }
+                if !sources.insert((ABS, axis.code)) {
+                    return Err("duplicate thumbstick input source".into());
+                }
+            }
+        }
         Ok(())
     }
 
@@ -298,6 +391,9 @@ impl Calibration {
             } => sources.extend([(KEY, up), (KEY, down), (KEY, left), (KEY, right)]),
         }
         sources.extend(self.triggers.values().map(Trigger::source));
+        for stick in self.thumbsticks.values() {
+            sources.extend([(ABS, stick.x.code), (ABS, stick.y.code)]);
+        }
         sources
     }
 }
@@ -308,9 +404,27 @@ pub struct Snapshot {
     pub dpad: Option<Dpad>,
     pub l2: f64,
     pub r2: f64,
+    #[serde(skip_serializing_if = "Dpad::is_neutral")]
+    pub left_stick: Dpad,
+    #[serde(skip_serializing_if = "Dpad::is_neutral")]
+    pub right_stick: Dpad,
 }
 
 impl Snapshot {
+    pub fn is_neutral(&self) -> bool {
+        self.dpad.is_some()
+            && self.input().controls() == 0
+            && self.left_stick == Dpad::Neutral
+            && self.right_stick == Dpad::Neutral
+    }
+    pub fn modifiers(&self) -> Vec<Modifier> {
+        thumbstick_modifiers(Side::Left, self.left_stick)
+            .into_iter()
+            .chain(thumbstick_modifiers(Side::Right, self.right_stick))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
     pub fn input(&self) -> Input {
         Input {
             dpad: self.dpad.unwrap_or_default(),
@@ -319,10 +433,30 @@ impl Snapshot {
     }
 }
 
+pub fn thumbstick_modifiers(side: Side, direction: Dpad) -> Vec<Modifier> {
+    let (x, y) = direction.position();
+    let inward = if side == Side::Left { x > 0 } else { x < 0 };
+    if inward {
+        return vec![Modifier::Alt, Modifier::Meta];
+    }
+    let mut modifiers = vec![];
+    if x != 0 {
+        modifiers.push(Modifier::Ctrl);
+    }
+    if y < 0 {
+        modifiers.push(Modifier::Alt);
+    }
+    if y > 0 {
+        modifiers.push(Modifier::Meta);
+    }
+    modifiers
+}
+
 pub struct Normalizer {
     pub calibration: Calibration,
     values: BTreeMap<(u16, u16), i32>,
     active: u8,
+    sticks: [Dpad; 2],
 }
 
 impl Normalizer {
@@ -335,10 +469,16 @@ impl Normalizer {
                 values.insert((ABS, code), rest);
             }
         }
+        for stick in calibration.thumbsticks.values() {
+            for axis in [&stick.x, &stick.y] {
+                values.insert((ABS, axis.code), axis.center);
+            }
+        }
         Ok(Self {
             calibration,
             values,
             active: 0,
+            sticks: [Dpad::Neutral; 2],
         })
     }
 
@@ -399,6 +539,13 @@ impl Normalizer {
             }
             travel[index] = value;
         }
+        for (side, stick) in &self.calibration.thumbsticks {
+            self.sticks[side.index()] = stick.update(
+                self.values[&(ABS, stick.x.code)],
+                self.values[&(ABS, stick.y.code)],
+                self.sticks[side.index()],
+            );
+        }
         buttons.sort();
         button_mask(&buttons)?;
         Ok(Snapshot {
@@ -406,6 +553,8 @@ impl Normalizer {
             dpad,
             l2: travel[0],
             r2: travel[1],
+            left_stick: self.sticks[0],
+            right_stick: self.sticks[1],
         })
     }
 }
@@ -563,5 +712,147 @@ mod tests {
             panic!("expected a complete report");
         };
         assert_eq!(events, [event(KEY, 305, 1)]);
+    }
+}
+
+#[cfg(test)]
+mod stick_tests {
+    use super::*;
+
+    fn axis(code: u16) -> StickAxis {
+        StickAxis {
+            code,
+            minimum: -1000,
+            center: 0,
+            maximum: 1000,
+            inverted: false,
+        }
+    }
+    fn calibration() -> Calibration {
+        Calibration {
+            schema_version: 2,
+            thumbsticks: [
+                (Side::Left, Thumbstick::new(axis(0), axis(1))),
+                (Side::Right, Thumbstick::new(axis(3), axis(4))),
+            ]
+            .into(),
+            ..Calibration::default()
+        }
+    }
+    #[test]
+    fn every_direction_has_the_requested_mirrored_modifiers() {
+        use Dpad::*;
+        use Modifier::*;
+        for side in Side::ALL {
+            for direction in Dpad::ALL {
+                let expected = match (side, direction) {
+                    (_, Neutral) => vec![],
+                    (_, Up) => vec![Alt],
+                    (_, Down) => vec![Meta],
+                    (Side::Left, Right | UpRight | DownRight)
+                    | (Side::Right, Left | UpLeft | DownLeft) => vec![Alt, Meta],
+                    (_, Left | Right) => vec![Ctrl],
+                    (_, UpLeft | UpRight) => vec![Ctrl, Alt],
+                    (_, DownLeft | DownRight) => vec![Ctrl, Meta],
+                };
+                let mut n = Normalizer::new(calibration()).unwrap();
+                let (x, y) = direction.position();
+                let first = if side == Side::Left { 0 } else { 3 };
+                let events = [
+                    RawEvent {
+                        event_type: ABS,
+                        code: first,
+                        value: i32::from(x) * 1000,
+                    },
+                    RawEvent {
+                        event_type: ABS,
+                        code: first + 1,
+                        value: i32::from(y) * 1000,
+                    },
+                ];
+                assert_eq!(
+                    n.apply(&events).unwrap().modifiers(),
+                    expected,
+                    "{side:?} {direction:?}"
+                );
+            }
+        }
+    }
+    #[test]
+    fn stick_hysteresis_centers_inversion_and_two_stick_unions_work() {
+        use Modifier::*;
+        let mut n = Normalizer::new(calibration()).unwrap();
+        assert!(n.apply(&[]).unwrap().is_neutral());
+        for (raw, expected) in [
+            (540, vec![]),
+            (560, vec![Alt, Meta]),
+            (400, vec![Alt, Meta]),
+            (350, vec![]),
+            (-600, vec![Ctrl]),
+            (-400, vec![Ctrl]),
+            (0, vec![]),
+        ] {
+            assert_eq!(
+                n.apply(&[RawEvent {
+                    event_type: ABS,
+                    code: 0,
+                    value: raw
+                }])
+                .unwrap()
+                .modifiers(),
+                expected
+            );
+        }
+        let state = n
+            .apply(&[
+                RawEvent {
+                    event_type: ABS,
+                    code: 1,
+                    value: -1000,
+                },
+                RawEvent {
+                    event_type: ABS,
+                    code: 4,
+                    value: 1000,
+                },
+            ])
+            .unwrap();
+        assert_eq!(state.modifiers(), [Alt, Meta]);
+        let mut c = calibration();
+        let axis = &mut c.thumbsticks.get_mut(&Side::Left).unwrap().x;
+        axis.minimum = 0;
+        axis.center = 32768;
+        axis.maximum = 65535;
+        axis.inverted = true;
+        let mut n = Normalizer::new(c).unwrap();
+        assert!(n.apply(&[]).unwrap().is_neutral());
+        assert_eq!(
+            n.apply(&[RawEvent {
+                event_type: ABS,
+                code: 0,
+                value: 0
+            }])
+            .unwrap()
+            .modifiers(),
+            [Alt, Meta]
+        );
+    }
+    #[test]
+    fn invalid_stick_calibrations_are_rejected_and_old_mappings_remain_valid() {
+        for kind in 0..4 {
+            let mut c = calibration();
+            let stick = c.thumbsticks.get_mut(&Side::Left).unwrap();
+            match kind {
+                0 => stick.x.center = 1000,
+                1 => stick.y.code = 0,
+                2 => stick.press_threshold = 0.2,
+                _ => stick.x.code = 2,
+            }
+            assert!(c.validate().is_err());
+        }
+        let c: Calibration =
+            serde_json::from_str(&serde_json::to_string(&Calibration::default()).unwrap()).unwrap();
+        assert!(c.thumbsticks.is_empty());
+        assert!(Normalizer::new(c).unwrap().apply(&[]).unwrap().is_neutral());
     }
 }

@@ -3,9 +3,10 @@
 Gamepad typing for Linux, with a layout generator that searches for comfortable,
 efficient chords.
 
-Inputs are the D-pad, A/B/X/Y, L1/R1, and L2/R2. Direct typing chords use the
+Inputs are the D-pad, A/B/X/Y, L1/R1, L2/R2, and both thumbsticks. Direct typing chords use the
 D-pad and A/B/X/Y/L1/R1 by default. The analog L2/R2 triggers are reserved for
-held Shift or layers. The generator chooses combinations within those roles.
+held Shift or layers. Thumbsticks supply Alt, Ctrl, and Command/Meta. The
+generator chooses typing combinations within those roles.
 
 The layout generator, visual layout exporter, controller inspector, and Linux
 virtual-keyboard runtime are implemented. Desktop editor and terminal testing is
@@ -89,6 +90,93 @@ character pairs, such as `a`/`A` and `1`/`!`. A held layer adds a second assignm
 bank. Modifiers can stay held across characters; ordinary chord controls must
 fully release between them.
 
+## Independent halves, Shift, and numbers/symbols
+
+```sh
+cargo run --release -- generate \
+  --independent \
+  --exclude-opposite-face-pairs \
+  --same-hand-penalty 1 \
+  --output independent.json
+cargo run -- render --layout independent.json --output independent.html
+```
+
+The equivalent configuration is [examples/independent.json](examples/independent.json).
+Use it with your own corpus. This preset enforces these rules during generation
+and layout validation:
+
+| Control | Role |
+| --- | --- |
+| D-pad, A/B/X/Y, L1/R1 combinations | Digital typing chords; all letters use the base bank |
+| R1 alone | Space in every layer |
+| L1 alone | Backspace in every layer |
+| L2 | Held Shift; uppercase uses the lowercase chord |
+| R2 | Held numbers/symbols layer; combine with L2 for shifted symbols |
+
+Both triggers work with either hand and can stay held across sequential strokes,
+including Space and Backspace. Hold modifiers before starting an ordinary stroke,
+or in its first hardware report. Releasing a modifier early preserves the context
+latched at stroke start. Adding or re-pressing a modifier during an active stroke
+cancels that stroke. Space and Backspace also accept keyboard modifiers, such as
+Ctrl+Backspace or Shift+Space.
+
+The left half types with D-pad/L1; the right half types with A/B/X/Y/R1. The first
+ordinary release freezes that half's chord; full ordinary release commits it.
+The halves collect and release independently. Output follows stroke-start order,
+even when a later stroke finishes first. Same-report starts are ordered left
+before right. Attempting a 65th pending stroke discards the queue and waits for
+all controls, including sticks and triggers, to return to neutral.
+
+`--exclude-opposite-face-pairs` rejects A+Y and B+X, including their supersets.
+Adjacent pairs remain eligible. All three- and four-face-button combinations
+contain an opposite pair and are excluded by this option. D-pad diagonals remain
+available through `profile.diagonals`.
+
+`--same-hand-penalty` sets `profile.costs.same_hand_transition` (default zero).
+It charges consecutive outputs that share any occupied hand, including a hand
+holding a trigger. Reports show `same_hand_transition_rate`, the fraction of
+consecutive corpus pairs sharing a hand (zero for a one-character corpus).
+This is a bigram preference without a timing or overlap speed simulation.
+The text corpus does not model thumbstick shortcut tasks. Space and Backspace
+are scored at their base bindings, so modifier-switch costs across them are
+conservative estimates even though the runtime permits modifiers to stay held.
+
+This preset is opt-in; the default search still compares the seven original
+strategies. Existing version 1 layouts remain usable. New layout exports use
+schema and cost model version 2. Pass the generated layout to `inspect --layout`
+or `type --layout` to use independent typing.
+
+## Thumbstick keyboard modifiers
+
+Both sticks provide the same modifiers, mirrored around the controller center:
+
+| Direction | Keyboard modifiers |
+| --- | --- |
+| Up | Alt |
+| Down | Command (Meta / Super on Linux) |
+| Outward | Ctrl |
+| Outward-up | Ctrl + Alt |
+| Outward-down | Ctrl + Command |
+| Inward, inward-up, inward-down | Alt + Command |
+
+Inward is right on the left stick and left on the right stick. Stick modifiers
+combine with each other, L2 Shift, and the R2 numbers/symbols layer. They apply to
+characters, editing keys, and explicit shortcuts on either half. The modifier
+set is captured at stroke start; releasing it early preserves that stroke.
+Keyboard events press and release the modifiers around each committed action,
+so holding a stick alone does not hold an OS modifier down between keystrokes.
+Pause, disconnect, and dropped-input resets discard pending actions and require
+full neutral before rearming.
+
+Automatic Linux mappings detect the left stick at ABS_X/ABS_Y (0/1) and the right
+stick at ABS_RX/ABS_RY (3/4). Center comes from the advertised range midpoint.
+Stick directions have per-axis hysteresis: engage at 55% travel and disengage at
+35%. Calibration JSON can override axis codes, minimum/center/maximum, inversion,
+and thresholds under `thumbsticks.left` and `thumbsticks.right`. Existing mapping
+files without `thumbsticks` leave this feature disabled; use automatic detection
+or export a fresh calibration. Inspector/replay show stick positions and the
+captured keyboard modifiers. Visual references include both directional maps.
+
 ## Understand the results
 
 The search uses simulated annealing with swaps and replacement chords, beginning
@@ -126,9 +214,11 @@ cargo run --release -- score --layout layout.json --corpus other-writing.txt
 ```
 
 Costs are estimates. Results are candidates for controller testing, not measured
-typing speeds or a guarantee of global optimality. This first version has one
-binding per output, systematic US Shift pairs, and at most one held layer. It
-does not yet search one-shot/persistent modes, multiple access paths per output,
+typing speeds or a guarantee of global optimality. The search has one
+binding per output. Legacy strategies use systematic US Shift pairs and at most
+one held layer. Independent layouts constrain letters to base and numbers/symbols
+to the R2 layer, with L2 Shift.
+It does not yet search one-shot/persistent modes, multiple access paths per output,
 or explicit shortcut/navigation tasks.
 
 ## Create a visual layout reference
@@ -142,9 +232,9 @@ controller diagrams, so it works offline without a server, external fonts, or
 images. The overview shows simple base bindings directly on the controller.
 Navigation keys use short labels; an ellipsis marks longer action names. Hover
 over a control or find its card to read the full action.
-Every binding also gets a chord card, grouped by its actual held Shift/layer
-state. Solid blue controls mean press; dashed amber controls mean hold. Each card
-includes text instructions and an accessible description of its chord.
+Every binding also gets a chord card, grouped by its actual held modifier
+state. Solid blue controls mean press; dashed
+amber controls mean hold. Each card includes text instructions and an accessible description of its chord.
 
 Search for a literal character to find its exact binding: `a` and `A` are distinct,
 and a literal space selects Space. Action names such as `Space`, `Backspace`, and

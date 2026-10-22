@@ -70,6 +70,15 @@ enum Alphabet {
 
 #[derive(clap::Args)]
 struct Generate {
+    /// Generate independent half strokes with L2 Shift, R2 numbers/symbols, and fixed editing keys.
+    #[arg(long)]
+    independent: bool,
+    /// Exclude A+Y and B+X, including their supersets and modifier contexts.
+    #[arg(long)]
+    exclude_opposite_face_pairs: bool,
+    /// Estimated cost for a transition that reuses an occupied hand.
+    #[arg(long)]
+    same_hand_penalty: Option<f64>,
     /// UTF-8 training text. Defaults to the small bundled demonstration corpus.
     #[arg(long)]
     corpus: Option<PathBuf>,
@@ -229,6 +238,20 @@ fn generate(args: Generate) -> Result<()> {
         .map(|p| read_json(p))
         .transpose()?
         .unwrap_or_default();
+    if args.independent {
+        config.strategies = vec![Strategy {
+            independent: true,
+            name: "independent".into(),
+            shift: Some(Button::L2),
+            layer: Some(Button::R2),
+        }];
+    }
+    if args.exclude_opposite_face_pairs {
+        config.profile.exclude_opposite_face_pairs = true;
+    }
+    if let Some(cost) = args.same_hand_penalty {
+        config.profile.costs.same_hand_transition = cost;
+    }
     config.validate()?;
     if !args.strategy.is_empty() {
         for name in &args.strategy {
@@ -260,6 +283,10 @@ fn generate(args: Generate) -> Result<()> {
         .into_iter()
         .collect::<BTreeSet<_>>();
     actions.extend(config.pinned_bindings.iter().map(|b| b.action.clone()));
+    if config.strategies.iter().any(|s| s.independent) {
+        actions.insert(Action::Character(' '));
+        actions.insert(Action::Key(Key::Backspace));
+    }
     let actions = actions.into_iter().collect::<Vec<_>>();
     let stats = Stats::new(&training, &actions)?;
     let held_stats = held_out
@@ -366,11 +393,15 @@ fn generate(args: Generate) -> Result<()> {
         assumptions: vec![
             "All ergonomic costs are estimates, not measured speed or error predictions.",
             "Each corpus is one continuous task, with modifier entry and cleanup at its boundaries.",
-            "Ordinary controls fully release between characters; held modifiers can persist.",
-            "Shift uses standard US character pairs; other characters remain direct outputs.",
+            "Independent strategies release each half separately; legacy strategies require global ordinary release.",
+            "Independent layouts use global held L2 Shift and R2 numbers/symbols, latched at stroke start; R1 Space and L1 Backspace work in all modifier states.",
+            "Independent output follows stroke-start order; same-report starts are left-first.",
+            "Text-corpus scores do not model thumbstick shortcuts; invariant Space/Backspace are scored at their base bindings.",
+            "The same-hand transition penalty uses full hand occupancy, including held modifiers; it is an estimated preference, not measured timing.",
+            "Shift uses standard US character pairs; uppercase shares lowercase chords. Independent letters stay on the base bank and numbers/symbols use R2.",
             "Movement uses D-pad positions and Xbox-style face-button centroids (A south, B east, X west, Y north).",
             "Coverage gives unobserved required outputs a uniform access-cost penalty.",
-            "Learning is a proxy: one unit per canonical character/key group and four per modifier rule.",
+            "Learning is a proxy: one unit per canonical character/key group and four per fixed modifier role.",
             "Backspace and Escape are required but have no observed task frequency in text corpora.",
         ],
         candidates,

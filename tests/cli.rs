@@ -325,3 +325,87 @@ fn output_paths_must_differ_even_through_symlinked_directories() {
     );
     assert!(!dir.path().join("out/result.json").exists());
 }
+
+#[test]
+fn independent_generation_scores_and_renders_every_binding_reproducibly() {
+    let dir = tempfile::tempdir().unwrap();
+    let args = [
+        "generate",
+        "--independent",
+        "--exclude-opposite-face-pairs",
+        "--same-hand-penalty",
+        "1",
+        "--iterations",
+        "500",
+        "--restarts",
+        "1",
+    ];
+    success(run(dir.path(), &args));
+    let bytes = fs::read(dir.path().join("layout.json")).unwrap();
+    let layout: padtype::model::Layout = serde_json::from_slice(&bytes).unwrap();
+    layout.validate().unwrap();
+    assert!(layout.strategy.independent);
+    assert!(layout.profile.exclude_opposite_face_pairs);
+    assert_eq!(layout.profile.costs.same_hand_transition, 1.0);
+    assert!(layout.bindings.iter().any(|b| !b.held.is_empty()));
+    use padtype::model::{Action, Button, Dpad, Key};
+    let find = |action| layout.bindings.iter().find(|b| b.action == action).unwrap();
+    assert_eq!(layout.strategy.shift, Some(Button::L2));
+    assert_eq!(layout.strategy.layer, Some(Button::R2));
+    for lower in 'a'..='z' {
+        let base = find(Action::Character(lower));
+        let upper = find(Action::Character(lower.to_ascii_uppercase()));
+        assert!(base.held.is_empty());
+        assert_eq!(base.chord, upper.chord);
+        assert_eq!(upper.held, [Button::L2]);
+    }
+    for b in &layout.bindings {
+        if matches!(b.action, Action::Character(c) if c.is_ascii_digit() || c.is_ascii_punctuation())
+        {
+            assert!(b.held.contains(&Button::R2));
+        }
+    }
+    for (action, button) in [
+        (Action::Character(' '), Button::R1),
+        (Action::Key(Key::Backspace), Button::L1),
+    ] {
+        let b = find(action);
+        assert_eq!(b.chord.buttons, [button]);
+        assert_eq!(b.chord.dpad, Dpad::Neutral);
+        assert!(b.held.is_empty());
+    }
+
+    for b in &layout.bindings {
+        padtype::model::validate_independent_input(
+            &layout.profile,
+            b.chord.input().unwrap(),
+            b.context().unwrap(),
+        )
+        .unwrap();
+    }
+    success(run(dir.path(), &["render", "--layout", "layout.json"]));
+    assert_eq!(
+        fs::read_to_string(dir.path().join("layout.html"))
+            .unwrap()
+            .matches("class=\"chord-card\"")
+            .count(),
+        layout.bindings.len()
+    );
+    fs::write(dir.path().join("task.txt"), "the quick brown fox\n").unwrap();
+    let scored = success(run(
+        dir.path(),
+        &["score", "--layout", "layout.json", "--corpus", "task.txt"],
+    ));
+    let score: Value = serde_json::from_slice(&scored.stdout).unwrap();
+    assert!(score["same_hand_transition_rate"].as_f64().unwrap() <= 1.0);
+    success(run(dir.path(), &args));
+    assert_eq!(bytes, fs::read(dir.path().join("layout.json")).unwrap());
+    assert!(
+        !run(
+            dir.path(),
+            &["generate", "--independent", "--same-hand-penalty=-1"]
+        )
+        .status
+        .success()
+    );
+}

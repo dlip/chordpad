@@ -6,7 +6,8 @@ Build a Linux typing application and a layout generator sharing the same chord
 and action model. Optimize for few, comfortable actions per character, including
 the cost of Shift, layers, and transitions between characters.
 
-Supported controls are the D-pad, A/B/X/Y, L1/R1, and L2/R2. All physically
+Supported controls are the D-pad, A/B/X/Y, L1/R1, L2/R2, and both thumbsticks.
+Thumbsticks provide keyboard modifiers. All physically
 achievable combinations are in scope when enabled by the profile. Analog L2/R2
 are modifier-only by default; ordinary typing uses A/B/X/Y/L1/R1 and the D-pad.
 Do not impose a universal two- or three-button limit. Allow individual users to
@@ -59,7 +60,9 @@ profile; calibration can refine it over time.
 The first recognizer uses release-to-commit and requires ordinary chord controls
 to return to neutral between strokes. Held modifier controls are exempt from that
 neutral requirement. This intentionally simple baseline can be measured before
-introducing rollover.
+introducing rollover. The opt-in independent strategy now applies the same
+collection and release rules to each half separately, with ordered overlapping
+output and held trigger modifiers; see Implementation status.
 
 Process complete input reports before interpreting state changes, so event order
 inside one hardware report does not change the recognized chord.
@@ -95,7 +98,7 @@ an explicit later policy, tested separately from chord collection.
 
 ## Shift and layers
 
-Each candidate layout assigns a fixed role to every button: ordinary chord
+Legacy strategies assign a fixed role to every button: ordinary chord
 member or held modifier. A modifier can select a layer or Shift state. Its role
 must not change during a stroke. A button used as a held modifier is unavailable
 as an ordinary chord member in that candidate.
@@ -238,6 +241,22 @@ SVG controller diagrams, base-control annotations, chord cards grouped by held
 state, exact character/action search, and full-size chord previews. It prints all
 bindings regardless of screen filters, with separate modifier-state sections.
 The document uses the same layout validation as the runtime and generator.
+
+The opt-in independent preset recognizes D-pad/L1 and ABXY/R1 strokes separately,
+with ordered overlapping output. All letters use digital base chords; uppercase
+shares those chords through held L2 Shift. Held R2 selects numbers/symbols.
+R1 is Space and L1 is Backspace across all modifier states. Optional A+Y/B+X
+exclusion and a tunable transition cost favor comfortable free-hand alternation.
+The cost is a bigram preference, not a timing simulation, and text corpora do not
+model shortcut tasks. Invariant editing keys are scored at their base bindings.
+
+Thumbsticks add latched keyboard modifiers: up Alt, down Command/Meta, outward
+Ctrl, outward diagonals Ctrl plus the adjacent vertical modifier, and the inward
+sector Alt+Command. Left/right mappings mirror one another. Both sticks combine
+with Shift and the numbers/symbols layer. Linux mappings detect stick axes and
+normalize them with configurable centers, inversion, and hysteresis. Runtime,
+replay and visual references share the mapping. Physical ergonomics and overlapping
+desktop text entry remain unvalidated.
 
 The inspector provides device discovery, read-only evdev input, trigger endpoint
 calibration with hysteresis, release-to-commit recognition, optional generated

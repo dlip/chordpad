@@ -3,6 +3,7 @@ use std::{fs, process::Command};
 
 fn layout() -> Layout {
     let binding = |action, dpad, buttons, held| Binding {
+        held_dpad: Dpad::Neutral,
         action,
         chord: Chord { dpad, buttons },
         held,
@@ -11,6 +12,7 @@ fn layout() -> Layout {
         schema_version: SCHEMA_VERSION,
         cost_model_version: COST_MODEL_VERSION,
         strategy: Strategy {
+            independent: false,
             name: "reference".into(),
             shift: Some(Button::R2),
             layer: Some(Button::L2),
@@ -150,6 +152,7 @@ fn long_single_control_actions_keep_full_names_without_overflowing_overview_labe
     layout.strategy.layer = None;
     layout.bindings = vec![
         Binding {
+            held_dpad: Dpad::Neutral,
             action: Action::Shortcut(Shortcut {
                 modifiers: vec![
                     Modifier::Ctrl,
@@ -166,6 +169,7 @@ fn long_single_control_actions_keep_full_names_without_overflowing_overview_labe
             held: vec![],
         },
         Binding {
+            held_dpad: Dpad::Neutral,
             action: Action::Shortcut(Shortcut {
                 modifiers: vec![Modifier::Ctrl],
                 key: Key::C,
@@ -177,6 +181,7 @@ fn long_single_control_actions_keep_full_names_without_overflowing_overview_labe
             held: vec![],
         },
         Binding {
+            held_dpad: Dpad::Neutral,
             action: Action::Key(Key::PageDown),
             chord: Chord {
                 dpad: Dpad::Up,
@@ -185,6 +190,7 @@ fn long_single_control_actions_keep_full_names_without_overflowing_overview_labe
             held: vec![],
         },
         Binding {
+            held_dpad: Dpad::Neutral,
             action: Action::Key(Key::Escape),
             chord: Chord {
                 dpad: Dpad::Down,
@@ -235,6 +241,7 @@ fn export_escapes_layout_text_and_handles_direct_and_custom_modifier_roles() {
     );
     layout.strategy.shift = Some(Button::L1);
     layout.bindings.push(Binding {
+        held_dpad: Dpad::Neutral,
         action: Action::Character('A'),
         chord: Chord {
             buttons: vec![Button::A],
@@ -307,4 +314,43 @@ fn output_aliases_cannot_overwrite_the_source_layout() {
         assert!(String::from_utf8_lossy(&result.stderr).contains("must not overwrite"));
         assert_eq!(fs::read(&input).unwrap(), original);
     }
+}
+
+#[test]
+fn independent_reference_shows_fixed_keys_shift_pairs_and_number_layer() {
+    let mut layout = layout();
+    layout.strategy = Strategy {
+        name: "independent".into(),
+        independent: true,
+        shift: Some(Button::L2),
+        layer: Some(Button::R2),
+    };
+    layout.recognition = "independent-release".into();
+    let make = |c, held| Binding {
+        action: Action::Character(c),
+        chord: Chord {
+            dpad: Dpad::Neutral,
+            buttons: vec![Button::A],
+        },
+        held,
+        held_dpad: Dpad::Neutral,
+    };
+    layout.bindings = vec![
+        make('a', vec![]),
+        make('A', vec![Button::L2]),
+        make('1', vec![Button::R2]),
+        make('!', vec![Button::R2, Button::L2]),
+    ];
+    let html = render::html(&layout).unwrap();
+    assert_eq!(html.matches("class=\"chord-card\"").count(), 4);
+    assert_eq!(html.matches("<section class=\"layer\"").count(), 4);
+    assert!(html.contains("L2 · Shift"));
+    assert!(html.contains("R2 · Layer"));
+    assert!(html.contains("R1 is Space and L1 is Backspace in every layer"));
+    assert!(html.contains("uppercase letters use the same chords as lowercase"));
+    assert!(html.contains("Hold L2 + R2; press A"));
+    assert!(html.contains("Thumbstick modifiers"));
+    assert_eq!(html.matches("class=\"stick-cell\"").count(), 18);
+    assert!(html.contains("Alt + Command"));
+    assert!(html.contains("Ctrl + Command"));
 }

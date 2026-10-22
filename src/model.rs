@@ -4,8 +4,38 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 
-pub const SCHEMA_VERSION: u32 = 1;
-pub const COST_MODEL_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
+pub const COST_MODEL_VERSION: u32 = 2;
+
+fn is_false(value: &bool) -> bool {
+    !value
+}
+fn is_zero(value: &f64) -> bool {
+    *value == 0.0
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum Side {
+    Left,
+    Right,
+}
+
+impl Side {
+    pub const ALL: [Self; 2] = [Self::Left, Self::Right];
+    pub fn index(self) -> usize {
+        match self {
+            Self::Left => 0,
+            Self::Right => 1,
+        }
+    }
+    pub fn mask(self) -> u8 {
+        match self {
+            Self::Left => Button::L1.bit() | Button::L2.bit(),
+            Self::Right => !(Button::L1.bit() | Button::L2.bit()),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Button {
@@ -52,6 +82,13 @@ pub enum Dpad {
 }
 
 impl Dpad {
+    pub fn is_neutral(&self) -> bool {
+        *self == Self::Neutral
+    }
+    pub fn bits(self) -> u8 {
+        let (x, y) = self.position();
+        u8::from(x < 0) | (u8::from(x > 0) << 1) | (u8::from(y < 0) << 2) | (u8::from(y > 0) << 3)
+    }
     pub const ALL: [Self; 9] = [
         Self::Neutral,
         Self::Up,
@@ -100,13 +137,43 @@ impl Chord {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Input {
     pub dpad: Dpad,
     pub mask: u8,
 }
 
 impl Input {
+    pub fn half(self, side: Side) -> Self {
+        Self {
+            mask: self.mask & side.mask(),
+            dpad: if side == Side::Left {
+                self.dpad
+            } else {
+                Dpad::Neutral
+            },
+        }
+    }
+    pub fn typing_side(self) -> Option<Side> {
+        if self.controls() == 0 || self.mask & (Button::L2.bit() | Button::R2.bit()) != 0 {
+            return None;
+        }
+        Side::ALL.into_iter().find(|side| self.half(*side) == self)
+    }
+    pub fn with_context(self, context: Self) -> Self {
+        Self {
+            mask: self.mask | context.mask,
+            dpad: if self.dpad == Dpad::Neutral {
+                context.dpad
+            } else {
+                self.dpad
+            },
+        }
+    }
+    pub fn hands(self) -> u8 {
+        u8::from(self.half(Side::Left).controls() > 0)
+            | (u8::from(self.half(Side::Right).controls() > 0) << 1)
+    }
     pub fn controls(self) -> u32 {
         self.mask.count_ones() + self.dpad.controls()
     }
@@ -261,6 +328,8 @@ impl Action {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Strategy {
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub independent: bool,
     pub name: String,
     #[serde(default)]
     pub shift: Option<Button>,
@@ -269,6 +338,13 @@ pub struct Strategy {
 }
 
 impl Strategy {
+    pub fn recognition(&self) -> &'static str {
+        if self.independent {
+            "independent-release"
+        } else {
+            "release-all"
+        }
+    }
     pub fn modifier_mask(&self) -> u8 {
         self.shift.map_or(0, Button::bit) | self.layer.map_or(0, Button::bit)
     }
@@ -277,6 +353,8 @@ impl Strategy {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Costs {
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub same_hand_transition: f64,
     pub buttons: BTreeMap<Button, f64>,
     pub dpad: f64,
     pub diagonal_extra: f64,
@@ -290,6 +368,7 @@ pub struct Costs {
 impl Default for Costs {
     fn default() -> Self {
         Self {
+            same_hand_transition: 0.0,
             buttons: Button::ALL
                 .into_iter()
                 .map(|b| {
@@ -313,6 +392,24 @@ impl Default for Costs {
 }
 
 impl Costs {
+    pub fn effort_with_context(&self, input: Input, context: Input) -> f64 {
+        let base = self.effort(input, context.mask);
+        if context.dpad == Dpad::Neutral {
+            return base;
+        }
+        let before = (input.mask | context.mask).count_ones() + input.dpad.controls();
+        let after = before + context.dpad.controls();
+        base + (self.dpad
+            + if context.dpad.controls() == 2 {
+                self.diagonal_extra
+            } else {
+                0.0
+            })
+            * self.held_load
+            + self.chord_complexity
+                * (f64::from(after.saturating_sub(1)).powi(2)
+                    - f64::from(before.saturating_sub(1)).powi(2))
+    }
     pub fn effort(&self, input: Input, held: u8) -> f64 {
         let physical = input.mask | held;
         let count = physical.count_ones() + input.dpad.controls();
@@ -377,6 +474,8 @@ impl Default for Weights {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Profile {
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub exclude_opposite_face_pairs: bool,
     pub diagonals: bool,
     pub disabled_buttons: Vec<Button>,
     pub modifier_only_buttons: Vec<Button>,
@@ -389,6 +488,7 @@ pub struct Profile {
 impl Default for Profile {
     fn default() -> Self {
         Self {
+            exclude_opposite_face_pairs: false,
             diagonals: true,
             disabled_buttons: vec![],
             modifier_only_buttons: vec![Button::L2, Button::R2],
@@ -424,6 +524,7 @@ impl Profile {
             nonnegative(&format!("cost for {button:?}"), *value)?;
         }
         for (name, value) in [
+            ("same_hand_transition", self.costs.same_hand_transition),
             ("dpad", self.costs.dpad),
             ("diagonal_extra", self.costs.diagonal_extra),
             ("chord_complexity", self.costs.chord_complexity),
@@ -439,6 +540,13 @@ impl Profile {
 
     pub fn allows(&self, input: Input) -> bool {
         if input.controls() == 0
+            || self.exclude_opposite_face_pairs
+                && [
+                    Button::A.bit() | Button::Y.bit(),
+                    Button::B.bit() | Button::X.bit(),
+                ]
+                .into_iter()
+                .any(|pair| input.mask & pair == pair)
             || (!self.diagonals && input.dpad.controls() == 2)
             || self
                 .disabled_buttons
@@ -463,10 +571,63 @@ impl Profile {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Binding {
+    #[serde(default, skip_serializing_if = "Dpad::is_neutral")]
+    pub held_dpad: Dpad,
     pub action: Action,
     pub chord: Chord,
     #[serde(default)]
     pub held: Vec<Button>,
+}
+
+impl Binding {
+    pub fn context(&self) -> Result<Input> {
+        Ok(Input {
+            mask: button_mask(&self.held)?,
+            dpad: self.held_dpad,
+        })
+    }
+}
+
+pub fn independent_fixed_action(input: Input) -> Option<Action> {
+    if input.dpad != Dpad::Neutral {
+        return None;
+    }
+    if input.mask == Button::L1.bit() {
+        Some(Action::Key(Key::Backspace))
+    } else if input.mask == Button::R1.bit() {
+        Some(Action::Character(' '))
+    } else {
+        None
+    }
+}
+
+pub fn independent_binding_allowed(action: &Action, input: Input, context: Input) -> bool {
+    if let Some(fixed) = independent_fixed_action(input) {
+        return *action == fixed && context.controls() == 0;
+    }
+    match action {
+        Action::Character(' ') | Action::Key(Key::Space | Key::Backspace) => false,
+        Action::Character(c) if c.is_alphabetic() => context.mask & Button::R2.bit() == 0,
+        Action::Character(c) if !c.is_whitespace() && !c.is_control() => {
+            context.mask & Button::R2.bit() != 0
+        }
+        _ => true,
+    }
+}
+
+pub fn validate_independent_input(profile: &Profile, input: Input, context: Input) -> Result<()> {
+    input
+        .typing_side()
+        .ok_or("independent typing chords must use one half and cannot contain triggers")?;
+    if context.dpad != Dpad::Neutral || context.mask & !(Button::L2.bit() | Button::R2.bit()) != 0 {
+        return Err("independent held controls must be L2 (Shift) and R2 (numbers/symbols)".into());
+    }
+    if input.mask & button_mask(&profile.modifier_only_buttons)? != 0
+        || !profile.allows(input.with_context(context))
+    {
+        return Err("independent chord or held context is forbidden by the profile".into());
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -481,6 +642,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let strategy = |name: &str, shift, layer| Strategy {
+            independent: false,
             name: name.into(),
             shift,
             layer,
@@ -523,6 +685,11 @@ impl Config {
         }
         let mut names = BTreeSet::new();
         for strategy in &self.strategies {
+            if strategy.independent
+                && (strategy.shift != Some(Button::L2) || strategy.layer != Some(Button::R2))
+            {
+                return Err("independent strategies require L2 as Shift and R2 as the numbers/symbols layer".into());
+            }
             if strategy.name.is_empty() || !names.insert(&strategy.name) {
                 return Err("strategy names must be nonempty and unique".into());
             }
@@ -600,11 +767,21 @@ pub struct Layout {
 
 impl Layout {
     pub fn validate(&self) -> Result<()> {
-        if self.schema_version != SCHEMA_VERSION || self.cost_model_version != COST_MODEL_VERSION {
+        if ![1, SCHEMA_VERSION].contains(&self.schema_version)
+            || ![1, COST_MODEL_VERSION].contains(&self.cost_model_version)
+        {
             return Err("unsupported layout schema or cost model version".into());
         }
-        if self.recognition != "release-all" {
+        if self.recognition != self.strategy.recognition() {
             return Err("unsupported chord recognition policy".into());
+        }
+        if (self.strategy.independent || self.profile.costs.same_hand_transition != 0.0)
+            && (self.schema_version < 2 || self.cost_model_version < 2)
+        {
+            return Err(
+                "independent recognition and alternation scoring require layout/cost versions 2"
+                    .into(),
+            );
         }
         let r = self.normalization;
         if [r.effort, r.activations, r.movement, r.coverage, r.learning]
@@ -630,9 +807,17 @@ impl Layout {
         for binding in &self.bindings {
             let input = binding.chord.input()?;
             let held = button_mask(&binding.held)?;
+            let context = binding.context()?;
+            if self.strategy.independent {
+                validate_independent_input(&self.profile, input, context)?;
+                if !independent_binding_allowed(&binding.action, input, context) {
+                    return Err("independent layouts require base letters, R2 numbers/symbols, R1 Space and L1 Backspace".into());
+                }
+            }
             let (group, shifted) = binding.action.group(self.strategy.shift.is_some());
             let shift = self.strategy.shift.map_or(0, Button::bit);
             if input.controls() == 0
+                || binding.held_dpad != Dpad::Neutral
                 || input.mask & excluded != 0
                 || held & !self.strategy.modifier_mask() != 0
                 || (held & shift != 0) != shifted
@@ -643,7 +828,13 @@ impl Layout {
             {
                 return Err(format!("invalid binding for {}", binding.action.label()));
             }
-            let slot = (input, held & self.strategy.layer.map_or(0, Button::bit));
+            let slot = (
+                input,
+                Input {
+                    dpad: Dpad::Neutral,
+                    mask: held & self.strategy.layer.map_or(0, Button::bit),
+                },
+            );
             if groups
                 .insert(group.clone(), slot)
                 .is_some_and(|previous| previous != slot)
