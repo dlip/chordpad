@@ -1,0 +1,327 @@
+use serde_json::Value;
+use std::{
+    fs,
+    path::Path,
+    process::{Command, Output},
+};
+
+fn run(dir: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_padtype"))
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+fn success(output: Output) -> Output {
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    output
+}
+
+#[test]
+fn generate_export_and_score_are_reproducible_and_respect_constraints() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("train.txt"), "aab ba AAB!\n").unwrap();
+    fs::write(dir.path().join("held.txt"), "BA ab!\n").unwrap();
+    fs::write(
+        dir.path().join("config.json"),
+        r#"{
+        "profile": {"diagonals": false, "forbidden_combinations": [["A", "Y"]]},
+        "strategies": [
+            {"name":"direct"},
+            {"name":"shift-layer", "shift":"L2", "layer":"R2"}
+        ],
+        "pinned_bindings": [{"action":{"type":"character","value":" "},"chord":{"buttons":["A"]}}]
+    }"#,
+    )
+    .unwrap();
+    let args = [
+        "generate",
+        "--corpus",
+        "train.txt",
+        "--held-out",
+        "held.txt",
+        "--config",
+        "config.json",
+        "--alphabet",
+        "corpus",
+        "--iterations",
+        "300",
+        "--restarts",
+        "2",
+        "--output",
+        "layout.json",
+    ];
+    success(run(dir.path(), &args));
+    let layout_bytes = fs::read(dir.path().join("layout.json")).unwrap();
+    let report_bytes = fs::read(dir.path().join("layout.report.json")).unwrap();
+    let report: Value = serde_json::from_slice(&report_bytes).unwrap();
+    assert_eq!(report["candidates"].as_array().unwrap().len(), 2);
+    assert!(report["skipped"].as_array().unwrap().is_empty());
+    for candidate in report["candidates"].as_array().unwrap() {
+        assert!(
+            candidate["training"]["objective"].as_f64().unwrap()
+                <= candidate["baseline"]["objective"].as_f64().unwrap()
+        );
+        let mut space_found = false;
+        for binding in candidate["layout"]["bindings"].as_array().unwrap() {
+            assert!(!binding["chord"]["dpad"].as_str().unwrap().contains('-'));
+            let buttons = binding["chord"]["buttons"].as_array().unwrap();
+            assert!(!buttons.contains(&Value::from("L2")));
+            assert!(!buttons.contains(&Value::from("R2")));
+            assert!(!(buttons.contains(&Value::from("A")) && buttons.contains(&Value::from("Y"))));
+            if binding["action"]["value"] == " " {
+                assert_eq!(buttons, &[Value::from("A")]);
+                assert_eq!(binding["held"], serde_json::json!([]));
+                space_found = true;
+            }
+        }
+        assert!(space_found);
+    }
+    let scored = success(run(
+        dir.path(),
+        &["score", "--layout", "layout.json", "--corpus", "train.txt"],
+    ));
+    let score: Value = serde_json::from_slice(&scored.stdout).unwrap();
+    assert!(
+        (score["objective"].as_f64().unwrap()
+            - report["candidates"][0]["training"]["objective"]
+                .as_f64()
+                .unwrap())
+        .abs()
+            < 1e-10
+    );
+    success(run(dir.path(), &args));
+    assert_eq!(
+        layout_bytes,
+        fs::read(dir.path().join("layout.json")).unwrap()
+    );
+    assert_eq!(
+        report_bytes,
+        fs::read(dir.path().join("layout.report.json")).unwrap()
+    );
+}
+
+#[test]
+fn validation_errors_do_not_create_output_files() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("train.txt"), "ab").unwrap();
+    fs::write(dir.path().join("held.txt"), "Ω").unwrap();
+    fs::write(
+        dir.path().join("bad.json"),
+        r#"{"weights":{"activations":-1}}"#,
+    )
+    .unwrap();
+    for args in [
+        vec!["generate", "--corpus", "train.txt", "--config", "bad.json"],
+        vec![
+            "generate",
+            "--corpus",
+            "train.txt",
+            "--alphabet",
+            "corpus",
+            "--held-out",
+            "held.txt",
+        ],
+        vec!["generate", "--iterations", "0"],
+        vec!["generate", "--strategy", "unknown"],
+        vec![
+            "generate",
+            "--output",
+            "layout.json",
+            "--report",
+            "./layout.json",
+        ],
+    ] {
+        let output = run(dir.path(), &args);
+        assert!(!output.status.success());
+        assert!(!dir.path().join("layout.json").exists());
+        assert!(!dir.path().join("layout.report.json").exists());
+    }
+}
+
+#[test]
+fn default_configuration_round_trips_and_unknown_fields_fail() {
+    let dir = tempfile::tempdir().unwrap();
+    let defaults = success(run(dir.path(), &["defaults"]));
+    let config: padtype::model::Config = serde_json::from_slice(&defaults.stdout).unwrap();
+    config.validate().unwrap();
+    assert_eq!(config.strategies.len(), 7);
+    assert_eq!(
+        config.profile.modifier_only_buttons,
+        [padtype::model::Button::L2, padtype::model::Button::R2]
+    );
+    let partial: padtype::model::Config =
+        serde_json::from_str(r#"{"profile":{"diagonals":false}}"#).unwrap();
+    assert_eq!(
+        partial.profile.modifier_only_buttons,
+        config.profile.modifier_only_buttons
+    );
+    assert!(
+        serde_json::from_str::<padtype::model::Config>(r#"{"profile":{"diagonal":false}}"#)
+            .is_err()
+    );
+}
+
+#[test]
+fn failed_export_preserves_an_existing_layout() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("train.txt"), "ab").unwrap();
+    fs::write(dir.path().join("layout.json"), "existing layout").unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "generate",
+            "--corpus",
+            "train.txt",
+            "--alphabet",
+            "corpus",
+            "--strategy",
+            "direct",
+            "--iterations",
+            "1",
+            "--restarts",
+            "1",
+            "--report",
+            "missing/report.json",
+        ],
+    );
+    assert!(!output.status.success());
+    assert_eq!(
+        fs::read_to_string(dir.path().join("layout.json")).unwrap(),
+        "existing layout"
+    );
+    assert!(!dir.path().join("layout.report.json").exists());
+}
+
+#[test]
+fn output_paths_cannot_overwrite_any_input_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let inputs = [
+        ("train.txt", "ab"),
+        ("held.txt", "ba"),
+        ("config.json", "{}"),
+    ];
+    for (path, contents) in inputs {
+        fs::write(dir.path().join(path), contents).unwrap();
+    }
+    fs::write(dir.path().join("layout.json"), "existing layout").unwrap();
+    fs::write(dir.path().join("layout.report.json"), "existing report").unwrap();
+    for (input, _) in inputs {
+        let absolute = dir.path().join(input).to_str().unwrap().to_owned();
+        for target in [input, absolute.as_str()] {
+            for flag in ["--output", "--report"] {
+                let mut args = vec![
+                    "generate",
+                    "--corpus",
+                    "train.txt",
+                    "--held-out",
+                    "held.txt",
+                    "--config",
+                    "config.json",
+                    "--alphabet",
+                    "corpus",
+                    "--strategy",
+                    "direct",
+                    "--iterations",
+                    "1",
+                    "--restarts",
+                    "1",
+                    "--output",
+                    "layout.json",
+                    "--report",
+                    "layout.report.json",
+                ];
+                let index = args.iter().position(|&arg| arg == flag).unwrap() + 1;
+                args[index] = target;
+                let output = run(dir.path(), &args);
+                assert!(!output.status.success(), "{flag} {target} should fail");
+                assert!(
+                    String::from_utf8_lossy(&output.stderr)
+                        .contains("must not overwrite input file")
+                );
+                for (path, contents) in inputs {
+                    assert_eq!(fs::read_to_string(dir.path().join(path)).unwrap(), contents);
+                }
+                assert_eq!(
+                    fs::read_to_string(dir.path().join("layout.json")).unwrap(),
+                    "existing layout"
+                );
+                assert_eq!(
+                    fs::read_to_string(dir.path().join("layout.report.json")).unwrap(),
+                    "existing report"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_aliases_cannot_bypass_input_protection() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("train.txt"), "ab").unwrap();
+    std::os::unix::fs::symlink(dir.path(), dir.path().join("alias")).unwrap();
+    std::os::unix::fs::symlink("train.txt", dir.path().join("linked.txt")).unwrap();
+    for target in ["alias/train.txt", "linked.txt"] {
+        let output = run(
+            dir.path(),
+            &[
+                "generate",
+                "--corpus",
+                "train.txt",
+                "--output",
+                target,
+                "--strategy",
+                "direct",
+                "--alphabet",
+                "corpus",
+                "--iterations",
+                "1",
+                "--restarts",
+                "1",
+            ],
+        );
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("must not overwrite input file"));
+        assert_eq!(
+            fs::read_to_string(dir.path().join("train.txt")).unwrap(),
+            "ab"
+        );
+        assert!(dir.path().join("linked.txt").is_symlink());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn output_paths_must_differ_even_through_symlinked_directories() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir(dir.path().join("out")).unwrap();
+    std::os::unix::fs::symlink("out", dir.path().join("alias")).unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "generate",
+            "--output",
+            "out/result.json",
+            "--report",
+            "alias/result.json",
+            "--strategy",
+            "direct",
+            "--iterations",
+            "1",
+            "--restarts",
+            "1",
+        ],
+    );
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("layout and report paths must be different")
+    );
+    assert!(!dir.path().join("out/result.json").exists());
+}

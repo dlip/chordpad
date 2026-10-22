@@ -1,0 +1,13 @@
+{
+  "profile": {
+    "diagonals": false,
+    "forbidden_combinations": [["A", "Y"], ["B", "X"]],
+    "costs": { "multiple_face_buttons": 3.0 }
+  },
+  "pinned_bindings": [
+    {
+      "action": { "type": "character", "value": " " },
+      "chord": { "buttons": ["A"] }
+    }
+  ]
+}

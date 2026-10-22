@@ -1,0 +1,19 @@
+The layout should make ordinary writing comfortable. A short chord for a common
+letter helps, but the movement between letters matters too. We often type the
+same words: the, and, that, with, this, from, have, you, your, and something new.
+
+Keep the spaces, punctuation, and capitals. They are part of typing. Can I write
+a sentence, correct a mistake, and start another line? Yes! The generator should
+count those actions instead of treating every button combination as equally easy.
+
+At 9:30, Sam wrote: "Bring 2 notebooks, 3 pens, and $12.50." Later, we checked
+the plan (version 1), added a note, and saved it. Numbers and symbols need room.
+Common letters should stay close; rare characters can use more effort.
+
+A layer can be held while several characters are entered. Entering and leaving
+that layer has a cost. Shift helps with CAPITALS and with symbols like ! and ?.
+We should compare those choices with direct chords, then practice the candidates.
+
+This is a small demonstration corpus, not a representative training dataset.
+Replace it with text like the material you actually want to type. Use a separate
+file to evaluate the result, and compare comfort and accuracy on your controller.
