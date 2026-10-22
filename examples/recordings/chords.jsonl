@@ -1,0 +1,16 @@
+{"type":"header","header":{"schema_version":1,"calibration":{"schema_version":1,"buttons":{"A":304,"B":305,"X":308,"Y":307,"L1":310,"R1":311},"dpad":{"type":"hat","x":16,"y":17},"triggers":{"L2":{"type":"axis","code":2,"rest":0,"pressed":255},"R2":{"type":"axis","code":5,"rest":0,"pressed":255}}},"strategy":{"name":"inspector","shift":"L2","layer":"R2"},"profile":{},"layout":null}}
+{"type":"frame","at_us":0,"events":[]}
+{"type":"frame","at_us":10000,"events":[{"event_type":1,"code":304,"value":1}]}
+{"type":"frame","at_us":20000,"events":[{"event_type":1,"code":310,"value":1},{"event_type":1,"code":311,"value":1}]}
+{"type":"frame","at_us":30000,"events":[{"event_type":1,"code":304,"value":0}]}
+{"type":"frame","at_us":40000,"events":[{"event_type":1,"code":310,"value":0},{"event_type":1,"code":311,"value":0}]}
+{"type":"frame","at_us":50000,"events":[{"event_type":3,"code":17,"value":-1},{"event_type":1,"code":308,"value":1},{"event_type":3,"code":5,"value":200}]}
+{"type":"frame","at_us":60000,"events":[{"event_type":1,"code":308,"value":0},{"event_type":3,"code":17,"value":0}]}
+{"type":"frame","at_us":70000,"events":[{"event_type":3,"code":17,"value":-1},{"event_type":1,"code":308,"value":1}]}
+{"type":"frame","at_us":80000,"events":[{"event_type":1,"code":308,"value":0},{"event_type":3,"code":17,"value":0}]}
+{"type":"frame","at_us":90000,"events":[{"event_type":3,"code":5,"value":0}]}
+{"type":"frame","at_us":100000,"events":[{"event_type":3,"code":2,"value":200},{"event_type":1,"code":304,"value":1}]}
+{"type":"frame","at_us":110000,"events":[{"event_type":1,"code":304,"value":0}]}
+{"type":"frame","at_us":120000,"events":[{"event_type":1,"code":305,"value":1}]}
+{"type":"frame","at_us":130000,"events":[{"event_type":1,"code":305,"value":0},{"event_type":3,"code":2,"value":0}]}
+{"type":"end","at_us":140000,"reason":"example complete"}

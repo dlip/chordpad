@@ -12,6 +12,7 @@ use serde::Serialize;
 use padtype::{
     Result,
     corpus::{Corpus, CorpusSummary, Stats},
+    inspector,
     model::*,
     search::{self, Problem, Score},
 };
@@ -19,7 +20,7 @@ use padtype::{
 #[derive(Parser)]
 #[command(
     version,
-    about = "Find efficient gamepad typing layouts from a text corpus"
+    about = "Generate gamepad typing layouts, inspect chords, and type on Linux"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -39,6 +40,19 @@ enum Command {
     },
     /// Print the complete editable configuration, including all cost estimates.
     Defaults,
+    /// List readable Linux gamepad event devices and their controls.
+    Devices {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Display normalized controls and recognized chords without typing.
+    Inspect(inspector::InspectArgs),
+    /// Measure analog trigger endpoints and save a new controller mapping.
+    Calibrate(inspector::CalibrateArgs),
+    /// Replay a recorded controller session without hardware or delays.
+    Replay(inspector::ReplayArgs),
+    /// Type with a generated layout using a Linux virtual keyboard (starts paused).
+    Type(padtype::typing::TypeArgs),
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -150,6 +164,17 @@ fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Command::Generate(args) => generate(args),
+        Command::Replay(args) => inspector::replay(args),
+        #[cfg(target_os="linux")]
+        Command::Devices{json}=>padtype::linux::devices(json),
+        #[cfg(target_os="linux")]
+        Command::Inspect(args)=>padtype::linux::inspect(args),
+        #[cfg(target_os="linux")]
+        Command::Calibrate(args)=>padtype::linux::calibrate(args),
+        #[cfg(target_os="linux")]
+        Command::Type(args)=>padtype::linux::type_layout(args),
+        #[cfg(not(target_os="linux"))]
+        Command::Devices{..}|Command::Inspect(_)|Command::Calibrate(_)|Command::Type(_)=>Err("live controller access and typing require Linux; recorded sessions can be replayed on this platform".into()),
     }
 }
 

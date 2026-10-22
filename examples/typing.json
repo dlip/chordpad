@@ -1,0 +1,15 @@
+{
+  "profile": {
+    "forbidden_combinations": [["L1", "R1", "L2", "R2"]]
+  },
+  "pinned_bindings": [
+    {
+      "action": { "type": "shortcut", "value": { "modifiers": ["ctrl"], "key": "c" } },
+      "chord": { "buttons": ["X", "L1"] }
+    },
+    {
+      "action": { "type": "shortcut", "value": { "modifiers": ["ctrl"], "key": "v" } },
+      "chord": { "buttons": ["B", "L1"] }
+    }
+  ]
+}

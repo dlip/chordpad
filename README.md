@@ -7,7 +7,8 @@ Inputs are the D-pad, A/B/X/Y, L1/R1, and L2/R2. Direct typing chords use the
 D-pad and A/B/X/Y/L1/R1 by default. The analog L2/R2 triggers are reserved for
 held Shift or layers. The generator chooses combinations within those roles.
 
-The layout generator is implemented. The Linux typing app is planned.
+The layout generator, controller inspector, and Linux virtual-keyboard runtime
+are implemented. Desktop editor and terminal testing is still pending.
 
 ## Generate a layout
 
@@ -42,8 +43,9 @@ characters. Evaluation fails on uncovered characters instead of ignoring them.
 Pinned actions are also included in the required outputs.
 
 Case, whitespace, and Unicode characters are preserved. CRLF is normalized to LF.
-Unicode is supported as a generator output symbol; the future typing app will
-need an appropriate output backend to type it.
+Unicode is supported as a generator output symbol. The initial typing backend
+supports printable ASCII, Enter and Tab; it rejects unsupported characters before
+opening a controller or virtual keyboard.
 
 ## Configure the search
 
@@ -62,7 +64,7 @@ fields are rejected.
 forbids two opposite-face combinations, and pins Space to A. Those restrictions
 are examples, not defaults. A forbidden button combination also forbids its
 supersets, including held modifiers. `forbidden_chords` excludes an exact physical
-combination, with held modifiers included in its button list. Reserve a future
+combination, with held modifiers included in its button list. Reserve the runtime's
 pause gesture here so it cannot be assigned to a character.
 
 By default, the search compares a direct-chord baseline without triggers, either
@@ -127,6 +129,190 @@ typing speeds or a guarantee of global optimality. This first version has one
 binding per output, systematic US Shift pairs, and at most one held layer. It
 does not yet search one-shot/persistent modes, multiple access paths per output,
 or explicit shortcut/navigation tasks.
+
+## Type on Linux
+
+Build the app and start it with your layout and a readable gamepad event path:
+
+```sh
+cargo build --release
+target/release/padtype type --device /dev/input/event28 --layout layout.json
+```
+
+It starts paused. Press **L1 + R1 + L2 + R2**, then release all controls to enable
+typing. Repeat that gesture to pause. Each action commits when its ordinary
+controls are released; triggers assigned to Shift or layer can stay held.
+Ctrl-C or SIGTERM stops the process. It does not record normal typing.
+
+Test the runtime without sending keyboard events:
+
+```sh
+target/release/padtype type --device /dev/input/event28 \
+  --layout layout.json --dry-run --start-active --duration 30
+```
+
+`--dry-run` prints `WOULD TYPE` actions and never opens uinput. `--start-active`
+skips the initial pause, while still requiring neutral controls before typing.
+`--calibration controller.json` uses saved trigger settings. `--grab` requests
+exclusive controller access; the default leaves the gamepad available to other
+applications. Device loss ends the session, discards a pending stroke, and
+releases keyboard keys. Restart the command after reconnecting.
+
+The keyboard backend uses [uinput](https://docs.kernel.org/input/uinput.html),
+needs read/write access to `/dev/uinput`, and assumes the
+desktop uses a **US keyboard layout**, with Caps Lock off and no other keyboard
+modifiers held. It emits complete press/release sequences for every action,
+including temporary keyboard modifiers. General Unicode, other keyboard layouts,
+automatic key repeat, and persistent/one-shot modes are not implemented.
+
+The PID printed at startup supports pause/resume from another terminal:
+
+```sh
+kill -USR1 PID   # pause
+kill -USR2 PID   # resume after controls return to neutral
+```
+
+Signals discard pending input and refresh controller state. Resume cannot finish
+a stroke that started while paused. The controller toggle consumes its whole
+gesture, including release; no character is emitted. `--pause-buttons A,B,L1,R1`
+changes the reserved button set. Its supersets are reserved in every layer and
+D-pad position. Layouts with conflicting bindings or disabled gesture buttons
+are rejected before device access.
+
+For new layouts, reserve the gesture in the generator's profile. The example
+also pins Ctrl+C to L1+X and Ctrl+V to L1+B:
+
+```sh
+cargo run --release -- generate --config examples/typing.json --corpus writing.txt
+```
+
+[examples/typing.json](examples/typing.json) uses
+`"forbidden_combinations": [["L1", "R1", "L2", "R2"]]` to reserve the default
+gesture. Existing layouts work if none of their bindings use that combination.
+Generating with a different pause gesture requires reserving that set instead.
+
+Shortcut actions use physical keyboard keys, for example:
+
+```json
+{"type":"shortcut","value":{"modifiers":["ctrl","shift"],"key":"c"}}
+```
+
+Modifiers must be nonempty, unique, and ordered `ctrl`, `alt`, `shift`, `meta`.
+Supported keys include letters `a` through `z`, Backspace, Escape, Enter, Tab,
+Space, Delete, Insert, arrows, Home/End, Page Up/Down, and F1 through F12. Multiword
+key names use snake case (`page_up`). A key action uses the same names, such as
+`{"type":"key","value":"left"}`. Pin shortcuts/navigation actions in the
+generator configuration to include them in a generated layout. Plain text
+corpora do not measure their usage frequency.
+
+### Runtime validation
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+cargo test --locked --test typing -- --ignored --nocapture --test-threads=1
+```
+
+The last command requires uinput and input-node permissions. It captures its own
+virtual keyboard exclusively before emitting events, then checks a dry-run
+typing subprocess using an exclusively grabbed virtual gamepad. These checks
+cover real evdev/uinput events without typing into desktop applications.
+
+Kernel-synthesized release reports and forced report splits cancel pending
+strokes and refresh controller state. The input core emits these boundaries
+during [device teardown and reset](https://github.com/torvalds/linux/blob/master/drivers/input/input.c);
+they must not commit a typing chord.
+
+The Kishi Ultra has passed a live inspector test for all six digital buttons,
+four cardinal D-pad directions, full-range triggers, a three-button chord, and
+held Shift/layer lookup. Its live recording replayed identically. Runtime dry-run
+startup, signal pause/resume, and SIGTERM shutdown also passed. Editor/terminal
+typing and Wayland/X11 session compatibility still need hands-on verification.
+
+## Inspect and test a controller
+
+List readable gamepads, then use the event path shown by `devices`:
+
+```sh
+cargo run -- devices
+cargo run -- inspect --device /dev/input/event28 --layout layout.json
+```
+
+Prefer a stable `/dev/input/by-id/*-event-joystick` path when available. Device
+numbers can change after reconnecting. Read access to the selected event node is
+required; discovery reports unreadable nodes. The inspector opens the device
+read-only, leaves it available to other applications, and displays controls and
+recognized actions. It does not create a virtual keyboard or type into apps.
+
+The display includes the D-pad, buttons, trigger travel, and recognition state.
+Release all controls to arm it. Form a chord, then release its ordinary controls
+to commit it once. L2/R2 may remain held between characters. New modifier presses
+during a stroke or new ordinary presses during release cancel that stroke.
+Diagonals freeze when either direction releases, so Up+Left → Up → neutral
+still commits Up+Left.
+
+`--layout` uses the generated layout's roles, physical constraints, and action
+bindings. Without a layout, L2 is Shift and R2 is a held layer, and chords are
+displayed without character assignments. `--duration 10` stops after ten seconds;
+otherwise Ctrl-C stops the session. `--json` emits machine-readable views.
+
+Standard Linux mappings use physical face-button positions (A south, B east,
+X west, Y north). Hat-axis D-pad reports take precedence over duplicate button
+reports. Digital D-pads and trigger buttons are also supported. Controllers must
+expose the standard face, shoulder, and D-pad capabilities. Keyboard devices
+advertising gamepad button codes are excluded from discovery. A calibration file
+can override individual raw event codes for device-specific mappings.
+
+### Calibrate L2/R2
+
+```sh
+cargo run -- calibrate --device /dev/input/event28 --output controller.json
+cargo run -- inspect --device /dev/input/event28 \
+  --layout layout.json --calibration controller.json
+```
+
+Calibration first samples two seconds at rest, then asks you to fully press and
+release both triggers for eight seconds. It saves measured endpoints and the
+controller's vendor/product identity. Movement during the rest phase or
+insufficient travel rejects the calibration. `--rest-seconds` and `--sweep-seconds`
+change those intervals. Existing output files are preserved.
+
+Without a calibration file, trigger endpoints come from the driver's advertised
+range. Press activates at 65% travel and release deactivates at 35%, so small
+movements around one threshold do not repeatedly toggle a modifier. Calibration
+also supports reversed analog axes. Edit the saved threshold fractions or event
+codes to adjust a controller's mapping; `--calibration` can reuse that mapping
+for another calibration run.
+
+Calibration is stored separately from generator costs and layout bindings. It
+measures physical trigger endpoints; it does not claim to measure chord comfort
+or typing speed.
+
+### Record and replay
+
+```sh
+cargo run -- inspect --device /dev/input/event28 --layout layout.json \
+  --calibration controller.json --record session.jsonl
+cargo run -- replay --input session.jsonl
+cargo run -- replay --input examples/recordings/chords.jsonl --json
+```
+
+Recordings contain a versioned header with the mapping and optional layout,
+followed by timestamped complete input reports, resets, and an end marker. Replay
+uses the same normalizer and chord engine without hardware or timing delays.
+It reproduces the corresponding live views. Recording requires a new file and
+captures only the selected controller, during this explicit session.
+
+Dropped input reports discard the pending chord and resynchronize from the
+device's current state. Startup and resynchronization require a neutral state
+before accepting strokes. Disconnect or stopping discards pending strokes and
+ends the recording; reconnecting requires starting a new inspector session.
+Incomplete, malformed, out-of-order, or unsupported recordings are rejected.
+
+The synthetic recordings under [examples/recordings](examples/recordings) cover
+staggered chords, held layers and Shift, analog trigger hysteresis, cancellation,
+and resynchronization. They contain no captured personal input.
 
 ## Development
 

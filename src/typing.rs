@@ -1,0 +1,174 @@
+use crate::{
+    Result,
+    chord::{Engine, Event},
+    controller::Snapshot,
+    model::{Action, Button, Layout, button_mask},
+};
+use std::path::PathBuf;
+
+#[derive(clap::Args)]
+pub struct TypeArgs {
+    #[arg(long)]
+    pub device: PathBuf,
+    #[arg(long)]
+    pub layout: PathBuf,
+    #[arg(long)]
+    pub calibration: Option<PathBuf>,
+    /// Display actions without opening uinput or sending keyboard events.
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Start typing after all controls return to neutral. Otherwise start paused.
+    #[arg(long)]
+    pub start_active: bool,
+    /// Reserved toggle gesture, including any held modifiers. All supersets are reserved.
+    #[arg(long, value_delimiter = ',', default_value = "L1,R1,L2,R2", value_parser = parse_button)]
+    pub pause_buttons: Vec<Button>,
+    /// Give padtype exclusive access to the controller until exit.
+    #[arg(long)]
+    pub grab: bool,
+    #[arg(long)]
+    pub duration: Option<u64>,
+}
+
+fn parse_button(value: &str) -> Result<Button> {
+    Button::ALL
+        .into_iter()
+        .find(|b| format!("{b:?}").eq_ignore_ascii_case(value))
+        .ok_or_else(|| format!("unknown button {value:?}; use A,B,X,Y,L1,R1,L2,R2"))
+}
+
+pub trait Output {
+    fn send(&mut self, action: &Action) -> Result<()>;
+    fn release_all(&mut self) -> Result<()>;
+}
+
+pub struct DryRun;
+
+impl Output for DryRun {
+    fn send(&mut self, action: &Action) -> Result<()> {
+        use std::io::Write;
+        writeln!(std::io::stdout().lock(), "WOULD TYPE {}", action.label())
+            .map_err(|e| e.to_string())
+    }
+
+    fn release_all(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Output for Box<dyn Output> {
+    fn send(&mut self, action: &Action) -> Result<()> {
+        (**self).send(action)
+    }
+    fn release_all(&mut self) -> Result<()> {
+        (**self).release_all()
+    }
+}
+
+pub fn validate_pause(layout: &Layout, buttons: &[Button]) -> Result<u8> {
+    let mask = button_mask(buttons)?;
+    if mask == 0 {
+        return Err("pause gesture must contain at least one button".into());
+    }
+    if buttons
+        .iter()
+        .any(|b| layout.profile.disabled_buttons.contains(b))
+    {
+        return Err("pause gesture uses a disabled button; choose --pause-buttons".into());
+    }
+    for binding in &layout.bindings {
+        let physical = binding.chord.input()?.mask | button_mask(&binding.held)?;
+        if physical & mask == mask {
+            return Err(format!(
+                "pause gesture conflicts with {}; reserve it with profile.forbidden_combinations or choose --pause-buttons",
+                binding.action.label()
+            ));
+        }
+    }
+    Ok(mask)
+}
+
+pub struct Runtime<O: Output> {
+    engine: Engine,
+    output: O,
+    pause_mask: u8,
+    gesture_latched: bool,
+    paused: bool,
+}
+
+impl<O: Output> Runtime<O> {
+    pub fn new(layout: Layout, buttons: &[Button], paused: bool, output: O) -> Result<Self> {
+        layout.validate()?;
+        let pause_mask = validate_pause(&layout, buttons)?;
+        Ok(Self {
+            engine: Engine::new(
+                layout.strategy.clone(),
+                layout.profile.clone(),
+                Some(layout),
+            )?,
+            output,
+            pause_mask,
+            gesture_latched: true,
+            paused,
+        })
+    }
+
+    pub fn paused(&self) -> bool {
+        self.paused
+    }
+
+    pub fn set_paused(&mut self, paused: bool) -> Result<Vec<Event>> {
+        if self.paused == paused {
+            return Ok(vec![]);
+        }
+        self.paused = paused;
+        let events = vec![self.engine.reset(if paused { "paused" } else { "resumed" })];
+        self.output.release_all()?;
+        Ok(events)
+    }
+
+    pub fn reset(&mut self, reason: &str) -> Result<Vec<Event>> {
+        // A resync cannot safely tell whether an interrupted gesture already toggled.
+        self.gesture_latched = true;
+        let event = self.engine.reset(reason);
+        self.output.release_all()?;
+        Ok(vec![event])
+    }
+
+    pub fn update(&mut self, snapshot: &Snapshot) -> Result<Vec<Event>> {
+        let input = snapshot.input();
+        if self.gesture_latched {
+            if snapshot.dpad.is_some() && input.controls() == 0 {
+                self.gesture_latched = false;
+                if !self.paused {
+                    return Ok(self.engine.update(snapshot));
+                }
+            }
+            return Ok(vec![]);
+        }
+        if input.mask & self.pause_mask == self.pause_mask {
+            self.gesture_latched = true;
+            return self.set_paused(!self.paused);
+        }
+        if self.paused {
+            return Ok(vec![]);
+        }
+        let events = self.engine.update(snapshot);
+        for event in &events {
+            if let Event::Chord {
+                action: Some(action),
+                ..
+            } = event
+            {
+                self.output.send(action)?;
+            }
+        }
+        Ok(events)
+    }
+}
+
+impl<O: Output> Drop for Runtime<O> {
+    fn drop(&mut self) {
+        let _ = self.output.release_all();
+    }
+}

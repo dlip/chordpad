@@ -584,19 +584,7 @@ pub fn optimize(
 }
 
 pub fn load_layout(layout: &Layout, stats: Stats) -> Result<(Problem, Vec<usize>)> {
-    if layout.schema_version != SCHEMA_VERSION || layout.cost_model_version != COST_MODEL_VERSION {
-        return Err("unsupported layout schema or cost model version".into());
-    }
-    if layout.recognition != "release-all" {
-        return Err("unsupported chord recognition policy".into());
-    }
-    let r = layout.normalization;
-    if [r.effort, r.activations, r.movement, r.coverage, r.learning]
-        .iter()
-        .any(|v| !v.is_finite() || *v <= 0.0)
-    {
-        return Err("normalization values must be finite and positive".into());
-    }
+    layout.validate()?;
     let config = Config {
         profile: layout.profile.clone(),
         weights: layout.weights.clone(),

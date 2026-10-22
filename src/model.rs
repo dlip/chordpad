@@ -138,6 +138,23 @@ pub fn button_mask(buttons: &[Button]) -> Result<u8> {
 pub enum Action {
     Character(char),
     Key(Key),
+    Shortcut(Shortcut),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
+pub struct Shortcut {
+    pub modifiers: Vec<Modifier>,
+    pub key: Key,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum Modifier {
+    Ctrl,
+    Alt,
+    Shift,
+    Meta,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -145,6 +162,57 @@ pub enum Action {
 pub enum Key {
     Backspace,
     Escape,
+    Enter,
+    Tab,
+    Space,
+    Delete,
+    Insert,
+    Left,
+    Right,
+    Up,
+    Down,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
 }
 
 impl Action {
@@ -155,7 +223,27 @@ impl Action {
             Self::Character('\t') => "Tab".into(),
             Self::Character(c) => format!("{c:?}"),
             Self::Key(key) => format!("{key:?}"),
+            Self::Shortcut(shortcut) => shortcut
+                .modifiers
+                .iter()
+                .map(|m| format!("{m:?}"))
+                .chain(std::iter::once(format!("{:?}", shortcut.key)))
+                .collect::<Vec<_>>()
+                .join("+"),
         }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if let Self::Shortcut(shortcut) = self {
+            let unique: BTreeSet<_> = shortcut.modifiers.iter().collect();
+            if unique.is_empty() || unique.len() != shortcut.modifiers.len() {
+                return Err("shortcut modifiers must be nonempty and unique".into());
+            }
+            if !shortcut.modifiers.windows(2).all(|w| w[0] < w[1]) {
+                return Err("shortcut modifiers must be ordered: ctrl, alt, shift, meta".into());
+            }
+        }
+        Ok(())
     }
 
     pub fn group(&self, shift: bool) -> (Self, bool) {
@@ -447,6 +535,7 @@ impl Config {
         }
         let mut actions = BTreeSet::new();
         for binding in &self.pinned_bindings {
+            binding.action.validate()?;
             binding.chord.input()?;
             button_mask(&binding.held)?;
             if !actions.insert(&binding.action) {
@@ -507,4 +596,67 @@ pub struct Layout {
     pub normalization: Metrics,
     pub recognition: String,
     pub bindings: Vec<Binding>,
+}
+
+impl Layout {
+    pub fn validate(&self) -> Result<()> {
+        if self.schema_version != SCHEMA_VERSION || self.cost_model_version != COST_MODEL_VERSION {
+            return Err("unsupported layout schema or cost model version".into());
+        }
+        if self.recognition != "release-all" {
+            return Err("unsupported chord recognition policy".into());
+        }
+        let r = self.normalization;
+        if [r.effort, r.activations, r.movement, r.coverage, r.learning]
+            .iter()
+            .any(|v| !v.is_finite() || *v <= 0.0)
+        {
+            return Err("normalization values must be finite and positive".into());
+        }
+        Config {
+            profile: self.profile.clone(),
+            weights: self.weights.clone(),
+            strategies: vec![self.strategy.clone()],
+            pinned_bindings: self.bindings.clone(),
+        }
+        .validate()?;
+        if self.bindings.is_empty() {
+            return Err("layout must contain bindings".into());
+        }
+        let excluded =
+            self.strategy.modifier_mask() | button_mask(&self.profile.modifier_only_buttons)?;
+        let mut groups = BTreeMap::new();
+        let mut occupied = BTreeMap::new();
+        for binding in &self.bindings {
+            let input = binding.chord.input()?;
+            let held = button_mask(&binding.held)?;
+            let (group, shifted) = binding.action.group(self.strategy.shift.is_some());
+            let shift = self.strategy.shift.map_or(0, Button::bit);
+            if input.controls() == 0
+                || input.mask & excluded != 0
+                || held & !self.strategy.modifier_mask() != 0
+                || (held & shift != 0) != shifted
+                || !self.profile.allows(Input {
+                    mask: input.mask | held,
+                    ..input
+                })
+            {
+                return Err(format!("invalid binding for {}", binding.action.label()));
+            }
+            let slot = (input, held & self.strategy.layer.map_or(0, Button::bit));
+            if groups
+                .insert(group.clone(), slot)
+                .is_some_and(|previous| previous != slot)
+            {
+                return Err("Shift-related bindings must share an ordinary chord and layer".into());
+            }
+            if occupied
+                .insert(slot, group.clone())
+                .is_some_and(|previous| previous != group)
+            {
+                return Err("two groups occupy the same chord and layer".into());
+            }
+        }
+        Ok(())
+    }
 }

@@ -68,7 +68,7 @@ inside one hardware report does not change the recognized chord.
 | --- | --- |
 | Idle | Wait for an ordinary button press or D-pad departure from neutral. Snapshot the active layer and Shift state when the stroke starts. |
 | Collecting | Accept additional ordinary presses. Buttons must overlap before the first release. Use the current D-pad position, allowing movement into a diagonal if enabled. |
-| Releasing | On the first ordinary button release or D-pad return to neutral, freeze the preceding chord. Wait for all ordinary controls to become neutral. |
+| Releasing | On the first ordinary button or D-pad direction release, freeze the preceding chord. Wait for all ordinary controls to become neutral. |
 | Commit | Emit the frozen binding exactly once, then return to Idle. |
 | Cancelled | Emit nothing and wait for ordinary controls to become neutral. |
 
@@ -80,6 +80,10 @@ opposite directions cancels the stroke.
 Press order before the first release does not matter. Release order does not
 change the frozen chord. There is no fixed chord-collection timeout in the first
 version; analog threshold filtering is separate from chord timing.
+
+A diagonal freezes when either component direction releases. For example,
+Up+Left → Up → neutral commits Up+Left. Adding another control after that first
+direction release cancels the stroke, just as adding a button during release does.
 
 For example, if both `A` and `L1+A` are mapped, pressing A produces no output yet.
 Adding L1 before either button is released selects `L1+A`. The binding emits when
@@ -226,10 +230,35 @@ and local; ordinary typing is not collected as training data.
    service, layout switching, and a readable active-layout display. Document
    controller and desktop combinations that have actually been tested.
 
-## Immediate implementation task
+## Implementation status
 
-The layout generator is the first deliverable. Its CLI accepts a corpus and
-controller/cost configuration, compares modifier strategies with a shared
-baseline, and exports a versioned layout and reproducible search report. Validate
-search reproducibility, pins, physical constraints, modifier entry/exit costs,
-and exported-layout rescoring before connecting layouts to the typing app.
+The generator, controller inspector/chord tester, and Linux typing runtime are
+implemented. The
+inspector provides device discovery, read-only evdev input, trigger endpoint
+calibration with hysteresis, release-to-commit recognition, optional generated
+layout lookup, JSONL recording, and deterministic replay. Replay fixtures and
+tests cover press/release order, diagonals, held modifiers, cancellation,
+disconnect/reset behavior, and dropped-report boundaries. A live Kishi Ultra
+session verified the six digital buttons, cardinal D-pad directions, full trigger
+travel, a three-button chord, held layer/Shift lookup, and identical replay.
+The endpoint-calibration wizard and live diagonal/chord feasibility exercise
+still need a coordinated hardware test.
+
+The typing runtime sends printable ASCII, Enter/Tab, keyboard keys, and explicit
+shortcuts through uinput using balanced press/release sequences. It starts paused,
+offers dry-run mode and optional exclusive controller access, and supports a
+configurable reserved toggle gesture plus SIGUSR1/SIGUSR2 pause/resume. Runtime
+validation rejects gesture collisions; generator profiles can reserve the same
+set with forbidden_combinations. Normal typing is not recorded. Tests cover
+modifier cleanup, partial output failures, pending-stroke cancellation, and
+neutral requirements after pause/reset. Linux integration checks passed with an
+exclusively captured virtual keyboard (101 actions, no held keys) and an
+exclusively grabbed virtual gamepad (signals, toggle gesture, shifted actions,
+and disconnect during a stroke). The Kishi also passed runtime dry-run startup,
+signal pause/resume, and SIGTERM shutdown. These checks do not validate desktop
+text entry.
+
+The next validation is typing and correcting text in an editor and terminal,
+including capitals, numbers, symbols and shortcuts, and checking desktop behavior
+under Wayland and X11 before claiming support for both. Trainer/calibration work
+follows that hands-on baseline.
