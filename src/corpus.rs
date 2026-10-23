@@ -55,6 +55,7 @@ pub struct Stats {
     pub actions: Vec<Action>,
     pub counts: Vec<u64>,
     pub pairs: Vec<(usize, usize, u64)>,
+    pub skipgrams: Vec<(Vec<usize>, u64)>,
     pub first: usize,
     pub last: usize,
     pub total: usize,
@@ -82,10 +83,17 @@ impl Stats {
         for pair in sequence.windows(2) {
             *pairs.entry((pair[0], pair[1])).or_insert(0) += 1;
         }
+        let mut skipgrams = BTreeMap::new();
+        for length in 3..=5 {
+            for window in sequence.windows(length) {
+                *skipgrams.entry(window.to_vec()).or_insert(0) += 1;
+            }
+        }
         Ok(Self {
             actions: actions.to_vec(),
             counts,
             pairs: pairs.into_iter().map(|((a, b), n)| (a, b, n)).collect(),
+            skipgrams: skipgrams.into_iter().collect(),
             first: sequence[0],
             last: *sequence.last().unwrap(),
             total: sequence.len(),
@@ -130,5 +138,44 @@ mod tests {
         assert!(Corpus::new("").is_err());
         let train = Corpus::new("aa").unwrap();
         assert!(Stats::new(&Corpus::new("ab").unwrap(), &train.actions(false, "")).is_err());
+    }
+
+    #[test]
+    fn skipgrams_preserve_intervening_characters_and_count_repeated_windows() {
+        for text in ["a", "ab", "abcde", "aaaaaa"] {
+            let corpus = Corpus::new(text).unwrap();
+            let actions = corpus.actions(false, "");
+            let stats = Stats::new(&corpus, &actions).unwrap();
+            for length in 3..=5 {
+                assert_eq!(
+                    stats
+                        .skipgrams
+                        .iter()
+                        .filter(|(w, _)| w.len() == length)
+                        .map(|(_, n)| n)
+                        .sum::<u64>(),
+                    text.len().saturating_sub(length - 1) as u64
+                );
+            }
+            if text == "abcde" {
+                let a = actions
+                    .iter()
+                    .position(|a| *a == Action::Character('a'))
+                    .unwrap();
+                let c = actions
+                    .iter()
+                    .position(|a| *a == Action::Character('c'))
+                    .unwrap();
+                assert!(
+                    stats
+                        .skipgrams
+                        .iter()
+                        .any(|(w, n)| w.len() == 3 && w[0] == a && w[2] == c && *n == 1)
+                );
+            }
+            if text == "aaaaaa" {
+                assert_eq!(stats.skipgrams.len(), 3);
+            }
+        }
     }
 }

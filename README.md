@@ -34,15 +34,16 @@ cargo run --release -- generate
 On Nix, enter `nix-shell` first to get the compiler and development tools.
 
 The default command uses a small demonstration corpus, compares seven modifier
-strategies, and writes `layout.json` plus `layout.report.json`. Use representative
-text for a useful result:
+strategies with 1,000 annealing proposals per restart and three restarts, then
+runs the systematic finishing passes. It writes `layout.json` plus
+`layout.report.json`. Use representative text for a useful result:
 
 ```sh
 cargo run --release -- generate \
   --corpus writing.txt \
   --held-out other-writing.txt \
   --seed 42 \
-  --iterations 20000 \
+  --iterations 1000 \
   --restarts 3
 ```
 
@@ -112,10 +113,55 @@ cargo run --release -- generate \
 cargo run -- render --layout independent.json --output independent.html
 ```
 
-[examples/independent.json](examples/independent.json) adds pinned base punctuation
-to this preset. Use it with `--config examples/independent.json` and your
-own corpus. This preset enforces these rules during generation
-and layout validation:
+[examples/independent.json](examples/independent.json) pins punctuation, numbers,
+symbols, and Tab, and adds finger and thumb comfort costs to this preset. Use it with
+`--config examples/independent.json` and your own corpus.
+
+Regenerate the checked-in default and refresh its reference:
+
+```sh
+cargo run --release -- generate --config examples/independent.json
+cargo run -- render --layout layout.json --output layout.html
+```
+
+Copy `layout.json` to `android/app/src/main/assets/default-layout.json` when
+updating the Android preset.
+
+The preset uses `profile.costs.same_finger_transition: 1.0` instead of a whole-hand
+reuse penalty. D-pad inputs use the left thumb and face buttons use the right.
+On each side, either shoulder alone uses the index finger. With both L1+L2 or
+R1+R2 active, the index presses L1/R1 and the middle presses L2/R2. Held Shift and
+layer triggers affect this assignment, but holding a modifier across strokes does
+not count as repeatedly pressing it. For example, a face button followed by R1
+Space reuses no finger, while two face-button strokes reuse the right thumb.
+Each reused finger adds the configured penalty. The older `same_hand_transition`
+setting remains available as a separate, additive preference.
+
+`profile.costs.grip_change` charges each middle-finger recruitment from controller
+support and its return. The preset uses `0.7`. Keeping both shoulders active across
+consecutive strokes keeps the middle recruited without another change penalty;
+entering or leaving that grip costs once per side, including the start and end
+of the text. The existing `same_side_shoulders` cost still accounts for the load
+while both shoulders are active. Both new finger costs default to zero when omitted.
+
+`profile.costs.skipgram_weights` adds movement costs for a thumb's next input
+across one, two, or three intervening characters that do not use that thumb.
+The preset uses `[0.5, 0.25, 0.125]`: more intervening inputs give more time to
+reposition, so their penalties are smaller. For example, D-pad Up → face button →
+D-pad Down adds half the Up-to-Down distance to the movement metric. A same-thumb
+input in the middle prevents that longer skipgram from being counted. These costs
+add to adjacent movement; they do not add presses, modifier changes, or hand-reuse
+penalties. Both thumbs are scored separately, including when Shift/layers are held.
+
+`profile.costs.awkward_diagonal_extra` adds effort to inner-up and outer-down
+positions. The preset uses `0.6`. On the left these are D-pad ↗/↙; on the right
+they are X+Y and A+B. Inner-down/outer-up (D-pad ↘/↖ and A+X/Y+B) retain their
+usual costs. The face-pair penalty also applies when a shoulder is part of the
+chord. All values are adjustable estimates. Both new settings default to zero
+when omitted, preserving existing layout scores and bindings. Generate a new
+layout to apply them; rendering or running an existing layout does not rearrange it.
+
+This preset enforces these rules during generation and layout validation:
 
 | Control | Role |
 | --- | --- |
@@ -300,8 +346,15 @@ captured keyboard modifiers. Visual references include both directional maps.
 ## Understand the results
 
 The search uses simulated annealing with swaps and replacement chords, beginning
-with a frequency-based baseline. Every legal chord remains eligible. It retains
-the baseline if it finds no improvement and keeps pinned assignments fixed.
+with a frequency-based baseline. After each restart, it takes that run's best
+layout and checks every legal move to an unused chord and every legal pair swap.
+It applies the best improvement and repeats until none improves the score beyond
+a relative `1e-12` numerical tolerance. These finishing passes are additional to
+`--iterations`, which counts annealing proposals. Every legal chord remains
+eligible, including chords outside the annealer's preferred shortlist. Pins stay
+fixed. The best result across the finished runs wins; it retains the baseline if
+it finds no improvement. This finds a local optimum for single moves and swaps,
+without guaranteeing a global optimum.
 
 All strategies use the same normalization and weights. Lower objective is better:
 

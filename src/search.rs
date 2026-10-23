@@ -232,6 +232,18 @@ impl Problem {
         }
     }
 
+    fn fingers(&self, action: usize, assignment: &[usize]) -> u8 {
+        let slot = self.slots[assignment[self.outputs[action].group]];
+        match slot.menu {
+            Some(MenuButton::Start) => Finger::RightThumb.bit(),
+            Some(MenuButton::Select) => Finger::LeftThumb.bit(),
+            None => {
+                let (input, held) = self.physical(action, assignment);
+                input.fingers(held)
+            }
+        }
+    }
+
     fn unary(&self, group: usize, slot: usize) -> Metrics {
         let slot = self.slots[slot];
         let mut m = Metrics::default();
@@ -244,6 +256,8 @@ impl Problem {
         {
             let held = self.context(slot, o.shifted);
             let held_count = f64::from(held.controls());
+            let middle_count =
+                f64::from(slot.input.with_context(held).middle_fingers().count_ones());
             let effort = if slot.menu.is_some() {
                 1.0
             } else {
@@ -256,14 +270,17 @@ impl Problem {
             m.coverage += (effort
                 + presses
                 + held_count
-                + 2.0 * self.profile.costs.modifier_change * held_count)
+                + 2.0 * self.profile.costs.modifier_change * held_count
+                + 2.0 * self.profile.costs.grip_change * middle_count)
                 / self.actions.len() as f64;
             if action == self.stats.first {
                 m.effort += self.profile.costs.modifier_change * held_count / n;
+                m.effort += self.profile.costs.grip_change * middle_count / n;
                 m.activations += held_count / n;
             }
             if action == self.stats.last {
                 m.effort += self.profile.costs.modifier_change * held_count / n;
+                m.effort += self.profile.costs.grip_change * middle_count / n;
             }
         }
         m
@@ -281,11 +298,55 @@ impl Problem {
                 * frequency
                 + self.profile.costs.same_hand_transition
                     * f64::from(self.hands(a, assignment) & self.hands(b, assignment) != 0)
+                    * frequency
+                + self.profile.costs.same_finger_transition
+                    * f64::from(
+                        (self.fingers(a, assignment) & self.fingers(b, assignment)).count_ones(),
+                    )
+                    * frequency
+                + self.profile.costs.grip_change
+                    * f64::from(
+                        (ia.with_context(ha).middle_fingers()
+                            ^ ib.with_context(hb).middle_fingers())
+                        .count_ones(),
+                    )
                     * frequency,
             activations: f64::from(
                 (hb.mask & !ha.mask).count_ones() + (hb.dpad.bits() & !ha.dpad.bits()).count_ones(),
             ) * frequency,
             movement: self.movement.cost(ia.with_context(ha), ib.with_context(hb)) * frequency,
+            ..Metrics::default()
+        }
+    }
+
+    fn skipgram(&self, edge: usize, assignment: &[usize]) -> Metrics {
+        let (window, count) = &self.stats.skipgrams[edge];
+        let weight = self.profile.costs.skipgram_weights[window.len() - 3];
+        if weight == 0.0 {
+            return Metrics::default();
+        }
+        let physical = |action| {
+            let (input, held) = self.physical(action, assignment);
+            input.with_context(held)
+        };
+        let first = physical(window[0]);
+        let last = physical(*window.last().unwrap());
+        let middle = &window[1..window.len() - 1];
+        let mut movement = 0.0;
+        if first.dpad != Dpad::Neutral
+            && last.dpad != Dpad::Neutral
+            && middle.iter().all(|&a| physical(a).dpad == Dpad::Neutral)
+        {
+            movement += self.movement.dpad[first.dpad as usize][last.dpad as usize];
+        }
+        if first.mask & 15 != 0
+            && last.mask & 15 != 0
+            && middle.iter().all(|&a| physical(a).mask & 15 == 0)
+        {
+            movement += self.movement.face[(first.mask & 15) as usize][(last.mask & 15) as usize];
+        }
+        Metrics {
+            movement: movement * weight * *count as f64 / self.stats.total as f64,
             ..Metrics::default()
         }
     }
@@ -301,6 +362,11 @@ impl Problem {
         }
         for edge in 0..self.stats.pairs.len() {
             add(&mut total, self.edge(edge, assignment));
+        }
+        if self.profile.costs.skipgram_weights != [0.0; 3] {
+            for edge in 0..self.stats.skipgrams.len() {
+                add(&mut total, self.skipgram(edge, assignment));
+            }
         }
         total
     }
@@ -543,6 +609,7 @@ struct Evaluator<'a> {
     unary: Vec<Vec<f64>>,
     preferred: Vec<Vec<usize>>,
     adjacent: Vec<Vec<usize>>,
+    adjacent_skipgrams: Vec<Vec<usize>>,
 }
 
 impl<'a> Evaluator<'a> {
@@ -579,6 +646,16 @@ impl<'a> Evaluator<'a> {
                 adjacent[gb].push(edge);
             }
         }
+        let mut adjacent_skipgrams = vec![vec![]; p.groups.len()];
+        for (edge, (window, _)) in p.stats.skipgrams.iter().enumerate() {
+            if p.profile.costs.skipgram_weights[window.len() - 3] == 0.0 {
+                continue;
+            }
+            let groups: BTreeSet<_> = window.iter().map(|&a| p.outputs[a].group).collect();
+            for group in groups {
+                adjacent_skipgrams[group].push(edge);
+            }
+        }
         Self {
             problem: p,
             normalization,
@@ -586,6 +663,7 @@ impl<'a> Evaluator<'a> {
             unary,
             preferred,
             adjacent,
+            adjacent_skipgrams,
         }
     }
     fn affected(&self, assignment: &[usize], first: usize, second: Option<usize>) -> f64 {
@@ -594,6 +672,12 @@ impl<'a> Evaluator<'a> {
             score += self
                 .problem
                 .edge(edge, assignment)
+                .objective(self.normalization, self.weights);
+        }
+        for &edge in &self.adjacent_skipgrams[first] {
+            score += self
+                .problem
+                .skipgram(edge, assignment)
                 .objective(self.normalization, self.weights);
         }
         if let Some(second) = second {
@@ -608,8 +692,87 @@ impl<'a> Evaluator<'a> {
                         .objective(self.normalization, self.weights);
                 }
             }
+            for &edge in &self.adjacent_skipgrams[second] {
+                let (window, _) = &self.problem.stats.skipgrams[edge];
+                if window
+                    .iter()
+                    .all(|&a| self.problem.outputs[a].group != first)
+                {
+                    score += self
+                        .problem
+                        .skipgram(edge, assignment)
+                        .objective(self.normalization, self.weights);
+                }
+            }
         }
         score
+    }
+
+    fn improve(&self, assignment: &mut [usize], movable: &[usize]) {
+        let p = self.problem;
+        let mut used = vec![None; p.slots.len()];
+        for (group, &slot) in assignment.iter().enumerate() {
+            used[slot] = Some(group);
+        }
+        let mut score = p
+            .metrics(assignment)
+            .objective(self.normalization, self.weights);
+        loop {
+            let epsilon = 1e-12 * score.abs().max(1.0);
+            let mut best_delta = -epsilon;
+            let mut best_change = None;
+            for &first in movable {
+                let previous = assignment[first];
+                for &next in &p.valid[first] {
+                    if next == previous {
+                        continue;
+                    }
+                    let second = used[next];
+                    if second.is_some_and(|g| {
+                        g < first
+                            || p.pinned.contains_key(&g)
+                            || p.valid[g].binary_search(&previous).is_err()
+                    }) {
+                        continue;
+                    }
+                    let old = self.affected(assignment, first, second);
+                    assignment[first] = next;
+                    if let Some(group) = second {
+                        assignment[group] = previous;
+                    }
+                    let delta = self.affected(assignment, first, second) - old;
+                    assignment[first] = previous;
+                    if let Some(group) = second {
+                        assignment[group] = next;
+                    }
+                    if delta < best_delta {
+                        best_delta = delta;
+                        best_change = Some((first, next, second));
+                    }
+                }
+            }
+            let Some((first, next, second)) = best_change else {
+                break;
+            };
+            let previous = assignment[first];
+            assignment[first] = next;
+            if let Some(group) = second {
+                assignment[group] = previous;
+            }
+            let next_score = p
+                .metrics(assignment)
+                .objective(self.normalization, self.weights);
+            if next_score >= score - epsilon {
+                assignment[first] = previous;
+                if let Some(group) = second {
+                    assignment[group] = next;
+                }
+                break;
+            }
+            score = next_score;
+            used[previous] = second;
+            used[next] = Some(first);
+        }
     }
 }
 
@@ -638,6 +801,8 @@ pub fn optimize(
             used[s] = Some(g);
         }
         let mut score = p.metrics(&assignment).objective(normalization, weights);
+        let mut run_best = assignment.clone();
+        let mut run_best_score = score;
         let initial_temperature = (score.abs() * 0.02).max(0.01);
         for step in 0..iterations {
             let first = movable[rng.usize(..movable.len())];
@@ -669,9 +834,9 @@ pub fn optimize(
                 score += delta;
                 used[previous] = second;
                 used[next] = Some(first);
-                if score < best_score {
-                    best = assignment.clone();
-                    best_score = score;
+                if score < run_best_score {
+                    run_best = assignment.clone();
+                    run_best_score = score;
                 }
             } else {
                 assignment[first] = previous;
@@ -679,6 +844,12 @@ pub fn optimize(
                     assignment[g] = next;
                 }
             }
+        }
+        evaluator.improve(&mut run_best, &movable);
+        let score = p.metrics(&run_best).objective(normalization, weights);
+        if score < best_score {
+            best = run_best;
+            best_score = score;
         }
     }
     if p.metrics(&best).objective(normalization, weights)
@@ -923,6 +1094,10 @@ mod tests {
             }
             let (mut config, p) = problem("AAAb abba! aab? BAba.", mode, vec![]);
             config.profile.costs.same_hand_transition = 1.0;
+            config.profile.costs.same_finger_transition = 1.0;
+            config.profile.costs.grip_change = 0.7;
+            config.profile.costs.skipgram_weights = [0.5, 0.25, 0.125];
+            config.profile.costs.awkward_diagonal_extra = 0.6;
             let p = Problem::new(&config, &p.actions, p.stats.clone(), &p.strategy).unwrap();
             let mut assignment = p.baseline(&config.weights).unwrap();
             let reference = p.metrics(&assignment).normalization();
@@ -954,12 +1129,452 @@ mod tests {
     }
 
     #[test]
+    fn skipgram_movement_tracks_the_next_thumb_use_with_decaying_weights() {
+        for (text, expected) in [
+            ("abc", 1.0 / 3.0),
+            ("abbc", 0.5 / 4.0),
+            ("abbbc", 0.25 / 5.0),
+            ("abbbbc", 0.0),
+            ("ababc", 1.0 / 5.0),
+        ] {
+            for mirrored in [false, true] {
+                let input = |c| match (c, mirrored) {
+                    ('a', false) | ('b', true) => Input {
+                        dpad: Dpad::Up,
+                        mask: 0,
+                    },
+                    ('c', false) => Input {
+                        dpad: Dpad::Down,
+                        mask: 0,
+                    },
+                    ('c', true) => Input {
+                        dpad: Dpad::Neutral,
+                        mask: Button::Y.bit(),
+                    },
+                    _ => Input {
+                        dpad: Dpad::Neutral,
+                        mask: Button::A.bit(),
+                    },
+                };
+                let pins = ['a', 'b', 'c']
+                    .map(|c| Binding {
+                        action: Action::Character(c),
+                        chord: input(c).chord(),
+                        held: vec![],
+                        held_dpad: Dpad::Neutral,
+                    })
+                    .into();
+                let (config, mut p) = problem(text, strategy(None, None), pins);
+                let assignment = p.baseline(&config.weights).unwrap();
+                let adjacent_only = p.metrics(&assignment);
+                p.profile.costs.skipgram_weights = [0.5, 0.25, 0.125];
+                let with_skipgrams = p.metrics(&assignment);
+                assert!(
+                    (with_skipgrams.movement - adjacent_only.movement - expected).abs() < 1e-12,
+                    "{text}, mirrored={mirrored}"
+                );
+                assert_eq!(with_skipgrams.effort, adjacent_only.effort);
+                assert_eq!(with_skipgrams.activations, adjacent_only.activations);
+            }
+        }
+    }
+
+    #[test]
+    fn skipgram_cache_tracks_middle_character_moves_and_shift_layers() {
+        let (config, mut p) = problem(
+            "aBcaBc",
+            strategy(Some(Button::L2), Some(Button::R2)),
+            vec![],
+        );
+        p.profile.costs.skipgram_weights = [0.5, 0.25, 0.125];
+        let mut assignment = p.baseline(&config.weights).unwrap();
+        let group = |c| {
+            p.groups
+                .iter()
+                .position(|a| *a == Action::Character(c))
+                .unwrap()
+        };
+        let slot = |input, layer| {
+            p.slots
+                .iter()
+                .position(|s| s.input == input && s.layer == layer)
+                .unwrap()
+        };
+        assignment[group('a')] = slot(
+            Input {
+                dpad: Dpad::Up,
+                mask: 0,
+            },
+            false,
+        );
+        assignment[group('b')] = slot(
+            Input {
+                dpad: Dpad::Neutral,
+                mask: Button::A.bit(),
+            },
+            true,
+        );
+        assignment[group('c')] = slot(
+            Input {
+                dpad: Dpad::Down,
+                mask: 0,
+            },
+            false,
+        );
+        let reference = p.metrics(&assignment).normalization();
+        let evaluator = Evaluator::new(&p, &config.weights, reference);
+        let first = group('b');
+        let old_full = p.metrics(&assignment).objective(reference, &config.weights);
+        let old_part = evaluator.affected(&assignment, first, None);
+        assert!(
+            p.stats
+                .skipgrams
+                .iter()
+                .enumerate()
+                .any(|(i, _)| p.skipgram(i, &assignment).movement > 0.0)
+        );
+        assignment[first] = slot(
+            Input {
+                dpad: Dpad::Left,
+                mask: 0,
+            },
+            true,
+        );
+        assert!(
+            p.stats
+                .skipgrams
+                .iter()
+                .enumerate()
+                .all(|(i, _)| p.skipgram(i, &assignment).movement == 0.0)
+        );
+        let full_delta = p.metrics(&assignment).objective(reference, &config.weights) - old_full;
+        let part_delta = evaluator.affected(&assignment, first, None) - old_part;
+        assert!((full_delta - part_delta).abs() < 1e-9);
+    }
+
+    #[test]
+    fn finger_reuse_distinguishes_thumb_index_and_held_modifiers() {
+        let input = |mask, dpad| Input { mask, dpad };
+        for (a, b, shifted, reused) in [
+            (
+                input(Button::A.bit(), Dpad::Neutral),
+                input(Button::R1.bit(), Dpad::Neutral),
+                false,
+                0,
+            ),
+            (
+                input(Button::A.bit(), Dpad::Neutral),
+                input(Button::B.bit(), Dpad::Neutral),
+                false,
+                1,
+            ),
+            (
+                input(Button::R1.bit(), Dpad::Neutral),
+                input(Button::R2.bit(), Dpad::Neutral),
+                false,
+                1,
+            ),
+            (
+                input(Button::R1.bit() | Button::A.bit(), Dpad::Neutral),
+                input(Button::R1.bit() | Button::B.bit(), Dpad::Neutral),
+                false,
+                2,
+            ),
+            (
+                input(0, Dpad::Up),
+                input(Button::L1.bit(), Dpad::Neutral),
+                false,
+                0,
+            ),
+            (
+                input(0, Dpad::Up),
+                input(Button::A.bit(), Dpad::Neutral),
+                true,
+                0,
+            ),
+            (
+                input(Button::L1.bit(), Dpad::Up),
+                input(Button::A.bit(), Dpad::Neutral),
+                true,
+                0,
+            ),
+        ] {
+            let corpus = Corpus::new(if shifted { "AB" } else { "ab" }).unwrap();
+            let actions = corpus.actions(false, "");
+            let mode = strategy(shifted.then_some(Button::L2), None);
+            let mut config = Config::default();
+            config.profile.modifier_only_buttons.clear();
+            config.profile.costs.same_finger_transition = 1.0;
+            config.pinned_bindings = corpus
+                .characters
+                .iter()
+                .zip([a, b])
+                .map(|(&c, input)| Binding {
+                    action: Action::Character(c),
+                    chord: input.chord(),
+                    held: if shifted { vec![Button::L2] } else { vec![] },
+                    held_dpad: Dpad::Neutral,
+                })
+                .collect();
+            let p = Problem::new(
+                &config,
+                &actions,
+                Stats::new(&corpus, &actions).unwrap(),
+                &mode,
+            )
+            .unwrap();
+            let assignment = p.baseline(&config.weights).unwrap();
+            let edge = p.stats.pairs.iter().position(|&(_, _, n)| n == 1).unwrap();
+            assert!(
+                (p.edge(edge, &assignment).effort - f64::from(reused) / 2.0).abs() < 1e-12,
+                "{a:?} → {b:?}, shifted={shifted}"
+            );
+        }
+    }
+
+    #[test]
+    fn middle_finger_grip_changes_include_entry_exit_and_persistent_runs() {
+        for (text, both_sides, changes) in [
+            ("aaaa", false, 2),
+            ("abba", false, 4),
+            ("ab", false, 2),
+            ("ba", false, 2),
+            ("aaaa", true, 4),
+        ] {
+            let corpus = Corpus::new(text).unwrap();
+            let actions = corpus.actions(false, "");
+            let mut config = Config::default();
+            config.profile.modifier_only_buttons.clear();
+            config.pinned_bindings = actions
+                .iter()
+                .filter(|a| matches!(a, Action::Character(_)))
+                .map(|action| Binding {
+                    action: action.clone(),
+                    chord: Input {
+                        dpad: Dpad::Neutral,
+                        mask: if *action == Action::Character('a') {
+                            Button::L1.bit()
+                                | Button::L2.bit()
+                                | if both_sides {
+                                    Button::R1.bit() | Button::R2.bit()
+                                } else {
+                                    0
+                                }
+                        } else {
+                            Button::A.bit()
+                        },
+                    }
+                    .chord(),
+                    held: vec![],
+                    held_dpad: Dpad::Neutral,
+                })
+                .collect();
+            let mut p = Problem::new(
+                &config,
+                &actions,
+                Stats::new(&corpus, &actions).unwrap(),
+                &strategy(None, None),
+            )
+            .unwrap();
+            let assignment = p.baseline(&config.weights).unwrap();
+            let before = p.metrics(&assignment);
+            p.profile.costs.grip_change = 0.7;
+            let after = p.metrics(&assignment);
+            assert!(
+                (after.effort - before.effort - 0.7 * f64::from(changes) / text.len() as f64).abs()
+                    < 1e-12,
+                "{text}, both_sides={both_sides}"
+            );
+            assert_eq!(after.activations, before.activations);
+        }
+    }
+
+    #[test]
+    fn held_shift_recruits_middle_only_for_strokes_using_the_same_side_bumper() {
+        let (config, mut p) = problem(
+            "AABA",
+            strategy(Some(Button::L2), None),
+            vec![
+                Binding {
+                    action: Action::Character('A'),
+                    chord: Chord {
+                        dpad: Dpad::Up,
+                        buttons: vec![Button::L1],
+                    },
+                    held: vec![Button::L2],
+                    held_dpad: Dpad::Neutral,
+                },
+                pin('B', Button::A, vec![Button::L2]),
+            ],
+        );
+        let assignment = p.baseline(&config.weights).unwrap();
+        let before = p.metrics(&assignment);
+        p.profile.costs.grip_change = 0.7;
+        let after = p.metrics(&assignment);
+        assert!((after.effort - before.effort - 0.7).abs() < 1e-12);
+        assert_eq!(after.activations, before.activations);
+    }
+
+    #[test]
+    fn finishing_pass_chooses_the_best_legal_replacement_or_swap_without_annealing() {
+        for spare in [false, true] {
+            let corpus = Corpus::new("aaaaab").unwrap();
+            let actions = corpus.actions(false, "");
+            let mut config = Config::default();
+            config.profile.diagonals = false;
+            config.profile.max_chord_size = Some(1);
+            config.profile.disabled_buttons = if spare {
+                vec![Button::Y]
+            } else {
+                vec![Button::X, Button::Y]
+            };
+            config.profile.costs.buttons.insert(Button::A, 10.0);
+            config.weights = Weights {
+                effort: 1.0,
+                activations: 0.0,
+                movement: 0.0,
+                coverage: 0.0,
+                learning: 0.0,
+            };
+            for (key, button) in [(Key::Backspace, Button::L1), (Key::Escape, Button::R1)] {
+                config.pinned_bindings.push(Binding {
+                    action: Action::Key(key),
+                    chord: Input {
+                        dpad: Dpad::Neutral,
+                        mask: button.bit(),
+                    }
+                    .chord(),
+                    held: vec![],
+                    held_dpad: Dpad::Neutral,
+                });
+            }
+            // Restrict this problem to shoulders and face buttons so all remaining
+            // choices are occupied in the swap-only case.
+            config.profile.forbidden_chords.extend(
+                Dpad::ALL
+                    .into_iter()
+                    .filter(|d| *d != Dpad::Neutral)
+                    .map(|dpad| Chord {
+                        dpad,
+                        buttons: vec![],
+                    }),
+            );
+            let p = Problem::new(
+                &config,
+                &actions,
+                Stats::new(&corpus, &actions).unwrap(),
+                &strategy(None, None),
+            )
+            .unwrap();
+            let mut baseline = p.baseline(&config.weights).unwrap();
+            let group = |c| {
+                p.groups
+                    .iter()
+                    .position(|a| *a == Action::Character(c))
+                    .unwrap()
+            };
+            let slot = |button: Button| {
+                p.slots
+                    .iter()
+                    .position(|s| {
+                        s.input
+                            == Input {
+                                dpad: Dpad::Neutral,
+                                mask: button.bit(),
+                            }
+                    })
+                    .unwrap()
+            };
+            baseline[group('a')] = slot(Button::A);
+            baseline[group('b')] = slot(Button::B);
+            let reference = p.metrics(&baseline).normalization();
+            let improved = optimize(&p, &baseline, &config.weights, reference, 0, &[42]);
+            assert!(
+                p.metrics(&improved).objective(reference, &config.weights)
+                    < p.metrics(&baseline).objective(reference, &config.weights)
+            );
+            assert_eq!(
+                improved[group('a')],
+                slot(if spare { Button::X } else { Button::B })
+            );
+            assert_eq!(
+                improved[group('b')],
+                slot(if spare { Button::B } else { Button::A })
+            );
+            for (&group, &slot) in &p.pinned {
+                assert_eq!(improved[group], slot);
+            }
+            assert_eq!(
+                optimize(&p, &improved, &config.weights, reference, 0, &[42]),
+                improved
+            );
+        }
+    }
+
+    #[test]
+    fn finished_layouts_have_no_legal_improving_move_or_swap_with_all_costs_enabled() {
+        for independent in [false, true] {
+            let mut mode = strategy(Some(Button::L2), Some(Button::R2));
+            mode.independent = independent;
+            let (mut config, p) =
+                problem("aA bbb!?ab \n", mode, vec![pin(' ', Button::R1, vec![])]);
+            config.profile.exclude_opposite_face_pairs = true;
+            config.profile.costs.same_finger_transition = 1.0;
+            config.profile.costs.grip_change = 0.7;
+            config.profile.costs.skipgram_weights = [0.5, 0.25, 0.125];
+            config.profile.costs.awkward_diagonal_extra = 0.6;
+            let p = Problem::new(&config, &p.actions, p.stats.clone(), &p.strategy).unwrap();
+            let baseline = p.baseline(&config.weights).unwrap();
+            let reference = p.metrics(&baseline).normalization();
+            let result = optimize(&p, &baseline, &config.weights, reference, 5, &[42, 43]);
+            let score = p.metrics(&result).objective(reference, &config.weights);
+            assert_eq!(result.iter().collect::<BTreeSet<_>>().len(), result.len());
+            for (first, &previous) in result.iter().enumerate() {
+                assert!(p.valid[first].contains(&previous));
+                if let Some(&pin) = p.pinned.get(&first) {
+                    assert_eq!(previous, pin);
+                    continue;
+                }
+                for &next in &p.valid[first] {
+                    if next == previous {
+                        continue;
+                    }
+                    let second = result.iter().position(|&slot| slot == next);
+                    if second.is_some_and(|g| {
+                        p.pinned.contains_key(&g) || !p.valid[g].contains(&previous)
+                    }) {
+                        continue;
+                    }
+                    let mut neighbor = result.clone();
+                    neighbor[first] = next;
+                    if let Some(group) = second {
+                        neighbor[group] = previous;
+                    }
+                    assert!(
+                        p.metrics(&neighbor).objective(reference, &config.weights) >= score - 1e-10,
+                        "independent={independent}, first={first}, next={next}"
+                    );
+                }
+            }
+            assert_eq!(
+                optimize(&p, &result, &config.weights, reference, 0, &[42]),
+                result
+            );
+        }
+    }
+
+    #[test]
     fn search_is_reproducible_preserves_pins_and_keeps_the_baseline() {
-        let (config, p) = problem(
+        let (mut config, p) = problem(
             "aababa abba AAB!",
             strategy(Some(Button::L2), Some(Button::R2)),
             vec![pin(' ', Button::A, vec![])],
         );
+        config.profile.costs.same_finger_transition = 1.0;
+        config.profile.costs.grip_change = 0.7;
+        config.profile.costs.skipgram_weights = [0.5, 0.25, 0.125];
+        config.profile.costs.awkward_diagonal_extra = 0.6;
+        let p = Problem::new(&config, &p.actions, p.stats.clone(), &p.strategy).unwrap();
         let baseline = p.baseline(&config.weights).unwrap();
         let reference = p.metrics(&baseline).normalization();
         let a = optimize(&p, &baseline, &config.weights, reference, 1000, &[2, 3]);

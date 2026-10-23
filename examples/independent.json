@@ -4,7 +4,14 @@
     "function_layer": true,
     "exclude_opposite_face_pairs": true,
     "costs": {
-      "same_hand_transition": 1.0
+      "same_finger_transition": 1.0,
+      "grip_change": 0.7,
+      "skipgram_weights": [
+        0.5,
+        0.25,
+        0.125
+      ],
+      "awkward_diagonal_extra": 0.6
     },
     "base_punctuation": [
       "'",
@@ -257,6 +264,83 @@
       "chord": {
         "buttons": [
           "A"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "\t"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "["
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "\\"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "Y"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "]"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "`"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "Y"
         ]
       },
       "held": [

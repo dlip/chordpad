@@ -107,7 +107,7 @@ struct Generate {
     #[arg(long, default_value_t = 42)]
     seed: u64,
     /// Annealing proposals per restart, per strategy.
-    #[arg(long, default_value_t = 20_000)]
+    #[arg(long, default_value_t = 1_000)]
     iterations: usize,
     #[arg(long, default_value_t = 3)]
     restarts: usize,
@@ -404,14 +404,19 @@ fn generate(args: Generate) -> Result<()> {
         selection: "lowest training objective; held-out text is evaluation only",
         assumptions: vec![
             "All ergonomic costs are estimates, not measured speed or error predictions.",
+            "Each restart finishes its best annealed assignment with exhaustive best-improvement moves and swaps until none improves the objective beyond a relative 1e-12 numerical tolerance. These passes are additional to the annealing proposal count.",
             "Each corpus is one continuous task, with modifier entry and cleanup at its boundaries.",
             "Independent strategies release each half separately; legacy strategies require global ordinary release.",
             "Independent layouts use global held L2 Shift and R2 numbers/symbols, latched at stroke start; R1 Space and L1 Backspace work in all modifier states.",
             "Independent output follows stroke-start order; same-report starts are left-first.",
             "Text-corpus scores do not model thumbstick shortcuts; invariant Space/Backspace are scored at their base bindings.",
             "The same-hand transition penalty uses full hand occupancy, including held modifiers; it is an estimated preference, not measured timing.",
+            "Optional same-finger scoring counts each finger reused by consecutive ordinary strokes. D-pad and face buttons use their respective thumbs; Start/Select use right/left thumbs. Held modifiers affect allocation but do not count as repeated presses.",
+            "Each side uses its index for either shoulder alone. With both shoulders active, the index uses L1/R1 and the middle uses L2/R2. Optional grip-change effort charges each middle-finger recruitment and return, including task boundaries; same-side shoulder effort models sustained load.",
             "Shift uses standard US character pairs; uppercase shares lowercase chords. Independent letters stay on the base bank and numbers/symbols use R2.",
             "Movement uses D-pad positions and Xbox-style face-button centroids (A south, B east, X west, Y north).",
+            "Optional skipgram movement weights score the next use of each thumb across one, two, or three intervening inputs that do not use that thumb; this adds to adjacent movement without charging extra key presses or modifier changes.",
+            "Optional awkward-diagonal effort penalizes D-pad UpRight/DownLeft and face X+Y/A+B, mirrored inner-up/outer-down positions; held D-pad load scales this penalty like other held effort.",
             "Coverage gives unobserved required outputs a uniform access-cost penalty.",
             "Learning is a proxy: one unit per canonical character/key group and four per fixed modifier role.",
             "Backspace and Escape are required but have no observed task frequency in text corpora.",

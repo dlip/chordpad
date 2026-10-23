@@ -387,9 +387,9 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     let base = section(&html, "Base and Shift positions");
     assert_eq!(base.matches("class=\"binding-map\"").count(), 4);
     for cell in [
-        "<span>s / S</span><span>↑</span>",
-        "<span>g / G</span><span>Y + B</span>",
-        "<span>x / X</span><span>A + X</span>",
+        "<span>e / E</span><span>↑</span>",
+        "<span>w / W</span><span>Y + B</span>",
+        "<span>b / B</span><span>A + X</span>",
         "<span>; / :</span><span>↖ + L1</span>",
         "<span>&#39; / &quot;</span><span>A + B + R1</span>",
         "<span>Backspace</span><span>L1 alone</span>",

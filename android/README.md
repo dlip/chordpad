@@ -58,8 +58,8 @@ Home, and Recents actions are available in Direct mapping.
 
 ## Padtype chords
 
-The included 97-binding layout matches the desktop layout at the time this app
-was created. Import another version 2 **independent** `layout.json` using the
+The included 97-binding layout matches the checked-in desktop default.
+Import another version 2 **independent** `layout.json` using the
 document picker. Validation happens before replacing the saved layout, and the
 previous layout is kept if import fails. Export writes the current JSON to a
 location you choose. Legacy unified recognition strategies are not supported on

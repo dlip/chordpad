@@ -69,7 +69,7 @@ public class LayoutReferenceTest {
         for (int i = 0; i < bindings.length(); i++) {
             var binding = bindings.getJSONObject(i);
             if (List.of("e","E").contains(binding.getJSONObject("action").getString("value"))) {
-                binding.getJSONObject("chord").put("buttons",new org.json.JSONArray().put("A").put("Y"));
+                binding.put("chord",new JSONObject().put("buttons",new org.json.JSONArray().put("A").put("Y")));
             }
         }
         var base = LayoutReference.layers(new ChordLayout(json.toString())).get(0);

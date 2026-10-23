@@ -14,6 +14,10 @@ fn is_zero(value: &f64) -> bool {
     *value == 0.0
 }
 
+fn no_skipgram_weights(value: &[f64; 3]) -> bool {
+    *value == [0.0; 3]
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum Side {
@@ -34,6 +38,22 @@ impl Side {
             Self::Left => Button::L1.bit() | Button::L2.bit(),
             Self::Right => !(Button::L1.bit() | Button::L2.bit()),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Finger {
+    LeftThumb,
+    LeftIndex,
+    LeftMiddle,
+    RightThumb,
+    RightIndex,
+    RightMiddle,
+}
+
+impl Finger {
+    pub fn bit(self) -> u8 {
+        1 << self as u8
     }
 }
 
@@ -165,6 +185,45 @@ pub struct Input {
 }
 
 impl Input {
+    pub fn fingers(self, context: Self) -> u8 {
+        let physical = self.with_context(context);
+        let mut fingers = 0;
+        if self.dpad != Dpad::Neutral {
+            fingers |= Finger::LeftThumb.bit();
+        }
+        if self.mask & 0x0f != 0 {
+            fingers |= Finger::RightThumb.bit();
+        }
+        for (bumper, trigger, index, middle) in [
+            (
+                Button::L1,
+                Button::L2,
+                Finger::LeftIndex,
+                Finger::LeftMiddle,
+            ),
+            (
+                Button::R1,
+                Button::R2,
+                Finger::RightIndex,
+                Finger::RightMiddle,
+            ),
+        ] {
+            let both =
+                physical.mask & (bumper.bit() | trigger.bit()) == bumper.bit() | trigger.bit();
+            if self.mask & bumper.bit() != 0 || (!both && self.mask & trigger.bit() != 0) {
+                fingers |= index.bit();
+            }
+            if both && self.mask & trigger.bit() != 0 {
+                fingers |= middle.bit();
+            }
+        }
+        fingers
+    }
+
+    pub fn middle_fingers(self) -> u8 {
+        self.fingers(Self::default()) & (Finger::LeftMiddle.bit() | Finger::RightMiddle.bit())
+    }
+
     pub fn half(self, side: Side) -> Self {
         Self {
             mask: self.mask & side.mask(),
@@ -398,6 +457,14 @@ impl Strategy {
 pub struct Costs {
     #[serde(default, skip_serializing_if = "is_zero")]
     pub same_hand_transition: f64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub same_finger_transition: f64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub grip_change: f64,
+    #[serde(default, skip_serializing_if = "no_skipgram_weights")]
+    pub skipgram_weights: [f64; 3],
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub awkward_diagonal_extra: f64,
     pub buttons: BTreeMap<Button, f64>,
     pub dpad: f64,
     pub diagonal_extra: f64,
@@ -412,6 +479,10 @@ impl Default for Costs {
     fn default() -> Self {
         Self {
             same_hand_transition: 0.0,
+            same_finger_transition: 0.0,
+            grip_change: 0.0,
+            skipgram_weights: [0.0; 3],
+            awkward_diagonal_extra: 0.0,
             buttons: Button::ALL
                 .into_iter()
                 .map(|b| {
@@ -435,6 +506,18 @@ impl Default for Costs {
 }
 
 impl Costs {
+    fn diagonal_effort(&self, dpad: Dpad) -> f64 {
+        if dpad.controls() != 2 {
+            return 0.0;
+        }
+        self.diagonal_extra
+            + if matches!(dpad, Dpad::UpRight | Dpad::DownLeft) {
+                self.awkward_diagonal_extra
+            } else {
+                0.0
+            }
+    }
+
     pub fn effort_with_context(&self, input: Input, context: Input) -> f64 {
         let base = self.effort(input, context.mask);
         if context.dpad == Dpad::Neutral {
@@ -442,13 +525,7 @@ impl Costs {
         }
         let before = (input.mask | context.mask).count_ones() + input.dpad.controls();
         let after = before + context.dpad.controls();
-        base + (self.dpad
-            + if context.dpad.controls() == 2 {
-                self.diagonal_extra
-            } else {
-                0.0
-            })
-            * self.held_load
+        base + (self.dpad + self.diagonal_effort(context.dpad)) * self.held_load
             + self.chord_complexity
                 * (f64::from(after.saturating_sub(1)).powi(2)
                     - f64::from(before.saturating_sub(1)).powi(2))
@@ -481,11 +558,15 @@ impl Costs {
             } else {
                 self.dpad
             }
-            + if input.dpad.controls() == 2 {
-                self.diagonal_extra
-            } else {
-                0.0
-            }
+            + self.diagonal_effort(input.dpad)
+            + self.awkward_diagonal_extra
+                * [
+                    Button::X.bit() | Button::Y.bit(),
+                    Button::A.bit() | Button::B.bit(),
+                ]
+                .into_iter()
+                .filter(|pair| physical & pair == *pair)
+                .count() as f64
             + self.chord_complexity * f64::from(count.saturating_sub(1)).powi(2)
             + self.multiple_face_buttons * f64::from(face_extra).powi(2)
             + self.same_side_shoulders * same_side as f64
@@ -677,6 +758,9 @@ impl Profile {
         }
         for (name, value) in [
             ("same_hand_transition", self.costs.same_hand_transition),
+            ("same_finger_transition", self.costs.same_finger_transition),
+            ("grip_change", self.costs.grip_change),
+            ("awkward_diagonal_extra", self.costs.awkward_diagonal_extra),
             ("dpad", self.costs.dpad),
             ("diagonal_extra", self.costs.diagonal_extra),
             ("chord_complexity", self.costs.chord_complexity),
@@ -686,6 +770,9 @@ impl Profile {
             ("modifier_change", self.costs.modifier_change),
         ] {
             nonnegative(name, value)?;
+        }
+        for value in self.costs.skipgram_weights {
+            nonnegative("skipgram_weights", value)?;
         }
         Ok(())
     }
@@ -1084,11 +1171,16 @@ impl Layout {
         if self.recognition != self.strategy.recognition() {
             return Err("unsupported chord recognition policy".into());
         }
-        if (self.strategy.independent || self.profile.costs.same_hand_transition != 0.0)
+        if (self.strategy.independent
+            || self.profile.costs.same_hand_transition != 0.0
+            || self.profile.costs.same_finger_transition != 0.0
+            || self.profile.costs.grip_change != 0.0
+            || self.profile.costs.skipgram_weights != [0.0; 3]
+            || self.profile.costs.awkward_diagonal_extra != 0.0)
             && (self.schema_version < 2 || self.cost_model_version < 2)
         {
             return Err(
-                "independent recognition and alternation scoring require layout/cost versions 2"
+                "independent recognition and extended ergonomic scoring require layout/cost versions 2"
                     .into(),
             );
         }
