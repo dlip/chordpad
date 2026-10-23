@@ -12,6 +12,18 @@
       ".",
       ";",
       "/"
+    ],
+    "extra_function_chords": [
+      {
+        "buttons": [
+          "A"
+        ]
+      },
+      {
+        "buttons": [
+          "X"
+        ]
+      }
     ]
   },
   "strategies": [
@@ -86,6 +98,168 @@
           "L1"
         ]
       }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "1"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "2"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "3"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "4"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "5"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "6"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "7"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "8"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "9"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "0"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "-"
+      },
+      "chord": {
+        "buttons": [
+          "X"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "="
+      },
+      "chord": {
+        "buttons": [
+          "A"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
     }
   ]
 }

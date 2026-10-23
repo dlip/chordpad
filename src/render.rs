@@ -294,6 +294,74 @@ fn diagram(layout: &Layout, binding: Option<&Binding>) -> String {
     svg
 }
 
+fn number_reference(layout: &Layout) -> String {
+    let mut out = String::from(
+        "<section class=\"stick-guide\" aria-label=\"Number positions\"><h2>R2: numbers</h2><p>Hold R2. Add L2 for shifted symbols. The diagrams show the number bindings in this layout.</p><div class=\"stick-maps\">",
+    );
+    for face in [false, true] {
+        write!(
+            out,
+            "<div><h3>{}</h3><div class=\"stick-map\">",
+            if face { "Face buttons" } else { "D-pad" }
+        )
+        .unwrap();
+        for dpad in [
+            Dpad::UpLeft,
+            Dpad::Up,
+            Dpad::UpRight,
+            Dpad::Left,
+            Dpad::Neutral,
+            Dpad::Right,
+            Dpad::DownLeft,
+            Dpad::Down,
+            Dpad::DownRight,
+        ] {
+            let (mask, label) = if face {
+                match dpad {
+                    Dpad::UpLeft => (Button::X.bit() | Button::Y.bit(), "X + Y".into()),
+                    Dpad::Up => (Button::Y.bit(), "Y / △".into()),
+                    Dpad::UpRight => (Button::Y.bit() | Button::B.bit(), "Y + B".into()),
+                    Dpad::Left => (Button::X.bit(), "X / □".into()),
+                    Dpad::Right => (Button::B.bit(), "B / ○".into()),
+                    Dpad::DownLeft => (Button::A.bit() | Button::X.bit(), "A + X".into()),
+                    Dpad::Down => (Button::A.bit(), "A / ×".into()),
+                    Dpad::DownRight => (Button::A.bit() | Button::B.bit(), "A + B".into()),
+                    Dpad::Neutral => (0, "".into()),
+                }
+            } else {
+                (0, direction(dpad).0.to_string())
+            };
+            let input = Input {
+                mask,
+                dpad: if face { Dpad::Neutral } else { dpad },
+            };
+            let number = layout
+                .bindings
+                .iter()
+                .find_map(|b| match b.action {
+                    Action::Character(c)
+                        if c.is_ascii_digit()
+                            && b.held == [Button::R2]
+                            && b.chord.input().ok() == Some(input) =>
+                    {
+                        Some(c.to_string())
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(|| "·".into());
+            write!(
+                out,
+                "<div class=\"stick-cell number-cell\"><span>{number}</span><span>{}</span></div>",
+                escape(&label)
+            )
+            .unwrap();
+        }
+        out.push_str("</div></div>");
+    }
+    out.push_str("</div></section>");
+    out
+}
+
 fn thumbstick_reference() -> String {
     let mut out = String::from(
         "<section class=\"stick-guide\" aria-labelledby=\"stick-title\"><h2 id=\"stick-title\">Thumbstick modifiers</h2><p>Hold either stick while typing. Command sends Meta / Super on Linux. Add L2 for Shift or R2 for numbers and symbols.</p><div class=\"stick-maps\">",
@@ -383,6 +451,13 @@ pub fn html(layout: &Layout) -> Result<String> {
     out.push_str("</div><p id=\"preview-instruction\" class=\"preview-caption\">Single-control bindings are shown here. … marks a longer action name; see its card below.</p></div><div class=\"guide\"><h2>Read the controller</h2><div class=\"legend\"><span><i class=\"press-swatch\"></i>Press for this chord</span><span><i class=\"hold-swatch\"></i>Hold as a modifier</span></div><ol><li><strong>Hold</strong> the modifier controls shown, if any.</li><li><strong>Press</strong> the highlighted buttons and D-pad directions together.</li><li><strong>Release</strong> ordinary controls to type. Held modifiers can stay down.</li></ol><p class=\"guide-note\">D-pad diagonals highlight two directions. A + B means press both buttons.</p></div></section>");
     if layout.strategy.independent {
         out.push_str(&thumbstick_reference());
+        if layout
+            .bindings
+            .iter()
+            .any(|b| matches!(b.action,Action::Character(c) if c.is_ascii_digit()))
+        {
+            out.push_str(&number_reference(layout));
+        }
     }
     if layout.profile.navigation_layer {
         out.push_str("<section class=\"stick-guide\" aria-label=\"Navigation layer\"><h2>R2 + L1: navigation</h2><p>Hold R2 and L1. Use the D-pad for arrows, Y / Triangle for Page Up, A / Cross for Page Down, X / Square for Home, and B / Circle for End. Navigation keys fire on press and repeat after 400 ms, every 80 ms. Add L2 to select text; thumbstick modifiers also apply. D-pad diagonals produce no arrows. Release either layer key to stop. Held inputs must release before typing again. R2 alone keeps the numbers/symbols layer; L1 is consumed as the navigation modifier.</p><div class=\"chord-grid navigation-grid\">");
@@ -418,7 +493,7 @@ pub fn html(layout: &Layout) -> Result<String> {
         out.push_str("</div></section>");
     }
     if layout.profile.function_layer {
-        out.push_str("<section class=\"stick-guide\" aria-label=\"Function layer\"><h2>R2 + R1: function keys</h2><p>Hold R2 and R1. Use the number combos: 1–9 send F1–F9, and 0 sends F10. D-pad Left is F11; D-pad Down is F12. Release the entire ordinary chord to send one function key. Keep the prefix held for sequential inputs. Add L2 for Shift or use thumbstick modifiers. R1 is consumed as the layer key.</p><div class=\"chord-grid navigation-grid\">");
+        out.push_str("<section class=\"stick-guide\" aria-label=\"Function layer\"><h2>R2 + R1: function keys</h2><p>Hold R2 and R1. Use the number combos: 1–9 send F1–F9, and 0 sends F10. F11 and F12 use the separate combos shown below. Release the entire ordinary chord to send one function key. Keep the prefix held for sequential inputs. Add L2 for Shift or use thumbstick modifiers. R1 is consumed as the layer key.</p><div class=\"chord-grid navigation-grid\">");
         let mut bindings = layout.function_bindings();
         bindings.sort_by(|a, b| a.action.cmp(&b.action));
         for binding in bindings {

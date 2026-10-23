@@ -83,7 +83,7 @@ public final class MainActivity extends Activity {
 
         chordCard = card(page); chordCard.addView(text("Typing layout",20,INK));
         profile = text("",14,MUTED); chordCard.addView(profile);
-        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nBundled layout: hold R2 + L1 for navigation. D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End. Add L2 to select text.\nHold R2 + R1: function keys using number combos (0 = F10); D-pad Left/Down = F11/F12.\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Alt + Command.",15,INK));
+        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nBundled numbers: clockwise D-pad 1–8; Triangle 9, Circle 0; Square -, Cross =. Add L2 for _ and +.\nBundled layout: hold R2 + L1 for navigation. D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End. Add L2 to select text.\nHold R2 + R1: function keys using number combos (0 = F10); Cross/Square = F11/F12.\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Alt + Command.",15,INK));
         chordCard.addView(button("View chord reference",v -> reference()));
         LinearLayout files = row(); chordCard.addView(files);
         files.addView(button("Import layout…",v -> {

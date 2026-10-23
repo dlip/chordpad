@@ -46,6 +46,137 @@ fn function_keys_share_number_chords_and_have_twelve_reference_cards() {
     let html = render::html(&layout).unwrap();
     assert_eq!(html.matches("class=\"function-card\"").count(), 12);
     assert!(html.contains("R2 + R1: function keys"));
+    assert!(html.contains("R2: numbers"));
+    for (key, button) in [(Key::F11, Button::A), (Key::F12, Button::X)] {
+        assert_eq!(
+            functions
+                .iter()
+                .find(|b| b.action == Action::Key(key))
+                .unwrap()
+                .chord,
+            Chord {
+                dpad: Dpad::Neutral,
+                buttons: vec![button]
+            }
+        );
+    }
+}
+
+#[test]
+fn bundled_numbers_follow_clockwise_dpad_and_face_positions() {
+    let layout = layout();
+    for (digit, dpad) in ('1'..='8').zip([
+        Dpad::Up,
+        Dpad::UpRight,
+        Dpad::Right,
+        Dpad::DownRight,
+        Dpad::Down,
+        Dpad::DownLeft,
+        Dpad::Left,
+        Dpad::UpLeft,
+    ]) {
+        let binding = layout
+            .bindings
+            .iter()
+            .find(|b| b.action == Action::Character(digit))
+            .unwrap();
+        assert_eq!(
+            binding.chord,
+            Chord {
+                dpad,
+                buttons: vec![]
+            }
+        );
+        assert_eq!(binding.held, [Button::R2]);
+    }
+    for (digit, button) in [('9', Button::Y), ('0', Button::B)] {
+        assert_eq!(
+            layout
+                .bindings
+                .iter()
+                .find(|b| b.action == Action::Character(digit))
+                .unwrap()
+                .chord,
+            Chord {
+                dpad: Dpad::Neutral,
+                buttons: vec![button]
+            }
+        );
+    }
+}
+
+#[test]
+fn older_layouts_keep_default_f11_f12_and_custom_pairs_are_supported() {
+    let mut legacy = layout();
+    legacy.profile.extra_function_chords = Profile::default().extra_function_chords;
+    legacy
+        .bindings
+        .retain(|b| matches!(b.action,Action::Character(c) if c.is_ascii_digit()));
+    for (digit, button) in [('5', Button::A), ('7', Button::X)] {
+        legacy
+            .bindings
+            .iter_mut()
+            .find(|b| b.action == Action::Character(digit))
+            .unwrap()
+            .chord = Chord {
+            dpad: Dpad::Neutral,
+            buttons: vec![button],
+        };
+    }
+    let json = serde_json::to_value(legacy).unwrap();
+    assert!(json["profile"].get("extra_function_chords").is_none());
+    let legacy: Layout = serde_json::from_value(json).unwrap();
+    legacy.validate().unwrap();
+    for (key, dpad) in [(Key::F11, Dpad::Left), (Key::F12, Dpad::Down)] {
+        assert_eq!(
+            legacy
+                .function_bindings()
+                .iter()
+                .find(|b| b.action == Action::Key(key))
+                .unwrap()
+                .chord
+                .dpad,
+            dpad
+        );
+    }
+    let mut custom = layout();
+    custom.profile.extra_function_chords[0].buttons = vec![Button::A, Button::X];
+    custom.validate().unwrap();
+    let mut engine = Recognizer::new(
+        custom.strategy.clone(),
+        custom.profile.clone(),
+        Some(custom.clone()),
+    )
+    .unwrap();
+    let state = |buttons| Snapshot {
+        buttons,
+        menu_buttons: vec![],
+        dpad: Some(Dpad::Neutral),
+        l2: 0.0,
+        r2: 0.0,
+        left_stick: Dpad::Neutral,
+        right_stick: Dpad::Neutral,
+    };
+    engine.update(&state(vec![]));
+    engine.update(&state(vec![Button::R1, Button::R2]));
+    engine.update(&state(vec![Button::R1, Button::R2, Button::A]));
+    engine.update(&state(vec![Button::R1, Button::R2, Button::A, Button::X]));
+    assert!(
+        engine
+            .update(&state(vec![Button::R1, Button::R2, Button::A]))
+            .is_empty()
+    );
+    assert!(matches!(
+        engine
+            .update(&state(vec![Button::R1, Button::R2]))
+            .as_slice(),
+        [Event::Chord {
+            action: Some(Action::Key(Key::F11)),
+            ..
+        }]
+    ));
+    custom.profile.extra_function_chords[1] = custom.profile.extra_function_chords[0].clone();
+    assert!(custom.validate().is_err());
 }
 
 #[test]
@@ -65,8 +196,8 @@ fn invalid_function_layouts_and_pause_conflicts_are_rejected() {
     for binding in &mut collision.bindings {
         if binding.action.group(true).0 == Action::Character('1') {
             binding.chord = Chord {
-                dpad: Dpad::Left,
-                buttons: vec![],
+                dpad: Dpad::Neutral,
+                buttons: vec![Button::A],
             };
         }
     }

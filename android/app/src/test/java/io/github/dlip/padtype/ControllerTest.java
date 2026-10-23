@@ -17,7 +17,7 @@ public class ControllerTest {
         try (var stream = getClass().getResourceAsStream("/chord-vectors.json")) {
             assertNotNull(stream);
             JSONArray cases = new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8));
-            assertEquals(264,RecognitionVectors.check(layout(),cases));
+            assertEquals(260,RecognitionVectors.check(layout(),cases));
         }
     }
     @Test public void analogThresholdsHaveHysteresis() {
@@ -69,5 +69,31 @@ public class ControllerTest {
         for (int i = bindings.length()-1; i >= 0; i--) if (bindings.getJSONObject(i).getJSONObject("action").optString("value").equals("0")) bindings.remove(i);
         try { new ChordLayout(json.toString()); fail("Accepted missing number 0"); }
         catch (org.json.JSONException expected) { assertTrue(expected.getMessage().contains("ten number")); }
+    }
+    @Test public void oldFunctionDefaultsAndCustomExtraCombosRemainUsable() throws Exception {
+        JSONObject old = new JSONObject(layout()); old.getJSONObject("profile").remove("extra_function_chords");
+        JSONArray bindings = old.getJSONArray("bindings");
+        for (int i = bindings.length()-1; i >= 0; i--) {
+            JSONObject binding = bindings.getJSONObject(i), action = binding.getJSONObject("action");
+            String value = action.getString("value");
+            if (!action.getString("type").equals("character") || !"0123456789".contains(value) || value.length() != 1) { bindings.remove(i); continue; }
+            if (value.equals("5") || value.equals("7")) binding.put("chord",new JSONObject().put("buttons",new JSONArray().put(value.equals("5") ? "A" : "X")));
+        }
+        ChordLayout legacy = new ChordLayout(old.toString());
+        assertEquals(Action.key("f11"),legacy.resolveFunction(0,1,128,0));
+        assertEquals(Action.key("f12"),legacy.resolveFunction(0,8,128,0));
+        JSONObject custom = new JSONObject(layout());
+        JSONArray extras = custom.getJSONObject("profile").getJSONArray("extra_function_chords");
+        extras.getJSONObject(0).put("buttons",new JSONArray().put("A").put("X"));
+        ChordEngine engine = new ChordEngine(new ChordLayout(custom.toString()));
+        engine.update(Frame.NEUTRAL,0);
+        engine.update(new Frame(128|32,0,0,0,0,0,0,0),1);
+        engine.update(new Frame(128|32|1,0,0,0,0,0,0,0),2);
+        engine.update(new Frame(128|32|1|4,0,0,0,0,0,0,0),3);
+        assertTrue(engine.update(new Frame(128|32|1,0,0,0,0,0,0,0),4).isEmpty());
+        assertEquals(List.of(Action.key("f11")),engine.update(new Frame(128|32,0,0,0,0,0,0,0),5));
+        extras.put(1,extras.getJSONObject(0));
+        try { new ChordLayout(custom.toString()); fail("Accepted duplicate extra function combos"); }
+        catch (org.json.JSONException expected) { assertTrue(expected.getMessage().contains("must differ")); }
     }
 }

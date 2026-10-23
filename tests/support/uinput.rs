@@ -410,20 +410,23 @@ fn linux_function_layer_uses_number_combos_without_leaking_space() {
     let mut log = vec![];
     until(&rx, &mut log, "READY");
     emit(&mut gamepad, &[(3, 5, 255), (1, 311, 1)]);
-    emit(&mut gamepad, &[(3, 16, 1)]);
+    emit(&mut gamepad, &[(3, 17, -1)]);
     thread::sleep(Duration::from_millis(40));
     log.extend(rx.try_iter());
     assert!(!log.iter().any(|s| s.starts_with("OUT:")), "{log:?}");
-    emit(&mut gamepad, &[(3, 16, 0)]);
+    emit(&mut gamepad, &[(3, 17, 0)]);
     until(&rx, &mut log, "OUT: WOULD TYPE F1");
     emit(&mut gamepad, &[(3, 2, 255)]);
-    emit(&mut gamepad, &[(1, 304, 1), (1, 305, 1)]);
-    emit(&mut gamepad, &[(1, 304, 0)]);
-    emit(&mut gamepad, &[(1, 305, 0)]);
+    emit(&mut gamepad, &[(3, 16, -1)]);
+    emit(&mut gamepad, &[(3, 16, 0)]);
     until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + F7");
-    for (axis, value, key) in [(17, -1, "F10"), (16, -1, "F11"), (17, 1, "F12")] {
-        emit(&mut gamepad, &[(3, axis, value)]);
-        emit(&mut gamepad, &[(3, axis, 0)]);
+    for (button, key) in [
+        (KeyCode::BTN_EAST.0, "F10"),
+        (KeyCode::BTN_SOUTH.0, "F11"),
+        (KeyCode::BTN_WEST.0, "F12"),
+    ] {
+        emit(&mut gamepad, &[(1, button, 1)]);
+        emit(&mut gamepad, &[(1, button, 0)]);
         until(&rx, &mut log, &format!("OUT: WOULD TYPE [Shift] + {key}"));
     }
     emit(&mut gamepad, &[(3, 2, 0), (3, 5, 0), (1, 311, 0)]);

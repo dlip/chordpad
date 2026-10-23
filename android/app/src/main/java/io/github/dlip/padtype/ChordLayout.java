@@ -39,6 +39,15 @@ public final class ChordLayout {
         JSONObject profile = object.getJSONObject("profile");
         navigationLayer = profile.optBoolean("navigation_layer");
         functionLayer = profile.optBoolean("function_layer");
+        int[] extraButtons = {0,0}, extraDpad = {1,8};
+        JSONArray extras = profile.optJSONArray("extra_function_chords");
+        if (profile.has("extra_function_chords") && (extras == null || extras.length() != 2)) throw new JSONException("F11/F12 require two extra function combos");
+        if (extras != null) for (int i = 0; i < 2; i++) {
+            JSONObject chord = extras.getJSONObject(i);
+            extraButtons[i] = buttons(chord.has("buttons") ? chord.getJSONArray("buttons") : null); extraDpad[i] = direction(chord.optString("dpad","neutral"));
+        }
+        for (int i = 0; i < 2; i++) if ((extraButtons[i] & ~0x0f) != 0 || (extraDpad[i] != 0 && extraButtons[i] != 0) || (extraDpad[i] == 0 && extraButtons[i] == 0)) throw new JSONException("F11/F12 require D-pad or face-button combos without shoulders");
+        if (extraButtons[0] == extraButtons[1] && extraDpad[0] == extraDpad[1]) throw new JSONException("F11/F12 combos must differ");
         diagonals = profile.optBoolean("diagonals", true);
         excludeOpposites = profile.optBoolean("exclude_opposite_face_pairs");
         disabled = buttons(profile.optJSONArray("disabled_buttons"));
@@ -107,12 +116,14 @@ public final class ChordLayout {
             for (int digit = 0; digit < 10; digit++) {
                 Binding number = null;
                 for (Binding binding : bindings) if (binding.held() == R2 && binding.action().equals(Action.text(Integer.toString(digit)))) number = binding;
-                if (number == null || (number.buttons() & (L1 | R1)) != 0 || (number.buttons() == 0 && (number.dpad() == 1 || number.dpad() == 8))) {
-                    throw new JSONException("The function layer requires all ten number combos without L1/R1; D-pad Left/Down are F11/F12");
+                if (number == null || (number.buttons() & (L1 | R1)) != 0
+                        || (number.buttons() == extraButtons[0] && number.dpad() == extraDpad[0])
+                        || (number.buttons() == extraButtons[1] && number.dpad() == extraDpad[1])) {
+                    throw new JSONException("The function layer requires all ten number combos without L1/R1 or F11/F12 conflicts");
                 }
                 functionBinding(number.buttons(),number.dpad(),"f" + (digit == 0 ? 10 : digit));
             }
-            functionBinding(0,1,"f11"); functionBinding(0,8,"f12");
+            functionBinding(extraButtons[0],extraDpad[0],"f11"); functionBinding(extraButtons[1],extraDpad[1],"f12");
         }
     }
 

@@ -146,10 +146,25 @@ For a new layout, use `--independent --navigation-layer` or enable
 need regeneration to relocate conflicting symbols; layouts without this option
 retain their existing behavior.
 
+The example pins numbers clockwise around the D-pad while R2 is held:
+
+```text
+8  1  2
+7  ·  3
+6  5  4
+```
+
+Triangle/Y is 9 and Circle/B is 0. L2 keeps the usual shifted number symbols on
+the same combos. Square/X is `-`; Cross/A is `=`. Add L2 for `_` and `+`.
+Cross+Square/A+X is `]` (L2 adds `}`). Base letters and punctuation are unchanged.
+
 The example also enables `profile.function_layer`. Hold **R2 + R1** and use the
-same ordinary combos as the numbers: **1–9 → F1–F9**, **0 → F10**. F11 uses D-pad
-Left and F12 uses D-pad Down. Number placement reserves those two function slots
-and avoids L1/R1 so every number combo works with the held function prefix.
+same combos: **1–9 → F1–F9**, **0 → F10**. Cross/A is F11 and Square/X is F12,
+so all four face buttons also follow clockwise order for F9–F12.
+`profile.extra_function_chords` specifies the F11 and F12 combos, in that order;
+the example uses `[{"buttons":["A"]},{"buttons":["X"]}]`. They are reserved against
+number placement. Older layouts without this field retain D-pad Left/Down for
+F11/F12. Number combos avoid L1/R1 so they work with the held function prefix.
 Function keys send once when the whole ordinary chord releases; they do not
 repeat. The prefix can stay held for sequential function keys. L2 adds Shift,
 and thumbstick modifiers apply. Releasing the prefix early preserves a function

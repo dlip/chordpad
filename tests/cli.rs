@@ -438,6 +438,33 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
     assert!(layout.profile.navigation_layer);
     assert!(layout.profile.function_layer);
     assert_eq!(layout.function_bindings().len(), 12);
+    for (digit, dpad) in ('1'..='8').zip([
+        Dpad::Up,
+        Dpad::UpRight,
+        Dpad::Right,
+        Dpad::DownRight,
+        Dpad::Down,
+        Dpad::DownLeft,
+        Dpad::Left,
+        Dpad::UpLeft,
+    ]) {
+        let binding = layout
+            .bindings
+            .iter()
+            .find(|b| b.action == Action::Character(digit))
+            .unwrap();
+        assert_eq!(binding.chord.dpad, dpad);
+        assert!(binding.chord.buttons.is_empty());
+    }
+    for (digit, button) in [('9', Button::Y), ('0', Button::B)] {
+        let binding = layout
+            .bindings
+            .iter()
+            .find(|b| b.action == Action::Character(digit))
+            .unwrap();
+        assert_eq!(binding.chord.buttons, [button]);
+        assert_eq!(binding.chord.dpad, Dpad::Neutral);
+    }
     assert!(layout.bindings.iter().all(|b| !b.held.contains(&Button::R2)
         || (!b.chord.buttons.contains(&Button::L1) && !b.chord.buttons.contains(&Button::R1))));
     for (plain, shifted, buttons) in [

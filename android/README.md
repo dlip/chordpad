@@ -54,7 +54,7 @@ Android yet.
 | L1 alone / R1 alone | Backspace / Space; with R2, navigation / functions |
 | L2 / R2 | Held Shift / numbers and symbols |
 | R2 + L1 | Held navigation layer: D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End |
-| R2 + R1 | Held function layer: number combos 1–9 → F1–F9, 0 → F10; Left/Down → F11/F12 |
+| R2 + R1 | Held function layer: number combos 1–9 → F1–F9, 0 → F10; Cross/Square → F11/F12 |
 | Options / Share | Enter / Escape in every layer |
 | Sticks | Up Alt, down Command/Meta, outward Ctrl, inward Alt + Command |
 
@@ -78,12 +78,21 @@ reserves R2 + L1 and relocates conflicting symbol bindings. Base letters and
 punctuation remain unchanged. Imported older layouts keep their original
 behavior until regenerated with the navigation option enabled.
 
+The bundled number layer uses a clockwise D-pad ring: Up is 1, Up Right is 2,
+Right is 3, Down Right is 4, Down is 5, Down Left is 6, Left is 7, and Up Left
+is 8. Triangle is 9; Circle is 0. L2 adds the usual shifted number symbols.
+Square is `-`; Cross is `=`. Add L2 for `_` and `+`. Cross+Square is `]`
+(L2 adds `}`). Number, minus, and equals positions are pinned in the example
+generator configuration.
+
 With `profile.function_layer` enabled, hold R2 + R1 and press the same ordinary
-combos as numbers 1–9 for F1–F9, or 0 for F10. D-pad Left is F11 and D-pad Down
-is F12. Function keys fire once on full chord release, with L2 Shift and stick
+combos as numbers 1–9 for F1–F9, or 0 for F10. Cross is F11 and Square is F12 in
+the bundled preset. Function keys fire once on full chord release, with L2 Shift and stick
 modifiers supported. The prefix can stay held across sequential inputs. Early
 prefix release preserves a function stroke already started, without sending
-Space. Entering either extra layer cancels unfinished typing; switching between
+Space. Imported layouts use their own `profile.extra_function_chords` for F11/F12;
+older layouts without the field retain D-pad Left/Down. Entering either extra
+layer cancels unfinished typing; switching between
 the extra layers cancels unfinished strokes and consumes held controls. Holding
 R2 + L1 + R1 suppresses typing; adding L2 uses the normal pause gesture.
 
@@ -130,7 +139,7 @@ From `android/`, run:
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
-The JVM and Rust tests use the same 264 recognition vectors, covering every
+The JVM and Rust tests use the same 260 recognition vectors, covering every
 bundled binding, overlapping releases, rolled diagonals, held and late modifiers,
 stick directions, menus, resets, forbidden pairs, startup, and queue overflow.
 Run the Rust half from the repository root with `cargo test --test android`.

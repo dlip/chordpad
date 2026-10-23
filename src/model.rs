@@ -492,9 +492,28 @@ impl Default for Weights {
     }
 }
 
+fn default_extra_function_chords() -> [Chord; 2] {
+    [
+        Chord {
+            dpad: Dpad::Left,
+            buttons: vec![],
+        },
+        Chord {
+            dpad: Dpad::Down,
+            buttons: vec![],
+        },
+    ]
+}
+
+fn default_function_chords(chords: &[Chord; 2]) -> bool {
+    *chords == default_extra_function_chords()
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Profile {
+    #[serde(skip_serializing_if = "default_function_chords")]
+    pub extra_function_chords: [Chord; 2],
     #[serde(default, skip_serializing_if = "is_false")]
     pub function_layer: bool,
     #[serde(default, skip_serializing_if = "is_false")]
@@ -517,6 +536,7 @@ impl Default for Profile {
         Self {
             exclude_opposite_face_pairs: false,
             function_layer: false,
+            extra_function_chords: default_extra_function_chords(),
             navigation_layer: false,
             base_punctuation: vec![],
             diagonals: true,
@@ -534,6 +554,18 @@ impl Profile {
     pub fn validate(&self) -> Result<()> {
         button_mask(&self.disabled_buttons)?;
         button_mask(&self.modifier_only_buttons)?;
+        let mut function_chords = BTreeSet::new();
+        for chord in &self.extra_function_chords {
+            let input = chord.input()?;
+            if input.typing_side().is_none()
+                || input.mask & !0x0f != 0
+                || !function_chords.insert(input)
+            {
+                return Err(
+                    "F11/F12 require distinct D-pad or face-button combos without shoulders".into(),
+                );
+            }
+        }
         let mut punctuation = BTreeSet::new();
         for &c in &self.base_punctuation {
             if !c.is_ascii_punctuation()
@@ -653,7 +685,10 @@ pub fn independent_binding_allowed(
     if profile.function_layer && matches!(action, Action::Character(c) if c.is_ascii_digit()) {
         return context.mask & Button::R2.bit() != 0
             && input.mask & (Button::L1.bit() | Button::R1.bit()) == 0
-            && !(input.mask == 0 && matches!(input.dpad, Dpad::Left | Dpad::Down))
+            && !profile
+                .extra_function_chords
+                .iter()
+                .any(|chord| chord.input().ok() == Some(input))
             && profile.allows(input.with_context(Input {
                 mask: Button::R1.bit() | Button::R2.bit(),
                 dpad: Dpad::Neutral,
@@ -872,13 +907,15 @@ impl Layout {
                 });
             }
         }
-        for (dpad, key) in [(Dpad::Left, Key::F11), (Dpad::Down, Key::F12)] {
+        for (chord, key) in self
+            .profile
+            .extra_function_chords
+            .iter()
+            .zip([Key::F11, Key::F12])
+        {
             bindings.push(Binding {
                 action: Action::Key(key),
-                chord: Chord {
-                    dpad,
-                    buttons: vec![],
-                },
+                chord: chord.clone(),
                 held: vec![Button::R1, Button::R2],
                 held_dpad: Dpad::Neutral,
             });
