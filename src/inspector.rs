@@ -295,6 +295,10 @@ fn display(view: &View, json: bool) -> Result<()> {
                 snapshot.r2 * 100.0
             )
             .map_err(|e| e.to_string())?;
+            if !snapshot.menu_buttons.is_empty() {
+                writeln!(out, "Menu buttons: {:?}", snapshot.menu_buttons)
+                    .map_err(|e| e.to_string())?;
+            }
             if snapshot.left_stick != Dpad::Neutral || snapshot.right_stick != Dpad::Neutral {
                 writeln!(
                     out,
@@ -309,6 +313,14 @@ fn display(view: &View, json: bool) -> Result<()> {
         for event in &view.events {
             let text = match event {
                 Event::Ready => "READY".into(),
+                Event::Menu {
+                    button,
+                    action,
+                    keyboard_modifiers,
+                } => format!(
+                    "BUTTON {button:?} | keyboard {keyboard_modifiers:?} => {}",
+                    action.label()
+                ),
                 Event::Cancelled { reason } => format!("CANCELLED: {reason}"),
                 Event::Reset { reason, discarded } => {
                     format!("RESET: {reason}; pending chord discarded: {discarded}")

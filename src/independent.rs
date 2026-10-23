@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    chord::{Engine as HalfEngine, Event, Phase},
+    chord::{Engine as HalfEngine, Event, MenuKeys, Phase},
     controller::Snapshot,
     model::*,
 };
@@ -35,6 +35,8 @@ pub struct Engine {
     queue: VecDeque<Pending>,
     waiting: bool,
     next_id: u64,
+    menu: MenuKeys,
+    menu_pending: [Option<u64>; 2],
 }
 
 impl Engine {
@@ -49,6 +51,8 @@ impl Engine {
             queue: VecDeque::new(),
             waiting: true,
             next_id: 0,
+            menu: MenuKeys::default(),
+            menu_pending: [None; 2],
         })
     }
 
@@ -57,7 +61,9 @@ impl Engine {
             return Phase::Waiting;
         }
         for phase in [Phase::Collecting, Phase::Releasing, Phase::Cancelled] {
-            if self.halves.iter().any(|h| h.engine.phase == phase) {
+            if self.halves.iter().any(|h| h.engine.phase == phase)
+                || phase == Phase::Collecting && self.menu.collecting()
+            {
                 return phase;
             }
         }
@@ -67,6 +73,8 @@ impl Engine {
     pub fn reset(&mut self, reason: &str) -> Event {
         let discarded = !self.queue.is_empty();
         self.queue.clear();
+        self.menu = MenuKeys::default();
+        self.menu_pending = [None; 2];
         self.waiting = true;
         for half in &mut self.halves {
             half.engine.reset(reason);
@@ -166,6 +174,7 @@ impl Engine {
                 self.halves[i].pending = Some(id);
             }
             let local_snapshot = Snapshot {
+                menu_buttons: vec![],
                 buttons: Input {
                     mask: local.mask | modifiers,
                     ..local
@@ -192,6 +201,22 @@ impl Engine {
                 if let Some(event) = self.complete(side, event) {
                     events.push(event);
                 }
+            }
+        }
+        for change in self.menu.update(snapshot, self.layout.strategy.shift) {
+            let pending = &mut self.menu_pending[change.button.index()];
+            if change.started {
+                if self.queue.len() == MAX_PENDING {
+                    return vec![self.reset("too many pending strokes")];
+                }
+                let id = self.next_id;
+                self.next_id = self.next_id.wrapping_add(1);
+                self.queue.push_back(Pending { id, event: None });
+                *pending = Some(id);
+            }
+            if let Some(event) = change.completed {
+                let id = pending.take().unwrap();
+                self.queue.iter_mut().find(|p| p.id == id).unwrap().event = Some(event);
             }
         }
         while self.queue.front().is_some_and(|p| p.event.is_some()) {

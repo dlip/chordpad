@@ -3,10 +3,13 @@
 Gamepad typing for Linux, with a layout generator that searches for comfortable,
 efficient chords.
 
-Inputs are the D-pad, A/B/X/Y, L1/R1, L2/R2, and both thumbsticks. Direct typing chords use the
-D-pad and A/B/X/Y/L1/R1 by default. The analog L2/R2 triggers are reserved for
+Inputs are the D-pad, A/B/X/Y, L1/R1, L2/R2, Start/Select, and both thumbsticks.
+Direct typing chords use the D-pad and A/B/X/Y/L1/R1 by default. The analog L2/R2 triggers are reserved for
 held Shift or layers. Thumbsticks supply Alt, Ctrl, and Command/Meta. The
-generator chooses typing combinations within those roles.
+generator chooses typing combinations within those roles. Start sends Enter and
+Select sends Escape on release in every layout and layer, independently of typing
+chords. They also accept held Shift and thumbstick modifiers. Existing layouts
+work without regeneration.
 
 The layout generator, visual layout exporter, controller inspector, and Linux
 virtual-keyboard runtime are implemented. Desktop editor and terminal testing is
@@ -102,7 +105,7 @@ cargo run -- render --layout independent.json --output independent.html
 ```
 
 [examples/independent.json](examples/independent.json) adds pinned base punctuation
-and Enter to this preset. Use it with `--config examples/independent.json` and your
+to this preset. Use it with `--config examples/independent.json` and your
 own corpus. This preset enforces these rules during generation
 and layout validation:
 
@@ -111,19 +114,27 @@ and layout validation:
 | D-pad, A/B/X/Y, L1/R1 combinations | Digital typing chords; all letters use the base bank |
 | R1 alone | Space in every layer |
 | L1 alone | Backspace in every layer |
+| Start | Enter in every layer |
+| Select | Escape in every layer |
 | L2 | Held Shift; uppercase uses the lowercase chord |
 | R2 | Held numbers/symbols layer; combine with L2 for shifted symbols |
 
 `profile.base_punctuation` permits selected unshifted ASCII punctuation on the
 base bank, with its usual L2 Shift pair. Other numbers and symbols require R2.
-The example configuration permits apostrophe, comma, and period and pins:
+The example configuration permits apostrophe, comma, period, semicolon, and
+forward slash and pins:
 
 | Base chord | Output | With L2 Shift |
 | --- | --- | --- |
 | R1 + A + B | `'` | `"` |
 | R1 + A + X | `,` | `<` |
 | R1 + B + Y | `.` | `>` |
-| R1 + X + Y | Enter | |
+| L1 + D-pad Up Left | `;` | `:` |
+| R1 + X + Y | `/` | `?` |
+
+Start and Select provide Enter and Escape. Independent generation uses these
+dedicated controls without allocating typing chords. Explicit Enter/Escape pins
+in older configurations remain supported.
 
 Both triggers work with either hand and can stay held across sequential strokes,
 including Space and Backspace. Hold modifiers before starting an ordinary stroke,
@@ -135,9 +146,10 @@ Ctrl+Backspace or Shift+Space.
 The left half types with D-pad/L1; the right half types with A/B/X/Y/R1. The first
 ordinary release freezes that half's chord; full ordinary release commits it.
 The halves collect and release independently. Output follows stroke-start order,
-even when a later stroke finishes first. Same-report starts are ordered left
-before right. Attempting a 65th pending stroke discards the queue and waits for
-all controls, including sticks and triggers, to return to neutral.
+even when a later stroke finishes first, including Start and Select. Same-report
+starts are ordered left, right, Start, then Select. Attempting a 65th pending
+stroke discards the queue and waits for all controls, including sticks and
+triggers, to return to neutral.
 
 `--exclude-opposite-face-pairs` rejects A+Y and B+X, including their supersets.
 Adjacent pairs remain eligible. All three- and four-face-button combinations
@@ -214,6 +226,10 @@ Movement uses D-pad coordinates and the centroid of pressed face buttons, with
 Xbox-style positions: A south, B east, X west, Y north. The learning term gives
 Shift pairs a shared rule; it is an estimated learning proxy, not a measurement.
 Backspace and Escape are covered but have no usage frequency in plain text.
+Independent layouts score Start/Select as fixed controls with one activation and
+unit effort. Menu-button movement uses the neutral thumb positions as an
+estimate; these controls do not consume generated chord slots. Newlines in the
+corpus are scored through Start when there is no explicit Enter chord.
 
 The report records baseline and optimized scores, held-out scores, all candidate
 layouts, costs, configuration, seeds, budgets, corpus hashes, and dependency lock
@@ -290,8 +306,17 @@ target/release/padtype type --device /dev/input/event28 \
 skips the initial pause, while still requiring neutral controls before typing.
 `--calibration controller.json` uses saved trigger settings. `--grab` requests
 exclusive controller access; the default leaves the gamepad available to other
-applications. Device loss ends the session, discards a pending stroke, and
-releases keyboard keys. Restart the command after reconnecting.
+applications. On device loss, padtype discards pending strokes, releases keyboard
+keys, and waits for the controller to return at the supplied path. Reconnecting
+reloads its mapping, restores `--grab`, and preserves the pause state. Release all
+controls, including triggers and sticks, before typing resumes. Pause/resume
+signals and Ctrl-C/SIGTERM still work while waiting; `--duration` includes the
+time disconnected.
+
+Use a stable `/dev/input/by-id/*-event-joystick` or `/dev/input/by-path/` link so
+reconnection works if Linux assigns a new event number. A raw `/dev/input/eventN`
+path is retried as given. A device with a different vendor/product or name at
+that path is ignored. The controller must be present when the command starts.
 
 The keyboard backend uses [uinput](https://docs.kernel.org/input/uinput.html),
 needs read/write access to `/dev/uinput`, and assumes the
@@ -398,6 +423,11 @@ For [`xpad`](https://github.com/torvalds/linux/blob/master/drivers/input/joystic
 controllers, Xbox X/Y use the driver's [legacy codes](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h)
 (307/308), which reverse the generic geometric mapping. `devices --json` includes the detected
 driver. Explicit calibration files keep their supplied button codes.
+Start/Select are detected when the controller advertises their standard Linux
+codes (315/314). To enable them in an older saved calibration, add
+`"menu_buttons": {"Start": 315, "Select": 314}` or export a fresh calibration.
+This optional map also accepts custom event codes or an empty object to disable
+both buttons; recordings without it retain their original behavior.
 Hat-axis D-pad reports take precedence over duplicate button reports. Digital D-pads and trigger buttons are also supported. Controllers must
 expose the standard face, shoulder, and D-pad capabilities. Keyboard devices
 advertising gamepad button codes are excluded from discovery. A calibration file

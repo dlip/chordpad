@@ -411,8 +411,8 @@ fn independent_generation_scores_and_renders_every_binding_reproducibly() {
 }
 
 #[test]
-fn independent_example_pins_base_punctuation_enter_and_their_shift_pairs() {
-    use padtype::model::{Action, Button, Layout};
+fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
+    use padtype::model::{Action, Button, Dpad, Key, Layout};
     let dir = tempfile::tempdir().unwrap();
     fs::write(
         dir.path().join("config.json"),
@@ -434,12 +434,13 @@ fn independent_example_pins_base_punctuation_enter_and_their_shift_pairs() {
     let layout: Layout =
         serde_json::from_slice(&fs::read(dir.path().join("layout.json")).unwrap()).unwrap();
     layout.validate().unwrap();
-    assert_eq!(layout.profile.base_punctuation, ['\'', ',', '.']);
+    assert_eq!(layout.profile.base_punctuation, ['\'', ',', '.', ';', '/']);
     for (plain, shifted, buttons) in [
         ('\'', Some('"'), vec![Button::A, Button::B, Button::R1]),
         (',', Some('<'), vec![Button::A, Button::X, Button::R1]),
         ('.', Some('>'), vec![Button::B, Button::Y, Button::R1]),
-        ('\n', None, vec![Button::X, Button::Y, Button::R1]),
+        ('/', Some('?'), vec![Button::X, Button::Y, Button::R1]),
+        (';', Some(':'), vec![Button::L1]),
     ] {
         let base = layout
             .bindings
@@ -447,6 +448,14 @@ fn independent_example_pins_base_punctuation_enter_and_their_shift_pairs() {
             .find(|b| b.action == Action::Character(plain))
             .unwrap();
         assert_eq!(base.chord.buttons, buttons);
+        assert_eq!(
+            base.chord.dpad,
+            if plain == ';' {
+                Dpad::UpLeft
+            } else {
+                Dpad::Neutral
+            }
+        );
         assert!(base.held.is_empty());
         if let Some(shifted) = shifted {
             let upper = layout
@@ -458,10 +467,25 @@ fn independent_example_pins_base_punctuation_enter_and_their_shift_pairs() {
             assert_eq!(upper.held, [Button::L2]);
         }
     }
+    for action in [
+        Action::Character('\n'),
+        Action::Key(Key::Enter),
+        Action::Key(Key::Escape),
+    ] {
+        assert!(!layout.bindings.iter().any(|b| b.action == action));
+    }
     success(run(dir.path(), &["render", "--layout", "layout.json"]));
-    fs::write(dir.path().join("task.txt"), "'\",.<>\n").unwrap();
+    fs::write(dir.path().join("task.txt"), "'\",.<>;:/?\n").unwrap();
     success(run(
         dir.path(),
         &["score", "--layout", "layout.json", "--corpus", "task.txt"],
     ));
+    fs::write(dir.path().join("task.txt"), "\n\n").unwrap();
+    let scored = success(run(
+        dir.path(),
+        &["score", "--layout", "layout.json", "--corpus", "task.txt"],
+    ));
+    let score: Value = serde_json::from_slice(&scored.stdout).unwrap();
+    assert_eq!(score["metrics"]["activations"], 1.0);
+    assert_eq!(score["metrics"]["effort"], 1.5);
 }

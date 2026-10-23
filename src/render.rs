@@ -238,6 +238,10 @@ fn diagram(layout: &Layout, binding: Option<&Binding>) -> String {
         }
         svg.push_str("</g>");
     }
+    for (button, x) in [(MenuButton::Select, 182), (MenuButton::Start, 248)] {
+        let action = action_name(&button.action());
+        write!(svg, r#"<g class="control rest" data-menu-button="{button:?}"><title>{button:?}: {action}</title><rect x="{x}" y="138" width="50" height="24" rx="8"/><text x="{}" y="154" class="shoulder-label">{button:?}</text><text x="{}" y="178" class="shoulder-label">{action}</text></g>"#, x+25, x+25).unwrap();
+    }
     let (dx, dy) = dpad.position();
     for (dir, x, y, active) in [
         (Dpad::Up, 91, 85, dy < 0),
@@ -364,6 +368,7 @@ pub fn html(layout: &Layout) -> Result<String> {
     if layout.strategy.independent {
         out.push_str("<p class=\"mode-note\">Each half releases independently. R1 is Space and L1 is Backspace in every layer. Hold L2 for Shift: uppercase letters use the same chords as lowercase. Hold R2 for numbers and symbols across consecutive strokes; add L2 for shifted symbols. Both triggers work with either half. Hold modifiers before starting a stroke. Overlapping strokes type in start order; simultaneous starts type left first.</p>");
     }
+    out.push_str("<p class=\"mode-note\">Start sends Enter and Select sends Escape on release in every layer. These fixed controls also accept held Shift and thumbstick modifiers.</p>");
     out.push_str("<section class=\"overview\" aria-label=\"Controller overview\"><div class=\"preview\"><div class=\"preview-heading\"><p class=\"eyebrow\" id=\"preview-title\">BASE CONTROLS</p><button class=\"text-button js-only\" id=\"reset-preview\" type=\"button\">Reset overview</button></div><div id=\"preview-diagram\">");
     out.push_str(&diagram(layout, None));
     out.push_str("</div><p id=\"preview-instruction\" class=\"preview-caption\">Single-control bindings are shown here. … marks a longer action name; see its card below.</p></div><div class=\"guide\"><h2>Read the controller</h2><div class=\"legend\"><span><i class=\"press-swatch\"></i>Press for this chord</span><span><i class=\"hold-swatch\"></i>Hold as a modifier</span></div><ol><li><strong>Hold</strong> the modifier controls shown, if any.</li><li><strong>Press</strong> the highlighted buttons and D-pad directions together.</li><li><strong>Release</strong> ordinary controls to type. Held modifiers can stay down.</li></ol><p class=\"guide-note\">D-pad diagonals highlight two directions. A + B means press both buttons.</p></div></section>");

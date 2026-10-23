@@ -205,6 +205,8 @@ fn mapping(device: &DeviceInfo) -> Result<Calibration> {
         map.buttons.insert(Button::X, KeyCode::BTN_NORTH.0);
         map.buttons.insert(Button::Y, KeyCode::BTN_WEST.0);
     }
+    map.menu_buttons
+        .retain(|_, code| device.keys.contains(code));
     if !(device.axes.contains_key(&16) && device.axes.contains_key(&17)) {
         map.dpad = DpadSource::Buttons {
             up: 544,
@@ -348,6 +350,20 @@ fn at_us(started: Instant) -> u64 {
     started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64
 }
 
+fn finish_reason(
+    stop: &AtomicBool,
+    duration: Option<u64>,
+    started: Instant,
+) -> Option<&'static str> {
+    if stop.load(Ordering::SeqCst) {
+        Some("interrupted")
+    } else if duration.is_some_and(|seconds| started.elapsed() >= Duration::from_secs(seconds)) {
+        Some("duration elapsed")
+    } else {
+        None
+    }
+}
+
 fn drive(
     device: &mut RawDevice,
     calibration: &Calibration,
@@ -363,11 +379,8 @@ fn drive(
     consume(0, LiveEvent::Frame(initial))?;
     let mut reader = ReportReader::default();
     loop {
-        if stop.load(Ordering::SeqCst) {
-            return Ok("interrupted");
-        }
-        if duration.is_some_and(|seconds| started.elapsed() >= Duration::from_secs(seconds)) {
-            return Ok("duration elapsed");
+        if let Some(reason) = finish_reason(stop, duration, started) {
+            return Ok(reason);
         }
         if controls
             .is_some_and(|c| c.pause.load(Ordering::SeqCst) || c.resume.load(Ordering::SeqCst))
@@ -489,9 +502,59 @@ fn feedback(events: &[crate::chord::Event]) {
             } => eprintln!(
                 "UNMAPPED: {chord:?}, held {held:?}, held D-pad {held_dpad:?}, keyboard {keyboard_modifiers:?}"
             ),
-            Event::Chord { .. } => {}
+            Event::Chord { .. } | Event::Menu { .. } => {}
         }
     }
+}
+
+fn control_commands<O: crate::typing::Output>(
+    controls: &ControlFlags,
+    runtime: &mut crate::typing::Runtime<O>,
+) -> Result<()> {
+    if controls.pause.swap(false, Ordering::SeqCst) {
+        feedback(&runtime.set_paused(true)?);
+    }
+    if controls.resume.swap(false, Ordering::SeqCst) {
+        feedback(&runtime.set_paused(false)?);
+    }
+    Ok(())
+}
+
+fn typing_status(paused: bool) {
+    eprintln!(
+        "{}",
+        if paused {
+            "PAUSED"
+        } else {
+            "ACTIVE: release all controls to arm"
+        }
+    );
+}
+
+fn reopen(
+    path: &Path,
+    expected: &DeviceInfo,
+    calibration_path: Option<&Path>,
+    grab: bool,
+) -> Result<(RawDevice, Calibration)> {
+    let mut device = open(path)?;
+    let info = info(&device, path)?;
+    if info.id != expected.id || info.name != expected.name {
+        return Err(format!(
+            "{} belongs to a different controller; waiting for {} ({:04x}:{:04x})",
+            path.display(),
+            expected.name,
+            expected.id.vendor,
+            expected.id.product
+        ));
+    }
+    let calibration = load_mapping(calibration_path, &info)?;
+    if grab {
+        device
+            .grab()
+            .map_err(|e| format!("cannot grab controller: {e}"))?;
+    }
+    Ok((device, calibration))
 }
 
 pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
@@ -507,7 +570,7 @@ pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
     validate_pause(&layout, &args.pause_buttons)?;
     let mut device = open(&args.device)?;
     let info = info(&device, &args.device)?;
-    let calibration = load_mapping(args.calibration.as_deref(), &info)?;
+    let mut calibration = load_mapping(args.calibration.as_deref(), &info)?;
     let mut normalizer = Normalizer::new(calibration.clone())?;
     let stop = stopped()?;
     let pause = Arc::new(AtomicBool::new(false));
@@ -551,50 +614,83 @@ pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
         std::process::id()
     );
     let started = Instant::now();
-    let result = drive(
-        &mut device,
-        &calibration,
-        &stop,
-        args.duration,
-        started,
-        Some(&controls),
-        |_, event| {
+    let result = (|| loop {
+        let result = drive(
+            &mut device,
+            &calibration,
+            &stop,
+            args.duration,
+            started,
+            Some(&controls),
+            |_, event| {
+                let before = runtime.paused();
+                match event {
+                    LiveEvent::Frame(events) => {
+                        feedback(&runtime.update(&normalizer.apply(&events)?)?)
+                    }
+                    LiveEvent::Reset(reason) => {
+                        feedback(&runtime.reset(reason)?);
+                        normalizer = Normalizer::new(calibration.clone())?;
+                    }
+                    LiveEvent::Control(events) => {
+                        feedback(&runtime.reset("control command")?);
+                        normalizer = Normalizer::new(calibration.clone())?;
+                        control_commands(&controls, &mut runtime)?;
+                        feedback(&runtime.update(&normalizer.apply(&events)?)?);
+                    }
+                }
+                if runtime.paused() != before {
+                    typing_status(runtime.paused());
+                }
+                Ok(())
+            },
+        );
+        if args.grab {
+            let _ = device.ungrab();
+        }
+        let reason = result?;
+        if reason != "disconnected" {
+            return Ok(reason);
+        }
+        feedback(&runtime.reset("disconnected")?);
+        drop(device);
+        eprintln!(
+            "Waiting for controller at {} to reconnect; Ctrl-C or SIGTERM stops.",
+            args.device.display()
+        );
+        let mut last_error = None;
+        loop {
+            if let Some(reason) = finish_reason(&stop, args.duration, started) {
+                return Ok(reason);
+            }
             let before = runtime.paused();
-            match event {
-                LiveEvent::Frame(events) => feedback(&runtime.update(&normalizer.apply(&events)?)?),
-                LiveEvent::Reset(reason) => {
-                    feedback(&runtime.reset(reason)?);
-                    normalizer = Normalizer::new(calibration.clone())?;
-                }
-                LiveEvent::Control(events) => {
-                    feedback(&runtime.reset("control command")?);
-                    normalizer = Normalizer::new(calibration.clone())?;
-                    if controls.pause.swap(false, Ordering::SeqCst) {
-                        feedback(&runtime.set_paused(true)?);
-                    }
-                    if controls.resume.swap(false, Ordering::SeqCst) {
-                        feedback(&runtime.set_paused(false)?);
-                    }
-                    feedback(&runtime.update(&normalizer.apply(&events)?)?);
-                }
-            }
+            control_commands(&controls, &mut runtime)?;
             if runtime.paused() != before {
-                eprintln!(
-                    "{}",
-                    if runtime.paused() {
-                        "PAUSED"
-                    } else {
-                        "ACTIVE: release all controls to arm"
-                    }
-                );
+                typing_status(runtime.paused());
             }
-            Ok(())
-        },
-    );
+            match reopen(&args.device, &info, args.calibration.as_deref(), args.grab) {
+                Ok((reattached, mapping)) => {
+                    device = reattached;
+                    calibration = mapping;
+                    normalizer = Normalizer::new(calibration.clone())?;
+                    eprintln!(
+                        "Reconnected {}. {}; release all controls before typing.",
+                        info.name,
+                        if runtime.paused() { "PAUSED" } else { "ACTIVE" }
+                    );
+                    break;
+                }
+                Err(error) => {
+                    if last_error.as_ref() != Some(&error) {
+                        eprintln!("Reconnect: {error}");
+                        last_error = Some(error);
+                    }
+                }
+            }
+            thread::sleep(Duration::from_millis(250));
+        }
+    })();
     let cleanup = runtime.reset(result.as_ref().copied().unwrap_or("input/output error"));
-    if args.grab {
-        let _ = device.ungrab();
-    }
     feedback(&cleanup?);
     result.map(|_| ())
 }
@@ -724,7 +820,7 @@ mod tests {
                 vendor: 1,
                 product: 1,
             },
-            keys: vec![304, 305, 307, 308, 310, 311],
+            keys: vec![304, 305, 307, 308, 310, 311, 314, 315],
             axes,
         }
     }
@@ -744,6 +840,21 @@ mod tests {
                 .unwrap()
                 .is_neutral()
         );
+    }
+
+    #[test]
+    fn automatic_menu_mapping_only_uses_available_buttons() {
+        use crate::model::MenuButton;
+        let mut device = test_device(None);
+        let calibration = mapping(&device).unwrap();
+        assert_eq!(calibration.menu_buttons[&MenuButton::Start], 315);
+        assert_eq!(calibration.menu_buttons[&MenuButton::Select], 314);
+        device.keys.retain(|code| *code != 315);
+        let calibration = mapping(&device).unwrap();
+        assert_eq!(calibration.menu_buttons.len(), 1);
+        assert_eq!(calibration.menu_buttons[&MenuButton::Select], 314);
+        device.keys.retain(|code| *code != 314);
+        assert!(mapping(&device).unwrap().menu_buttons.is_empty());
     }
 
     #[test]

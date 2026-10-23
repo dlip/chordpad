@@ -52,6 +52,7 @@ pub fn sha256(bytes: &[u8]) -> String {
 
 #[derive(Clone, Debug)]
 pub struct Stats {
+    pub actions: Vec<Action>,
     pub counts: Vec<u64>,
     pub pairs: Vec<(usize, usize, u64)>,
     pub first: usize,
@@ -82,6 +83,7 @@ impl Stats {
             *pairs.entry((pair[0], pair[1])).or_insert(0) += 1;
         }
         Ok(Self {
+            actions: actions.to_vec(),
             counts,
             pairs: pairs.into_iter().map(|((a, b), n)| (a, b, n)).collect(),
             first: sequence[0],

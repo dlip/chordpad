@@ -167,11 +167,7 @@ fn run(cli: Cli) -> Result<()> {
         Command::Score { layout, corpus } => {
             let layout: Layout = read_json(&layout)?;
             let corpus = Corpus::new(&read_text(&corpus)?)?;
-            let actions = layout
-                .bindings
-                .iter()
-                .map(|b| b.action.clone())
-                .collect::<Vec<_>>();
+            let actions = layout.scoring_actions();
             let stats = Stats::new(&corpus, &actions)?;
             let (problem, assignment) = search::load_layout(&layout, stats)?;
             let score = problem.summary(&assignment, &layout.weights, layout.normalization);
@@ -284,6 +280,7 @@ fn generate(args: Generate) -> Result<()> {
         .collect::<BTreeSet<_>>();
     actions.extend(config.pinned_bindings.iter().map(|b| b.action.clone()));
     if config.strategies.iter().any(|s| s.independent) {
+        actions.insert(Action::Character('\n'));
         actions.insert(Action::Character(' '));
         actions.insert(Action::Key(Key::Backspace));
     }
@@ -403,6 +400,7 @@ fn generate(args: Generate) -> Result<()> {
             "Coverage gives unobserved required outputs a uniform access-cost penalty.",
             "Learning is a proxy: one unit per canonical character/key group and four per fixed modifier role.",
             "Backspace and Escape are required but have no observed task frequency in text corpora.",
+            "Independent Enter/Escape use Start/Select unless explicitly pinned to chords; dedicated menu controls cost one activation and unit effort, with movement estimated from the neutral thumb positions.",
         ],
         candidates,
         skipped,

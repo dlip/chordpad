@@ -15,6 +15,12 @@ pub enum Phase {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
     Ready,
+    Menu {
+        button: MenuButton,
+        action: Action,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        keyboard_modifiers: Vec<Modifier>,
+    },
     Chord {
         #[serde(skip_serializing_if = "Vec::is_empty")]
         keyboard_modifiers: Vec<Modifier>,
@@ -41,6 +47,62 @@ pub enum Event {
     },
 }
 
+#[derive(Default)]
+pub(crate) struct MenuKeys {
+    pending: [Option<Event>; 2],
+    previous_modifiers: Vec<Modifier>,
+}
+
+pub(crate) struct MenuChange {
+    pub button: MenuButton,
+    pub started: bool,
+    pub completed: Option<Event>,
+}
+
+impl MenuKeys {
+    pub fn collecting(&self) -> bool {
+        self.pending.iter().any(Option::is_some)
+    }
+
+    pub fn update(&mut self, snapshot: &Snapshot, shift: Option<Button>) -> Vec<MenuChange> {
+        let mut modifiers = snapshot.modifiers();
+        if shift.is_some_and(|b| snapshot.buttons.contains(&b)) {
+            modifiers.push(Modifier::Shift);
+            modifiers.sort();
+            modifiers.dedup();
+        }
+        let added_modifier = modifiers
+            .iter()
+            .any(|m| !self.previous_modifiers.contains(m));
+        self.previous_modifiers = modifiers.clone();
+        MenuButton::ALL
+            .into_iter()
+            .map(|button| {
+                let pending = &mut self.pending[button.index()];
+                if pending.is_some() && added_modifier {
+                    *pending = Some(Event::Cancelled {
+                        reason: "modifier pressed during a menu button stroke".into(),
+                    });
+                }
+                let down = snapshot.menu_buttons.contains(&button);
+                let started = down && pending.is_none();
+                if started {
+                    *pending = Some(Event::Menu {
+                        button,
+                        action: button.action(),
+                        keyboard_modifiers: modifiers.clone(),
+                    });
+                }
+                MenuChange {
+                    button,
+                    started,
+                    completed: if down { None } else { pending.take() },
+                }
+            })
+            .collect()
+    }
+}
+
 pub struct Engine {
     pub phase: Phase,
     strategy: Strategy,
@@ -52,6 +114,7 @@ pub struct Engine {
     keyboard_modifiers: Vec<Modifier>,
     previous_keyboard_modifiers: Vec<Modifier>,
     frozen: Option<Input>,
+    menu: MenuKeys,
 }
 
 impl Engine {
@@ -85,11 +148,14 @@ impl Engine {
             keyboard_modifiers: vec![],
             previous_keyboard_modifiers: vec![],
             frozen: None,
+            menu: MenuKeys::default(),
         })
     }
 
     pub fn reset(&mut self, reason: &str) -> Event {
-        let discarded = matches!(self.phase, Phase::Collecting | Phase::Releasing);
+        let discarded =
+            matches!(self.phase, Phase::Collecting | Phase::Releasing) || self.menu.collecting();
+        self.menu = MenuKeys::default();
         self.phase = Phase::Waiting;
         self.previous = Input {
             dpad: Dpad::Neutral,
@@ -107,6 +173,20 @@ impl Engine {
     }
 
     pub fn update(&mut self, snapshot: &Snapshot) -> Vec<Event> {
+        let waiting = self.phase == Phase::Waiting;
+        let mut events = self.update_chord(snapshot);
+        if !waiting {
+            events.extend(
+                self.menu
+                    .update(snapshot, self.strategy.shift)
+                    .into_iter()
+                    .filter_map(|change| change.completed),
+            );
+        }
+        events
+    }
+
+    fn update_chord(&mut self, snapshot: &Snapshot) -> Vec<Event> {
         let physical = snapshot.input();
         if self.phase == Phase::Waiting {
             self.previous_buttons = physical.mask;
@@ -285,6 +365,7 @@ impl Recognizer {
     }
     pub fn phase(&self) -> Phase {
         match self {
+            Self::Unified(e) if e.phase == Phase::Idle && e.menu.collecting() => Phase::Collecting,
             Self::Unified(e) => e.phase,
             Self::Independent(e) => e.phase(),
         }
@@ -297,6 +378,7 @@ mod tests {
     fn state(buttons: &[Button], dpad: Dpad) -> Snapshot {
         Snapshot {
             buttons: buttons.into(),
+            menu_buttons: vec![],
             dpad: Some(dpad),
             l2: 0.0,
             r2: 0.0,

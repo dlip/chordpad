@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    model::{Button, Dpad, Input, Modifier, Side, button_mask},
+    model::{Button, Dpad, Input, MenuButton, Modifier, Side, button_mask},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -263,6 +263,8 @@ pub struct Calibration {
     #[serde(default)]
     pub device: Option<DeviceId>,
     pub buttons: BTreeMap<Button, u16>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub menu_buttons: BTreeMap<MenuButton, u16>,
     pub dpad: DpadSource,
     pub triggers: BTreeMap<Button, Trigger>,
 }
@@ -282,6 +284,7 @@ impl Default for Calibration {
                 (Button::R1, 311),
             ]
             .into(),
+            menu_buttons: [(MenuButton::Start, 315), (MenuButton::Select, 314)].into(),
             dpad: DpadSource::Hat { x: 16, y: 17 },
             triggers: [
                 (Button::L2, Trigger::axis(2, 0, 255)),
@@ -315,6 +318,11 @@ impl Calibration {
                 .ok_or_else(|| format!("missing mapping for {button:?}"))?;
             if !sources.insert((KEY, *code)) {
                 return Err("duplicate input source in controller mapping".into());
+            }
+        }
+        for &code in self.menu_buttons.values() {
+            if !sources.insert((KEY, code)) {
+                return Err("duplicate menu button input source".into());
             }
         }
         let dpad_sources = match self.dpad {
@@ -381,6 +389,7 @@ impl Calibration {
 
     pub fn sources(&self) -> Vec<(u16, u16)> {
         let mut sources: Vec<_> = self.buttons.values().map(|&code| (KEY, code)).collect();
+        sources.extend(self.menu_buttons.values().map(|&code| (KEY, code)));
         match self.dpad {
             DpadSource::Hat { x, y } => sources.extend([(ABS, x), (ABS, y)]),
             DpadSource::Buttons {
@@ -401,6 +410,8 @@ impl Calibration {
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct Snapshot {
     pub buttons: Vec<Button>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub menu_buttons: Vec<MenuButton>,
     pub dpad: Option<Dpad>,
     pub l2: f64,
     pub r2: f64,
@@ -413,6 +424,7 @@ pub struct Snapshot {
 impl Snapshot {
     pub fn is_neutral(&self) -> bool {
         self.dpad.is_some()
+            && self.menu_buttons.is_empty()
             && self.input().controls() == 0
             && self.left_stick == Dpad::Neutral
             && self.right_stick == Dpad::Neutral
@@ -550,6 +562,13 @@ impl Normalizer {
         button_mask(&buttons)?;
         Ok(Snapshot {
             buttons,
+            menu_buttons: self
+                .calibration
+                .menu_buttons
+                .iter()
+                .filter(|(_, code)| key(**code))
+                .map(|(&button, _)| button)
+                .collect(),
             dpad,
             l2: travel[0],
             r2: travel[1],
@@ -698,6 +717,42 @@ mod tests {
         assert_eq!(n.apply(&[event(KEY, 313, 0)]).unwrap().r2, 0.0);
         c.buttons.insert(Button::B, 304);
         assert!(c.validate().is_err());
+    }
+
+    #[test]
+    fn menu_buttons_normalize_repeats_custom_codes_and_legacy_calibrations() {
+        let mut calibration = Calibration::default();
+        calibration.menu_buttons.insert(MenuButton::Start, 316);
+        let mut n = Normalizer::new(calibration.clone()).unwrap();
+        let start = n.apply(&[event(KEY, 316, 1)]).unwrap();
+        assert_eq!(start.menu_buttons, [MenuButton::Start]);
+        assert!(!start.is_neutral());
+        assert_eq!(start.input(), Input::default());
+        assert_eq!(n.apply(&[event(KEY, 316, 2)]).unwrap(), start);
+        assert_eq!(
+            n.apply(&[event(KEY, 314, 1)]).unwrap().menu_buttons,
+            [MenuButton::Start, MenuButton::Select]
+        );
+        assert!(
+            n.apply(&[event(KEY, 316, 0), event(KEY, 314, 0)])
+                .unwrap()
+                .is_neutral()
+        );
+        calibration.menu_buttons.insert(MenuButton::Select, 316);
+        assert!(calibration.validate().is_err());
+        calibration.menu_buttons.insert(MenuButton::Select, 304);
+        assert!(calibration.validate().is_err());
+        let mut old = serde_json::to_value(Calibration::default()).unwrap();
+        old.as_object_mut().unwrap().remove("menu_buttons");
+        let old: Calibration = serde_json::from_value(old).unwrap();
+        assert!(old.menu_buttons.is_empty());
+        assert!(
+            Normalizer::new(old)
+                .unwrap()
+                .apply(&[event(KEY, 315, 1)])
+                .unwrap()
+                .is_neutral()
+        );
     }
 
     #[test]

@@ -182,6 +182,11 @@ impl<O: Output> Runtime<O> {
                 action: Some(action),
                 keyboard_modifiers,
                 ..
+            }
+            | Event::Menu {
+                action,
+                keyboard_modifiers,
+                ..
             } = event
             {
                 self.output.send_modified(action, keyboard_modifiers)?;

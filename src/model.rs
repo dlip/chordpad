@@ -66,6 +66,27 @@ impl Button {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MenuButton {
+    Start,
+    Select,
+}
+
+impl MenuButton {
+    pub const ALL: [Self; 2] = [Self::Start, Self::Select];
+
+    pub fn index(self) -> usize {
+        self as usize
+    }
+
+    pub fn action(self) -> Action {
+        Action::Key(match self {
+            Self::Start => Key::Enter,
+            Self::Select => Key::Escape,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
 pub enum Dpad {
@@ -788,6 +809,18 @@ pub struct Layout {
 }
 
 impl Layout {
+    pub fn scoring_actions(&self) -> Vec<Action> {
+        let mut actions: Vec<_> = self.bindings.iter().map(|b| b.action.clone()).collect();
+        if self.strategy.independent {
+            for action in [Action::Character('\n'), Action::Key(Key::Escape)] {
+                if !actions.contains(&action) {
+                    actions.push(action);
+                }
+            }
+        }
+        actions
+    }
+
     pub fn validate(&self) -> Result<()> {
         if ![1, SCHEMA_VERSION].contains(&self.schema_version)
             || ![1, COST_MODEL_VERSION].contains(&self.cost_model_version)

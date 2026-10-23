@@ -77,12 +77,139 @@ fn engine() -> Recognizer {
 fn snapshot(state: Input) -> Snapshot {
     Snapshot {
         buttons: state.chord().buttons,
+        menu_buttons: vec![],
         dpad: Some(state.dpad),
         l2: 0.0,
         r2: 0.0,
         left_stick: Dpad::Neutral,
         right_stick: Dpad::Neutral,
     }
+}
+
+fn menu_snapshot(dpad: Dpad, buttons: &[Button], menu: &[MenuButton]) -> Snapshot {
+    Snapshot {
+        menu_buttons: menu.into(),
+        ..snapshot(input(dpad, buttons))
+    }
+}
+
+#[test]
+fn menu_keys_share_stroke_start_order_with_both_typing_halves() {
+    use Dpad::*;
+    use MenuButton::*;
+    let mut e = engine();
+    arm(&mut e);
+    // Enter released before an earlier letter still follows that letter.
+    e.update(&menu_snapshot(Up, &[], &[]));
+    e.update(&menu_snapshot(Up, &[], &[Start]));
+    assert!(e.update(&menu_snapshot(Up, &[], &[])).is_empty());
+    assert_eq!(
+        actions(&e.update(&menu_snapshot(Neutral, &[], &[]))),
+        [Action::Character('a'), Action::Key(Key::Enter),]
+    );
+    // Both menu buttons and a later right-hand stroke release independently.
+    e.update(&menu_snapshot(Neutral, &[], &[Select]));
+    e.update(&menu_snapshot(Neutral, &[], &[Start, Select]));
+    e.update(&menu_snapshot(Neutral, &[Button::A], &[Start, Select]));
+    assert!(e.update(&menu_snapshot(Neutral, &[], &[Select])).is_empty());
+    assert_eq!(
+        actions(&e.update(&menu_snapshot(Neutral, &[], &[]))),
+        [
+            Action::Key(Key::Escape),
+            Action::Key(Key::Enter),
+            Action::Character('b'),
+        ]
+    );
+    // Within one report: left, right, Start, Select.
+    e.update(&menu_snapshot(Up, &[Button::A], &[Start, Select]));
+    assert_eq!(
+        actions(&e.update(&menu_snapshot(Neutral, &[], &[]))),
+        [
+            Action::Character('a'),
+            Action::Character('b'),
+            Action::Key(Key::Enter),
+            Action::Key(Key::Escape),
+        ]
+    );
+}
+
+#[test]
+fn menu_keys_keep_their_actions_on_every_layer_and_latch_keyboard_modifiers() {
+    use Dpad::*;
+    use MenuButton::*;
+    use Modifier::*;
+    for held in [
+        vec![],
+        vec![Button::L2],
+        vec![Button::R2],
+        vec![Button::L2, Button::R2],
+    ] {
+        let mut e = engine();
+        arm(&mut e);
+        let mut state = menu_snapshot(Neutral, &held, &[]);
+        state.left_stick = Right;
+        e.update(&state);
+        for button in [Start, Select] {
+            state.menu_buttons = vec![button];
+            assert!(e.update(&state).is_empty());
+            // Releasing held modifiers early preserves the initial context.
+            let release = menu_snapshot(Neutral, &[], &[]);
+            let events = e.update(&release);
+            let expected = if held.contains(&Button::L2) {
+                vec![Alt, Shift, Meta]
+            } else {
+                vec![Alt, Meta]
+            };
+            assert!(
+                matches!(events.as_slice(), [Event::Menu { action, keyboard_modifiers, .. }]
+                if *action == button.action() && *keyboard_modifiers == expected),
+                "{events:?}"
+            );
+            state.menu_buttons.clear();
+            e.update(&state);
+        }
+    }
+}
+
+#[test]
+fn menu_keys_cancel_on_late_modifiers_and_reset_requires_full_neutral() {
+    use Dpad::*;
+    use MenuButton::*;
+    let mut e = engine();
+    let held = menu_snapshot(Neutral, &[], &[Start]);
+    assert!(e.update(&held).is_empty());
+    assert_eq!(e.phase(), Phase::Waiting);
+    arm(&mut e);
+    e.update(&held);
+    assert_eq!(e.phase(), Phase::Collecting);
+    assert!(matches!(
+        e.reset("pause"),
+        Event::Reset {
+            discarded: true,
+            ..
+        }
+    ));
+    assert!(e.update(&held).is_empty());
+    arm(&mut e);
+    for late in [
+        menu_snapshot(Neutral, &[Button::L2], &[Start]),
+        Snapshot {
+            right_stick: Right,
+            ..held.clone()
+        },
+    ] {
+        e.update(&held);
+        e.update(&late);
+        let events = e.update(&menu_snapshot(Neutral, &[], &[]));
+        assert!(matches!(events.as_slice(), [Event::Cancelled { .. }]));
+    }
+    // Completed menu output queued behind a pending letter is also discarded.
+    e.update(&menu_snapshot(Up, &[], &[]));
+    e.update(&menu_snapshot(Up, &[], &[Select]));
+    assert!(e.update(&menu_snapshot(Up, &[], &[])).is_empty());
+    e.reset("disconnect");
+    arm(&mut e);
+    assert!(e.update(&menu_snapshot(Neutral, &[], &[])).is_empty());
 }
 fn update(e: &mut Recognizer, dpad: Dpad, buttons: &[Button]) -> Vec<Event> {
     e.update(&snapshot(input(dpad, buttons)))
@@ -96,6 +223,8 @@ fn actions(events: &[Event]) -> Vec<Action> {
                 ..
             } = e
             {
+                Some(action.clone())
+            } else if let Event::Menu { action, .. } = e {
                 Some(action.clone())
             } else {
                 None
@@ -643,6 +772,15 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
     runtime.update(&state).unwrap();
     assert_eq!(frames.borrow()[8], [(29, 1), (42, 1), (2, 1)]);
     assert_eq!(frames.borrow()[9], [(2, 0), (42, 0), (29, 0)]);
+    for (button, code) in [(MenuButton::Start, 28), (MenuButton::Select, 1)] {
+        state.menu_buttons = vec![button];
+        runtime.update(&state).unwrap();
+        state.menu_buttons.clear();
+        runtime.update(&state).unwrap();
+        let frames = frames.borrow();
+        assert_eq!(frames[frames.len() - 2], [(29, 1), (42, 1), (code, 1)]);
+        assert_eq!(frames[frames.len() - 1], [(code, 0), (42, 0), (29, 0)]);
+    }
     let shortcut = Action::Shortcut(Shortcut {
         modifiers: vec![Ctrl, Shift],
         key: Key::A,
@@ -765,15 +903,20 @@ fn raw_stick_reports_replay_latched_modifiers_with_shift_and_number_layer() {
 }
 
 #[test]
-fn base_punctuation_and_enter_resolve_rolled_three_button_chords_and_shift_pairs() {
+fn base_punctuation_resolves_rolled_chords_and_shift_pairs() {
     use Button::*;
     let mut layout = layout();
-    layout.profile.base_punctuation = vec!['\'', ',', '.'];
+    for binding in &mut layout.bindings {
+        if matches!(binding.action, Action::Character('c' | 'C')) {
+            binding.chord.dpad = Dpad::DownLeft;
+        }
+    }
+    layout.profile.base_punctuation = vec!['\'', ',', '.', ';', '/'];
     let mappings = [
         ('\'', Some('"'), vec![A, B, R1]),
         (',', Some('<'), vec![A, X, R1]),
         ('.', Some('>'), vec![B, Y, R1]),
-        ('\n', None, vec![X, Y, R1]),
+        ('/', Some('?'), vec![X, Y, R1]),
     ];
     for (plain, shifted, buttons) in &mappings {
         let chord = input(Dpad::Neutral, buttons);
@@ -781,6 +924,11 @@ fn base_punctuation_and_enter_resolve_rolled_three_button_chords_and_shift_pairs
         if let Some(shifted) = shifted {
             layout.bindings.push(binding(*shifted, chord, &[L2]));
         }
+    }
+    for (c, held) in [(';', vec![]), (':', vec![L2])] {
+        layout
+            .bindings
+            .push(binding(c, input(Dpad::UpLeft, &[L1]), &held));
     }
     layout.validate().unwrap();
     let mut forbidden = layout.clone();
@@ -793,6 +941,20 @@ fn base_punctuation_and_enter_resolve_rolled_three_button_chords_and_shift_pairs
     )
     .unwrap();
     arm(&mut e);
+    for (held, expected) in [(vec![], ';'), (vec![L2], ':')] {
+        update(&mut e, Dpad::Neutral, &held);
+        update(&mut e, Dpad::Up, &held);
+        let mut down = held.clone();
+        down.push(L1);
+        update(&mut e, Dpad::UpLeft, &down);
+        assert!(update(&mut e, Dpad::Left, &down).is_empty());
+        assert!(update(&mut e, Dpad::Left, &held).is_empty());
+        assert_eq!(
+            chars(&update(&mut e, Dpad::Neutral, &held)),
+            expected.to_string()
+        );
+        update(&mut e, Dpad::Neutral, &[]);
+    }
     for (plain, shifted, buttons) in mappings {
         for (held, expected) in
             std::iter::once((vec![], plain)).chain(shifted.map(|s| (vec![L2], s)))

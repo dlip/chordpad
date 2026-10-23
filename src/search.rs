@@ -7,6 +7,15 @@ pub struct Slot {
     pub input: Input,
     pub layer: bool,
     pub context: Input,
+    pub menu: Option<MenuButton>,
+}
+
+fn menu_button(action: &Action) -> Option<MenuButton> {
+    match action {
+        Action::Character('\n') => Some(MenuButton::Start),
+        Action::Key(Key::Escape) => Some(MenuButton::Select),
+        _ => None,
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -77,9 +86,20 @@ impl Problem {
                             input,
                             layer,
                             context: Input::default(),
+                            menu: None,
                         });
                     }
                 }
+            }
+        }
+        if strategy.independent {
+            for button in MenuButton::ALL {
+                slots.push(Slot {
+                    input: Input::default(),
+                    layer: false,
+                    context: Input::default(),
+                    menu: Some(button),
+                });
             }
         }
         let mut p = Self {
@@ -95,6 +115,10 @@ impl Problem {
             movement: Movement::new(),
         };
         for group in 0..p.groups.len() {
+            let pinned = config
+                .pinned_bindings
+                .iter()
+                .any(|b| b.action.group(strategy.shift.is_some()).0 == p.groups[group]);
             let valid = (0..p.slots.len())
                 .filter(|&s| {
                     p.outputs
@@ -103,6 +127,11 @@ impl Problem {
                         .filter(|(_, o)| o.group == group)
                         .all(|(action, o)| {
                             let slot = p.slots[s];
+                            let menu = menu_button(&p.actions[action]);
+                            let dedicated = strategy.independent && menu.is_some() && !pinned;
+                            if dedicated || slot.menu.is_some() {
+                                return dedicated && slot.menu == menu;
+                            }
                             let context = p.context(slot, o.shifted);
                             if strategy.independent {
                                 validate_independent_input(&p.profile, slot.input, context).is_ok()
@@ -191,6 +220,18 @@ impl Problem {
         (slot.input, self.context(slot, output.shifted))
     }
 
+    fn hands(&self, action: usize, assignment: &[usize]) -> u8 {
+        let slot = self.slots[assignment[self.outputs[action].group]];
+        match slot.menu {
+            Some(MenuButton::Start) => 2,
+            Some(MenuButton::Select) => 1,
+            None => {
+                let (input, held) = self.physical(action, assignment);
+                input.with_context(held).hands()
+            }
+        }
+    }
+
     fn unary(&self, group: usize, slot: usize) -> Metrics {
         let slot = self.slots[slot];
         let mut m = Metrics::default();
@@ -203,8 +244,12 @@ impl Problem {
         {
             let held = self.context(slot, o.shifted);
             let held_count = f64::from(held.controls());
-            let effort = self.profile.costs.effort_with_context(slot.input, held);
-            let presses = f64::from(slot.input.controls());
+            let effort = if slot.menu.is_some() {
+                1.0
+            } else {
+                self.profile.costs.effort_with_context(slot.input, held)
+            };
+            let presses = f64::from(slot.input.controls() + u32::from(slot.menu.is_some()));
             let frequency = self.stats.counts[action] as f64 / n;
             m.effort += effort * frequency;
             m.activations += presses * frequency;
@@ -235,7 +280,7 @@ impl Problem {
             ) * self.profile.costs.modifier_change
                 * frequency
                 + self.profile.costs.same_hand_transition
-                    * f64::from(ia.with_context(ha).hands() & ib.with_context(hb).hands() != 0)
+                    * f64::from(self.hands(a, assignment) & self.hands(b, assignment) != 0)
                     * frequency,
             activations: f64::from(
                 (hb.mask & !ha.mask).count_ones() + (hb.dpad.bits() & !ha.dpad.bits()).count_ones(),
@@ -325,6 +370,11 @@ impl Problem {
             .actions
             .iter()
             .enumerate()
+            .filter(|(a, _)| {
+                self.slots[assignment[self.outputs[*a].group]]
+                    .menu
+                    .is_none()
+            })
             .map(|(a, value)| {
                 let (input, held) = self.physical(a, assignment);
                 Binding {
@@ -362,6 +412,10 @@ impl Problem {
         let mut layers = BTreeSet::new();
         for (g, &s) in assignment.iter().enumerate() {
             let slot = self.slots[s];
+            if slot.menu.is_some() {
+                max_controls = max_controls.max(1);
+                continue;
+            }
             chords.insert(slot.input);
             layers.insert(slot.layer);
             for o in self.outputs.iter().filter(|o| o.group == g) {
@@ -383,9 +437,7 @@ impl Problem {
                 .pairs
                 .iter()
                 .map(|&(a, b, n)| {
-                    let (ia, ha) = self.physical(a, assignment);
-                    let (ib, hb) = self.physical(b, assignment);
-                    if ia.with_context(ha).hands() & ib.with_context(hb).hands() != 0 {
+                    if self.hands(a, assignment) & self.hands(b, assignment) != 0 {
                         n
                     } else {
                         0
@@ -647,7 +699,7 @@ pub fn load_layout(layout: &Layout, stats: Stats) -> Result<(Problem, Vec<usize>
         pinned_bindings: layout.bindings.clone(),
     };
     config.validate()?;
-    let actions: Vec<_> = layout.bindings.iter().map(|b| b.action.clone()).collect();
+    let actions = stats.actions.clone();
     if actions.is_empty() {
         return Err("layout must contain bindings".into());
     }
@@ -988,6 +1040,47 @@ mod tests {
         let charged = loaded.metrics(&assignment).effort;
         p.profile.costs.same_hand_transition = 0.0;
         assert!((charged - p.metrics(&assignment).effort - 1.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn independent_menu_outputs_do_not_consume_chords_and_round_trip_in_scores() {
+        let mode = Strategy {
+            name: "independent".into(),
+            independent: true,
+            shift: Some(Button::L2),
+            layer: Some(Button::R2),
+        };
+        for pins in [vec![], vec![pin('\n', Button::A, vec![Button::R2])]] {
+            let pinned_enter = !pins.is_empty();
+            let (config, p) = problem("a\nb\n", mode.clone(), pins);
+            let assignment = p.baseline(&config.weights).unwrap();
+            let expected = p.metrics(&assignment);
+            let layout = p.layout(&assignment, &config.weights, expected.normalization());
+            assert_eq!(
+                layout
+                    .bindings
+                    .iter()
+                    .any(|b| b.action == Action::Character('\n')),
+                pinned_enter
+            );
+            assert!(
+                !layout
+                    .bindings
+                    .iter()
+                    .any(|b| b.action == Action::Key(Key::Escape))
+            );
+            let corpus = Corpus::new("a\nb\n").unwrap();
+            let stats = Stats::new(&corpus, &layout.scoring_actions()).unwrap();
+            let (loaded, loaded_assignment) = load_layout(&layout, stats).unwrap();
+            let actual = loaded.metrics(&loaded_assignment);
+            assert!((actual.effort - expected.effort).abs() < 1e-12);
+            assert!((actual.activations - expected.activations).abs() < 1e-12);
+            assert!((actual.movement - expected.movement).abs() < 1e-12);
+            assert!((actual.coverage - expected.coverage).abs() < 1e-12);
+            if !pinned_enter {
+                assert_eq!(actual.activations, 1.0);
+            }
+        }
     }
 
     #[test]

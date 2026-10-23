@@ -59,6 +59,7 @@ fn layout() -> Layout {
 fn state(buttons: &[Button]) -> Snapshot {
     Snapshot {
         buttons: buttons.into(),
+        menu_buttons: vec![],
         dpad: Some(Dpad::Neutral),
         l2: 0.0,
         r2: 0.0,
@@ -120,6 +121,60 @@ fn characters_modifiers_corrections_and_shortcuts_emit_once_after_release() {
             .map(|b| b.action.clone())
             .collect::<Vec<_>>()
     );
+}
+
+#[test]
+fn menu_buttons_type_once_on_release_and_respect_pause_reset_and_startup() {
+    use padtype::controller::{Calibration, KEY, Normalizer, RawEvent};
+    let sent = Rc::new(RefCell::new(Sent::default()));
+    let mut runtime = Runtime::new(layout(), &PAUSE, false, Sink(sent.clone())).unwrap();
+    let mut normalizer = Normalizer::new(Calibration::default()).unwrap();
+    let raw = |code, value| RawEvent {
+        event_type: KEY,
+        code,
+        value,
+    };
+    let mut update = |runtime: &mut Runtime<Sink>, events: &[RawEvent]| {
+        runtime.update(&normalizer.apply(events).unwrap()).unwrap()
+    };
+    // A menu button held at startup must be released before recognition arms.
+    update(&mut runtime, &[raw(315, 1)]);
+    update(&mut runtime, &[raw(315, 0)]);
+    assert!(sent.borrow().actions.is_empty());
+    for (code, action) in [
+        (315, Action::Key(Key::Enter)),
+        (314, Action::Key(Key::Escape)),
+    ] {
+        let before = sent.borrow().actions.len();
+        update(&mut runtime, &[raw(code, 1)]);
+        update(&mut runtime, &[raw(code, 2)]);
+        assert_eq!(sent.borrow().actions.len(), before);
+        update(&mut runtime, &[raw(code, 0)]);
+        update(&mut runtime, &[]);
+        assert_eq!(sent.borrow().actions.len(), before + 1);
+        assert_eq!(sent.borrow().actions.last(), Some(&action));
+    }
+    sent.borrow_mut().actions.clear();
+    update(&mut runtime, &[raw(315, 1)]);
+    let events = runtime.reset("input events dropped").unwrap();
+    assert!(matches!(
+        events.as_slice(),
+        [padtype::chord::Event::Reset {
+            discarded: true,
+            ..
+        }]
+    ));
+    update(&mut runtime, &[raw(315, 0)]);
+    update(&mut runtime, &[raw(314, 1)]);
+    runtime.set_paused(true).unwrap();
+    update(&mut runtime, &[raw(314, 0)]);
+    update(&mut runtime, &[raw(315, 1)]);
+    runtime.set_paused(false).unwrap();
+    update(&mut runtime, &[raw(315, 0)]);
+    assert!(sent.borrow().actions.is_empty());
+    update(&mut runtime, &[raw(315, 1)]);
+    update(&mut runtime, &[raw(315, 0)]);
+    assert_eq!(sent.borrow().actions, [Action::Key(Key::Enter)]);
 }
 
 #[test]

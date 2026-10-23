@@ -7,7 +7,9 @@
     "base_punctuation": [
       "'",
       ",",
-      "."
+      ".",
+      ";",
+      "/"
     ]
   },
   "strategies": [
@@ -61,13 +63,25 @@
     {
       "action": {
         "type": "character",
-        "value": "\n"
+        "value": "/"
       },
       "chord": {
         "buttons": [
           "X",
           "Y",
           "R1"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ";"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": [
+          "L1"
         ]
       }
     }

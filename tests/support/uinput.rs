@@ -147,19 +147,22 @@ fn emit(device: &mut VirtualDevice, values: &[(u16, u16, i32)]) {
         .unwrap();
 }
 
-#[test]
-#[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
-fn linux_typing_loop_handles_signals_gestures_and_disconnect() {
+fn gamepad(name: &str, trigger_maximum: i32) -> VirtualDevice {
     let mut keys = AttributeSet::<KeyCode>::new();
-    for code in [304, 305, 307, 308, 310, 311] {
+    for code in [304, 305, 307, 308, 310, 311, 314, 315] {
         keys.insert(KeyCode(code));
     }
     let mut builder = VirtualDevice::builder()
         .unwrap()
-        .name("padtype test gamepad")
+        .name(name)
         .with_keys(&keys)
         .unwrap();
-    for (code, min, max) in [(2, 0, 255), (5, 0, 255), (16, -1, 1), (17, -1, 1)] {
+    for (code, min, max) in [
+        (2, 0, trigger_maximum),
+        (5, 0, trigger_maximum),
+        (16, -1, 1),
+        (17, -1, 1),
+    ] {
         builder = builder
             .with_absolute_axis(&UinputAbsSetup::new(
                 AbsoluteAxisCode(code),
@@ -167,15 +170,23 @@ fn linux_typing_loop_handles_signals_gestures_and_disconnect() {
             ))
             .unwrap();
     }
-    let mut gamepad = builder.build().unwrap();
+    builder.build().unwrap()
+}
+
+#[test]
+#[ignore = "creates exclusively grabbed test gamepads; requires /dev/uinput and input-node access"]
+fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
+    let mut gamepad = gamepad("padtype test gamepad", 255);
     let path = event_node(&mut gamepad);
     let dir = tempfile::tempdir().unwrap();
+    let controller = dir.path().join("controller");
+    std::os::unix::fs::symlink(&path, &controller).unwrap();
     let layout_path = dir.path().join("layout.json");
     std::fs::write(&layout_path, serde_json::to_string(&layout()).unwrap()).unwrap();
     let mut process = Process(
         Command::new(env!("CARGO_BIN_EXE_padtype"))
             .args(["type", "--device"])
-            .arg(path)
+            .arg(&controller)
             .arg("--layout")
             .arg(layout_path)
             .args(["--dry-run", "--grab", "--duration", "15"])
@@ -189,12 +200,18 @@ fn linux_typing_loop_handles_signals_gestures_and_disconnect() {
     pump(process.0.stderr.take().unwrap(), "ERR: ", tx);
     let mut log = vec![];
     until(&rx, &mut log, "PAUSED");
-    let signal = |sig| assert_eq!(unsafe { libc::kill(process.0.id() as i32, sig) }, 0);
+    let pid = process.0.id() as i32;
+    let signal = |sig| assert_eq!(unsafe { libc::kill(pid, sig) }, 0);
     signal(libc::SIGUSR2);
     until(&rx, &mut log, "READY");
     emit(&mut gamepad, &[(1, 304, 1)]);
     emit(&mut gamepad, &[(1, 304, 0)]);
     until(&rx, &mut log, "OUT: WOULD TYPE 't'");
+    for (code, action) in [(315, "Enter"), (314, "Escape")] {
+        emit(&mut gamepad, &[(1, code, 1)]);
+        emit(&mut gamepad, &[(1, code, 0)]);
+        until(&rx, &mut log, &format!("OUT: WOULD TYPE {action}"));
+    }
     emit(&mut gamepad, &[(1, 304, 1)]);
     // Confirm the pause command discards a stroke even without its release report.
     thread::sleep(Duration::from_millis(30));
@@ -233,14 +250,93 @@ fn linux_typing_loop_handles_signals_gestures_and_disconnect() {
             .any(|s| s.contains("pending stroke discarded: true")),
         "{log:?}"
     );
+    until(&rx, &mut log, "Waiting for controller");
+    assert!(process.0.try_wait().unwrap().is_none());
+    signal(libc::SIGUSR1);
+    until(&rx, &mut log, "PAUSED");
+
+    // A different controller occupying the selected path must not be used.
+    let mut other = self::gamepad("padtype unrelated gamepad", 255);
+    let other_path = event_node(&mut other);
+    std::fs::remove_file(&controller).unwrap();
+    std::os::unix::fs::symlink(other_path, &controller).unwrap();
+    until(&rx, &mut log, "belongs to a different controller");
+    emit(&mut other, &[(1, 304, 1)]);
+    emit(&mut other, &[(1, 304, 0)]);
+
+    let mut reattached = self::gamepad("padtype test gamepad", 1023);
+    let reattached_path = event_node(&mut reattached);
+    assert_ne!(reattached_path, path);
+    // Held controls on reattachment must not complete a pre-disconnect stroke.
+    emit(&mut reattached, &[(1, 304, 1)]);
+    std::fs::remove_file(&controller).unwrap();
+    std::os::unix::fs::symlink(&reattached_path, &controller).unwrap();
+    until(&rx, &mut log, "Reconnected padtype test gamepad. PAUSED");
+    let mut capture = RawDevice::open(&reattached_path).unwrap();
+    assert_eq!(
+        capture.grab().unwrap_err().raw_os_error(),
+        Some(libc::EBUSY)
+    );
+    signal(libc::SIGUSR2);
+    until(&rx, &mut log, "ACTIVE:");
+    emit(&mut reattached, &[(1, 304, 0)]);
+    until(&rx, &mut log, "READY");
+    // The reloaded mapping must use the new trigger range, not the old 0..255.
+    emit(&mut reattached, &[(3, 5, 300)]);
+    emit(&mut reattached, &[(1, 304, 1)]);
+    emit(&mut reattached, &[(1, 304, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE 't'");
+    emit(&mut reattached, &[(3, 5, 1023)]);
+    emit(&mut reattached, &[(1, 304, 1)]);
+    emit(&mut reattached, &[(1, 304, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE 'T'");
+    drop(reattached);
+    until(&rx, &mut log, "Waiting for controller");
+    signal(libc::SIGUSR1);
+    until(&rx, &mut log, "PAUSED");
+    signal(libc::SIGUSR2);
+    until(&rx, &mut log, "ACTIVE:");
+    signal(libc::SIGTERM);
     assert!(process.0.wait().unwrap().success());
     log.extend(rx.try_iter());
     assert_eq!(
         log.iter().filter(|s| s.starts_with("OUT:")).count(),
-        3,
+        7,
         "{log:?}"
     );
     println!(
-        "Signal pause/resume, reserved gesture, shifted output and mid-stroke disconnect passed"
+        "Signals, gestures, reconnect with a new event node, grab restoration, held input and stop while disconnected passed"
     );
+}
+
+#[test]
+#[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
+fn disconnected_wait_respects_the_session_duration() {
+    let mut gamepad = gamepad("padtype duration test gamepad", 255);
+    let path = event_node(&mut gamepad);
+    let dir = tempfile::tempdir().unwrap();
+    let layout_path = dir.path().join("layout.json");
+    std::fs::write(&layout_path, serde_json::to_string(&layout()).unwrap()).unwrap();
+    let mut process = Process(
+        Command::new(env!("CARGO_BIN_EXE_padtype"))
+            .args(["type", "--device"])
+            .arg(path)
+            .arg("--layout")
+            .arg(layout_path)
+            .args(["--dry-run", "--grab", "--start-active", "--duration", "2"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let (tx, rx) = mpsc::channel();
+    pump(process.0.stdout.take().unwrap(), "OUT: ", tx.clone());
+    pump(process.0.stderr.take().unwrap(), "ERR: ", tx);
+    let mut log = vec![];
+    until(&rx, &mut log, "READY");
+    drop(gamepad);
+    until(&rx, &mut log, "Waiting for controller");
+    until(&rx, &mut log, "duration elapsed;");
+    assert!(process.0.wait().unwrap().success());
+    println!("Session duration includes time waiting for reconnection");
 }
