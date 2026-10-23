@@ -19,7 +19,8 @@ virtual-keyboard runtime are implemented. Desktop editor and terminal testing is
 still pending.
 
 The checked-in [layout.json](layout.json) is a ready-to-use 97-binding independent
-layout matching the Android default. Use it directly for typing or rendering.
+layout matching the Android default, trained on the Leipzig English web corpus
+described below. Use it directly for typing or rendering.
 Generating a new layout updates this file by default; use `--output custom-layout.json`
 to write a separate layout.
 
@@ -46,6 +47,36 @@ cargo run --release -- generate \
   --iterations 1000 \
   --restarts 3
 ```
+
+For a larger general-English baseline, prepare the Leipzig Corpora Collection's
+2014 English web sample (10,000 sentences):
+
+```sh
+python3 scripts/prepare_english_corpus.py
+cargo run --release -- generate --config examples/independent.json \
+  --corpus corpora/english-web/train.txt \
+  --held-out corpora/english-web/held-out.txt \
+  --output layout.english.json
+cargo run -- render --layout layout.english.json --output layout.english.html
+```
+
+The prepared training split has 8,926 sentences / 1,067,910 characters; the
+held-out split has 917 sentences / 108,574 characters. A checksum pins the
+[source archive](https://downloads.wortschatz-leipzig.de/corpora/eng_web_2014_10K.tar.gz).
+The script removes sentence IDs, maps curly quotes and dashes to ASCII, applies
+Unicode NFKC, and excludes 157 sentences with remaining unsupported characters.
+Case, spaces, numbers, and ASCII punctuation are retained. Normalized sentences
+are deduplicated and assigned by a stable sentence hash, so the splits do not
+overlap. `manifest.json` records normalization, source IDs, hashes, and provider
+[terms](https://wortschatz.uni-leipzig.de/en/usage). Downloaded and prepared data
+stays in the ignored `corpora/` directory; the helper requires only Python's
+standard library. An existing archive can be supplied with `--archive PATH`.
+
+This is web text from 2014, with independent sentences rather than complete
+documents. Each sentence becomes one line; n-grams crossing those line boundaries
+approximate unrelated sentence transitions. It supplies actual text for the full
+Shift, grip, and thumb-return model, without reconstructing text from frequency
+tables. Preparing it does not change the checked-in default layout.
 
 Layout and report output paths must differ and cannot resolve to a corpus,
 held-out, or configuration input file, including through symlinks.
@@ -120,7 +151,10 @@ symbols, and Tab, and adds finger and thumb comfort costs to this preset. Use it
 Regenerate the checked-in default and refresh its reference:
 
 ```sh
-cargo run --release -- generate --config examples/independent.json
+python3 scripts/prepare_english_corpus.py
+cargo run --release -- generate --config examples/independent.json \
+  --corpus corpora/english-web/train.txt \
+  --held-out corpora/english-web/held-out.txt
 cargo run -- render --layout layout.json --output layout.html
 ```
 

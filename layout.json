@@ -79,9 +79,9 @@
     "learning": 0.1
   },
   "normalization": {
-    "effort": 1.9746416666666626,
-    "activations": 1.3824999999999978,
-    "movement": 1.7564014737440652,
+    "effort": 1.89118700077723,
+    "activations": 1.3675553183320344,
+    "movement": 1.777018045716247,
     "coverage": 6.286363636363639,
     "learning": 60.0
   },
@@ -585,8 +585,10 @@
         "value": "A"
       },
       "chord": {
-        "dpad": "left",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "B"
+        ]
       },
       "held": [
         "L2"
@@ -598,11 +600,8 @@
         "value": "B"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "A",
-          "X"
-        ]
+        "dpad": "down-left",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -614,10 +613,8 @@
         "value": "C"
       },
       "chord": {
-        "dpad": "left",
-        "buttons": [
-          "L1"
-        ]
+        "dpad": "down-right",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -644,8 +641,10 @@
         "value": "E"
       },
       "chord": {
-        "dpad": "up",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "Y"
+        ]
       },
       "held": [
         "L2"
@@ -657,8 +656,10 @@
         "value": "F"
       },
       "chord": {
-        "dpad": "up-right",
-        "buttons": []
+        "dpad": "up",
+        "buttons": [
+          "L1"
+        ]
       },
       "held": [
         "L2"
@@ -670,8 +671,11 @@
         "value": "G"
       },
       "chord": {
-        "dpad": "down-left",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "R1"
+        ]
       },
       "held": [
         "L2"
@@ -683,10 +687,9 @@
         "value": "H"
       },
       "chord": {
-        "dpad": "neutral",
+        "dpad": "right",
         "buttons": [
-          "A",
-          "R1"
+          "L1"
         ]
       },
       "held": [
@@ -699,8 +702,10 @@
         "value": "I"
       },
       "chord": {
-        "dpad": "down",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "X"
+        ]
       },
       "held": [
         "L2"
@@ -712,9 +717,10 @@
         "value": "J"
       },
       "chord": {
-        "dpad": "down-right",
+        "dpad": "neutral",
         "buttons": [
-          "L1"
+          "A",
+          "B"
         ]
       },
       "held": [
@@ -729,8 +735,8 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "X",
-          "R1"
+          "A",
+          "X"
         ]
       },
       "held": [
@@ -756,8 +762,10 @@
         "value": "M"
       },
       "chord": {
-        "dpad": "down-right",
-        "buttons": []
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
       },
       "held": [
         "L2"
@@ -769,10 +777,8 @@
         "value": "N"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "X"
-        ]
+        "dpad": "down",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -784,8 +790,10 @@
         "value": "O"
       },
       "chord": {
-        "dpad": "right",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "A"
+        ]
       },
       "held": [
         "L2"
@@ -813,10 +821,9 @@
         "value": "Q"
       },
       "chord": {
-        "dpad": "neutral",
+        "dpad": "down-left",
         "buttons": [
-          "X",
-          "Y"
+          "L1"
         ]
       },
       "held": [
@@ -829,10 +836,8 @@
         "value": "R"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "B"
-        ]
+        "dpad": "up",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -844,10 +849,8 @@
         "value": "S"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "Y"
-        ]
+        "dpad": "left",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -859,10 +862,8 @@
         "value": "T"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "A"
-        ]
+        "dpad": "right",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -874,9 +875,10 @@
         "value": "U"
       },
       "chord": {
-        "dpad": "right",
+        "dpad": "neutral",
         "buttons": [
-          "L1"
+          "A",
+          "R1"
         ]
       },
       "held": [
@@ -905,11 +907,8 @@
         "value": "W"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "B",
-          "Y"
-        ]
+        "dpad": "up-right",
+        "buttons": []
       },
       "held": [
         "L2"
@@ -923,8 +922,8 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "A",
-          "B"
+          "X",
+          "Y"
         ]
       },
       "held": [
@@ -937,9 +936,10 @@
         "value": "Y"
       },
       "chord": {
-        "dpad": "up",
+        "dpad": "neutral",
         "buttons": [
-          "L1"
+          "B",
+          "Y"
         ]
       },
       "held": [
@@ -952,7 +952,7 @@
         "value": "Z"
       },
       "chord": {
-        "dpad": "down-left",
+        "dpad": "down-right",
         "buttons": [
           "L1"
         ]
@@ -1061,8 +1061,10 @@
         "value": "a"
       },
       "chord": {
-        "dpad": "left",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "B"
+        ]
       },
       "held": []
     },
@@ -1072,11 +1074,8 @@
         "value": "b"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "A",
-          "X"
-        ]
+        "dpad": "down-left",
+        "buttons": []
       },
       "held": []
     },
@@ -1086,10 +1085,8 @@
         "value": "c"
       },
       "chord": {
-        "dpad": "left",
-        "buttons": [
-          "L1"
-        ]
+        "dpad": "down-right",
+        "buttons": []
       },
       "held": []
     },
@@ -1112,8 +1109,10 @@
         "value": "e"
       },
       "chord": {
-        "dpad": "up",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "Y"
+        ]
       },
       "held": []
     },
@@ -1123,8 +1122,10 @@
         "value": "f"
       },
       "chord": {
-        "dpad": "up-right",
-        "buttons": []
+        "dpad": "up",
+        "buttons": [
+          "L1"
+        ]
       },
       "held": []
     },
@@ -1134,8 +1135,11 @@
         "value": "g"
       },
       "chord": {
-        "dpad": "down-left",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "R1"
+        ]
       },
       "held": []
     },
@@ -1145,10 +1149,9 @@
         "value": "h"
       },
       "chord": {
-        "dpad": "neutral",
+        "dpad": "right",
         "buttons": [
-          "A",
-          "R1"
+          "L1"
         ]
       },
       "held": []
@@ -1159,8 +1162,10 @@
         "value": "i"
       },
       "chord": {
-        "dpad": "down",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "X"
+        ]
       },
       "held": []
     },
@@ -1170,9 +1175,10 @@
         "value": "j"
       },
       "chord": {
-        "dpad": "down-right",
+        "dpad": "neutral",
         "buttons": [
-          "L1"
+          "A",
+          "B"
         ]
       },
       "held": []
@@ -1185,8 +1191,8 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "X",
-          "R1"
+          "A",
+          "X"
         ]
       },
       "held": []
@@ -1208,8 +1214,10 @@
         "value": "m"
       },
       "chord": {
-        "dpad": "down-right",
-        "buttons": []
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
       },
       "held": []
     },
@@ -1219,10 +1227,8 @@
         "value": "n"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "X"
-        ]
+        "dpad": "down",
+        "buttons": []
       },
       "held": []
     },
@@ -1232,8 +1238,10 @@
         "value": "o"
       },
       "chord": {
-        "dpad": "right",
-        "buttons": []
+        "dpad": "neutral",
+        "buttons": [
+          "A"
+        ]
       },
       "held": []
     },
@@ -1257,10 +1265,9 @@
         "value": "q"
       },
       "chord": {
-        "dpad": "neutral",
+        "dpad": "down-left",
         "buttons": [
-          "X",
-          "Y"
+          "L1"
         ]
       },
       "held": []
@@ -1271,10 +1278,8 @@
         "value": "r"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "B"
-        ]
+        "dpad": "up",
+        "buttons": []
       },
       "held": []
     },
@@ -1284,10 +1289,8 @@
         "value": "s"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "Y"
-        ]
+        "dpad": "left",
+        "buttons": []
       },
       "held": []
     },
@@ -1297,10 +1300,8 @@
         "value": "t"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "A"
-        ]
+        "dpad": "right",
+        "buttons": []
       },
       "held": []
     },
@@ -1310,9 +1311,10 @@
         "value": "u"
       },
       "chord": {
-        "dpad": "right",
+        "dpad": "neutral",
         "buttons": [
-          "L1"
+          "A",
+          "R1"
         ]
       },
       "held": []
@@ -1337,11 +1339,8 @@
         "value": "w"
       },
       "chord": {
-        "dpad": "neutral",
-        "buttons": [
-          "B",
-          "Y"
-        ]
+        "dpad": "up-right",
+        "buttons": []
       },
       "held": []
     },
@@ -1353,8 +1352,8 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "A",
-          "B"
+          "X",
+          "Y"
         ]
       },
       "held": []
@@ -1365,9 +1364,10 @@
         "value": "y"
       },
       "chord": {
-        "dpad": "up",
+        "dpad": "neutral",
         "buttons": [
-          "L1"
+          "B",
+          "Y"
         ]
       },
       "held": []
@@ -1378,7 +1378,7 @@
         "value": "z"
       },
       "chord": {
-        "dpad": "down-left",
+        "dpad": "down-right",
         "buttons": [
           "L1"
         ]

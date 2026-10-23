@@ -1,4 +1,6 @@
 /target/
+/corpora/
+/scripts/__pycache__/
 /layout.report.json
 /layout.html
 /android/.gradle/
