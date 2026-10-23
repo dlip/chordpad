@@ -317,6 +317,45 @@ fn output_aliases_cannot_overwrite_the_source_layout() {
 }
 
 #[test]
+fn number_overview_includes_face_symbols_and_shifted_outputs() {
+    let mut layout: Layout = serde_json::from_str(include_str!(
+        "../android/app/src/main/assets/default-layout.json"
+    ))
+    .unwrap();
+    let overview = |layout: &Layout| {
+        render::html(layout)
+            .unwrap()
+            .split("aria-label=\"Number and symbol positions\"")
+            .nth(1)
+            .unwrap()
+            .split("</section>")
+            .next()
+            .unwrap()
+            .to_string()
+    };
+    let html = overview(&layout);
+    for (output, label) in [
+        ("- / _", "X / □"),
+        ("= / +", "A / ×"),
+        ("] / }", "A + X"),
+        ("[ / {", "A + B"),
+        ("\\ / |", "Y + B"),
+        ("` / ~", "X + Y"),
+        ("9 / (", "Y / △"),
+        ("0 / )", "B / ○"),
+        ("7 / &amp;", "←"),
+    ] {
+        assert!(html.contains(&format!("<span>{output}</span><span>{label}</span>")));
+    }
+    // Symbol-only layouts should still get a layer overview.
+    layout.profile.function_layer = false;
+    layout.bindings.retain(|b| {
+        !matches!(b.action, Action::Character(c) if c.is_ascii_digit() || "!@#$%^&*()".contains(c))
+    });
+    assert!(overview(&layout).contains("<span>= / +</span>"));
+}
+
+#[test]
 fn independent_reference_shows_fixed_keys_shift_pairs_and_number_layer() {
     let mut layout = layout();
     layout.strategy = Strategy {
