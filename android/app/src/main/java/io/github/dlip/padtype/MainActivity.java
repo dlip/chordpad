@@ -200,12 +200,12 @@ public final class MainActivity extends Activity {
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         if (state.device != null && event.getDeviceId() == state.device.getId()
                 && (KeyEvent.isGamepadButton(event.getKeyCode()) || (event.getKeyCode() >= KeyEvent.KEYCODE_DPAD_UP && event.getKeyCode() <= KeyEvent.KEYCODE_DPAD_RIGHT))) {
-            state.key(event); return true;
+            if (state.service == null && state.key(event)) return true;
         }
         return super.dispatchKeyEvent(event);
     }
     @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
-        if (state.device != null && event.getDeviceId() == state.device.getId() && event.isFromSource(InputDevice.SOURCE_JOYSTICK)) { state.motion(event); return true; }
+        if (state.device != null && event.getDeviceId() == state.device.getId() && event.isFromSource(InputDevice.SOURCE_JOYSTICK) && state.motion(event)) return true;
         return super.dispatchGenericMotionEvent(event);
     }
     private LinearLayout column() { LinearLayout view = new LinearLayout(this); view.setOrientation(LinearLayout.VERTICAL); return view; }

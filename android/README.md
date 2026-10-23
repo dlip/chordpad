@@ -23,9 +23,17 @@ adb shell am start -n io.github.dlip.padtype/.MainActivity
 4. Focus the test field or a text field in another app. Release all controller
    controls before typing.
 
-Stopping remapping releases joystick capture. Pause/Resume, or
-L1 + R1 + L2 + R2, discards pending strokes. Pausing keeps controller capture
-active; use **Stop remapping** to give joystick input back to other apps.
+Pausing or stopping remapping releases joystick capture so games receive normal
+controller buttons, sticks, D-pad, and analog triggers. **Pause/Resume**, or
+L1 + R1 + L2 + R2, discards pending strokes. Release all four buttons between
+toggles. While paused, the service observes button events without consuming new
+presses, allowing the four-button shortcut to resume typing from a game.
+Resuming this way requires a controller that reports L2/R2 button presses, as the
+DualSense does; the app's **Resume** button also works. Buttons already held when
+toggling keep their original routing through release so games receive matched
+presses and releases. Release all controls after resuming typing.
+The handoff waits for buttons held during the toggle to release before changing
+joystick capture.
 The selected controller is remembered by descriptor and reattaches automatically.
 App or service restarts leave remapping off.
 
@@ -212,6 +220,19 @@ capabilities, duplicate trigger reports, and text/key delivery through a separat
 application's input connection. The controller event sequences in the automated
 cross-app test are injected by Android's testing API; testing with physical
 button presses remains a separate step.
+
+The separate gamepad check preserves the running accessibility service and
+uses Android's shell `uinput` tool to create a temporary DualSense-like gamepad.
+It checks pause/resume through the four layer buttons, both sticks, analog
+triggers, D-pad axes, balanced button releases, and typing after resuming.
+It restores the selected controller, removes the virtual pad, and leaves
+remapping off. Start with the bundled R1 Space mapping and a connected controller:
+
+```sh
+./gradlew :gamepad-check:assembleDebug
+adb install -r gamepad-check/build/outputs/apk/debug/gamepad-check-debug.apk
+adb shell am instrument -w io.github.dlip.padtype.gamepadcheck/io.github.dlip.padtype.GamepadCheck
+```
 
 The production manifest requests no internet or storage permissions and no
 screen-content retrieval. Imported layouts and mappings remain in private app

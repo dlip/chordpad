@@ -1,0 +1,3 @@
+<resources>
+    <string name="gamepad_status">padtype gamepad passthrough test\nButtons: %1$d\nMotion reports: %2$d</string>
+</resources>

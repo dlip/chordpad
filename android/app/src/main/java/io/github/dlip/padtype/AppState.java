@@ -24,6 +24,7 @@ public final class AppState implements InputManager.InputDeviceListener {
     private final InputManager manager;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Set<Runnable> listeners = new HashSet<>();
+    private final GamepadKeys keys = new GamepadKeys();
     public volatile ControllerService service;
     public ControllerInput input;
     public InputDevice device;
@@ -32,8 +33,12 @@ public final class AppState implements InputManager.InputDeviceListener {
     public final DirectMapper direct = new DirectMapper();
     public boolean enabled, paused, ready, editor, hideSoftKeyboard;
     public String mode, status = "Remapping is off", lastAction = "None", layoutJson;
-    private boolean gesture;
+    private boolean gesture, resumePending;
     private Frame latest = Frame.NEUTRAL;
+    private final Runnable captureUpdate = () -> { if (service != null) service.updateCapture(); };
+
+    private void captureChanged() { handler.removeCallbacks(captureUpdate); handler.post(captureUpdate); }
+    private void freshInput() { input = new ControllerInput(device); latest = input.frame(); }
 
     AppState(Context context) {
         this.context = context;
@@ -75,8 +80,8 @@ public final class AppState implements InputManager.InputDeviceListener {
     public void choose(InputDevice device) {
         preferences.edit().putString("controller", device.getDescriptor()).apply();
         this.device = device;
-        input = new ControllerInput(device);
-        latest = input.frame();
+        freshInput(); resumePending = false;
+        keys.reset();
         reset("Release all controls");
     }
     private void reconnect() {
@@ -87,7 +92,7 @@ public final class AppState implements InputManager.InputDeviceListener {
             if (descriptor.isEmpty() && (found == null || candidate.getName().contains("DualSense"))) found = candidate;
         }
         if (found != null) choose(found);
-        else { device = null; input = null; latest = Frame.NEUTRAL; reset("Waiting for controller"); }
+        else { device = null; input = null; keys.reset(); latest = Frame.NEUTRAL; reset("Waiting for controller"); }
     }
     @Override public void onInputDeviceAdded(int id) { if (device == null) reconnect(); }
     @Override public void onInputDeviceRemoved(int id) { if (device != null && device.getId() == id) reconnect(); }
@@ -97,20 +102,28 @@ public final class AppState implements InputManager.InputDeviceListener {
     public void unlisten(Runnable listener) { listeners.remove(listener); }
     public void changed() { for (Runnable listener : new ArrayList<>(listeners)) listener.run(); }
     public void reset(String reason) {
+        captureChanged();
         if (service != null) service.updateSoftKeyboard();
         if (service != null && (!enabled || paused || device == null)) service.cancelLastAppSwitch();
         ready = false; gesture = true; engine.reset(); direct.reset(); status = reason;
         changed();
     }
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled; paused = false;
+        this.enabled = enabled; paused = false; resumePending = enabled && keys.hasHeldPresses();
+        if (enabled && !resumePending && device != null) freshInput();
         reset(enabled ? "Release all controls" : "Remapping is off");
-        if (service != null) service.updateCapture();
         if (enabled) { process(); handler.removeCallbacks(repeater); handler.postDelayed(repeater, 80); }
         else handler.removeCallbacks(repeater);
         changed();
     }
-    public void setPaused(boolean paused) { this.paused = paused; reset(paused ? "Paused" : "Release all controls"); process(); }
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+        resumePending = !paused && keys.hasHeldPresses();
+        if (!paused && !resumePending && device != null) freshInput();
+        if (paused) keys.suppressHeldGesture();
+        reset(paused ? "Paused; controller input goes to apps" : "Release all controls");
+        process();
+    }
     public void setHideSoftKeyboard(boolean hide) {
         hideSoftKeyboard = hide; preferences.edit().putBoolean("hide_soft_keyboard", hide).apply();
         if (service != null) service.updateSoftKeyboard();
@@ -138,23 +151,36 @@ public final class AppState implements InputManager.InputDeviceListener {
         process();
     }
     public void focusChanged() { reset(editor ? "Text field connected; release all controls" : "Focus a text field to type"); process(); }
+    public boolean capturingMotion() { return enabled && !paused && !resumePending || keys.hasConsumedPresses(); }
     public boolean key(KeyEvent event) {
         if (device == null || event.getDeviceId() != device.getId()) return false;
+        boolean captured = capturingMotion();
+        boolean active = enabled && !paused && !resumePending;
         boolean handled = input.key(event);
-        if (handled) { latest = input.frame(); process(); changed(); }
-        return handled && enabled;
+        GamepadKeys.Result result = keys.update(event.getKeyCode(),event.getAction(),event.getRepeatCount(),active && handled);
+        if (resumePending && !keys.hasHeldPresses()) { resumePending = false; freshInput(); }
+        if (handled) {
+            latest = input.frame();
+            if (enabled && paused && result.layerGesture()) setPaused(false);
+            else process();
+            changed();
+        }
+        // Acknowledge the key release before Android rebuilds its input filter.
+        if (captured != capturingMotion()) captureChanged();
+        return result.consumed();
     }
     public boolean motion(MotionEvent event) {
         if (device == null || event.getDeviceId() != device.getId() || !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return false;
+        boolean active = enabled && !paused && !resumePending;
         for (int i = 0; i < event.getHistorySize(); i++) { input.motion(event, i); latest = input.frame(); process(); }
-        input.motion(event, -1); latest = input.frame(); process(); changed(); return enabled;
+        input.motion(event, -1); latest = input.frame(); process(); changed(); return active;
     }
     public Frame frame() { return latest; }
     private void process() {
-        if (!enabled || device == null) return;
+        if (!enabled || device == null || resumePending) return;
         if (gesture && latest.neutral()) gesture = false;
-        if (!gesture && (latest.buttons() & 0xf0) == 0xf0) { paused = !paused; reset(paused ? "Paused" : "Release all controls"); return; }
         if (paused) return;
+        if (!gesture && (latest.buttons() & 0xf0) == 0xf0) { setPaused(true); return; }
         if (!ready) {
             if (!latest.neutral()) return;
             ready = true; engine.update(latest); status = "Ready"; return;

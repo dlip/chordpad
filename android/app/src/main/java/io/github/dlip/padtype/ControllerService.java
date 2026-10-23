@@ -38,8 +38,10 @@ public final class ControllerService extends AccessibilityService {
     public void updateCapture() {
         AccessibilityServiceInfo info = getServiceInfo();
         if (info == null) return;
-        info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS | AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR;
-        info.setMotionEventSources(state.enabled ? InputDevice.SOURCE_JOYSTICK : 0);
+        int flags = info.flags | AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS | AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR;
+        int sources = state.capturingMotion() ? InputDevice.SOURCE_JOYSTICK : 0;
+        if (info.flags == flags && info.getMotionEventSources() == sources) return;
+        info.flags = flags; info.setMotionEventSources(sources);
         setServiceInfo(info);
     }
     public void updateSoftKeyboard() {
