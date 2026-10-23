@@ -226,6 +226,7 @@ impl HeldLayers {
             if input.mask & Button::L2.bit() != 0 {
                 modifiers.push(Modifier::Shift);
                 modifiers.sort();
+                modifiers.dedup();
             }
             let direction = if self.blocked_dpad {
                 Dpad::Neutral

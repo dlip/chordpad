@@ -58,8 +58,9 @@ Android yet.
 | Options / Share | Enter / Escape in every layer |
 | Sticks | Up Alt, down Command/Meta, outward Ctrl, inward Alt + Command |
 
-Diagonals combine adjacent directions. Inward stick diagonals are also
-Alt + Command. The layout's opposite-face-pair and forbidden-chord constraints
+Outward diagonals combine adjacent directions. Inward-up sends Command + Ctrl + Alt +
+Shift; inward-down sends Command + Ctrl + Alt. Straight inward remains Alt +
+Command. The layout's opposite-face-pair and forbidden-chord constraints
 are enforced. Stroke output follows start order, including overlapping halves
 and Options/Share. The queue is bounded at 64 pending strokes. Focus changes,
 disconnects, and pauses discard pending output and require neutral controls.
@@ -161,7 +162,7 @@ From `android/`, run:
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
-The JVM and Rust tests use the same 341 recognition vectors, covering every
+The JVM and Rust tests use the same 361 recognition vectors, covering every
 bundled binding, overlapping releases, rolled diagonals, held and late modifiers,
 stick directions, menus, resets, forbidden pairs, startup, and queue overflow.
 Run the Rust half from the repository root with `cargo test --test android`.

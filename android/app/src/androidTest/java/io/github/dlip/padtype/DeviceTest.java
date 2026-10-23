@@ -34,7 +34,7 @@ public class DeviceTest extends InstrumentationTestCase {
         String layout;
         try (var stream = getInstrumentation().getTargetContext().getAssets().open("default-layout.json")) { layout = new String(stream.readAllBytes(),StandardCharsets.UTF_8); }
         try (var stream = getInstrumentation().getContext().getAssets().open("chord-vectors.json")) {
-            assertEquals(341,RecognitionVectors.check(layout,new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8))));
+            assertEquals(361,RecognitionVectors.check(layout,new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8))));
         }
     }
     public void testConsumerKeyCodes() {

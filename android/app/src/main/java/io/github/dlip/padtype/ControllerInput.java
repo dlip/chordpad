@@ -83,7 +83,7 @@ public final class ControllerInput {
         return active ? buttons | bit : buttons & ~bit;
     }
     static int modifiers(int x, int y, boolean left) {
-        if (left ? x > 0 : x < 0) return Action.ALT | Action.META;
+        if (left ? x > 0 : x < 0) return Action.ALT | Action.META | (y == 0 ? 0 : Action.CTRL) | (y < 0 ? Action.SHIFT : 0);
         return (x != 0 ? Action.CTRL : 0) | (y < 0 ? Action.ALT : y > 0 ? Action.META : 0);
     }
     public Frame frame() { return new Frame(buttons, dpad, modifiers(lx, ly, true) | modifiers(rx, ry, false), menu, lx, ly, rx, ry); }

@@ -132,6 +132,7 @@ impl Engine {
             if held.contains(&Button::L2) {
                 keyboard_modifiers.push(Modifier::Shift);
                 keyboard_modifiers.sort();
+                keyboard_modifiers.dedup();
             }
             let action = self
                 .layout
@@ -162,6 +163,7 @@ impl Engine {
         if fixed.is_some() && held.contains(&Button::L2) {
             keyboard_modifiers.push(Modifier::Shift);
             keyboard_modifiers.sort();
+            keyboard_modifiers.dedup();
         }
         let binding = self.layout.bindings.iter().find(|b| {
             b.chord.input().ok() == Some(input)

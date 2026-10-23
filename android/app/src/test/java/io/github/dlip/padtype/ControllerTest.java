@@ -17,7 +17,7 @@ public class ControllerTest {
         try (var stream = getClass().getResourceAsStream("/chord-vectors.json")) {
             assertNotNull(stream);
             JSONArray cases = new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8));
-            assertEquals(341,RecognitionVectors.check(layout(),cases));
+            assertEquals(361,RecognitionVectors.check(layout(),cases));
         }
     }
     @Test public void analogThresholdsHaveHysteresis() {

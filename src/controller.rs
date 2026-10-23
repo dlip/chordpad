@@ -449,7 +449,16 @@ pub fn thumbstick_modifiers(side: Side, direction: Dpad) -> Vec<Modifier> {
     let (x, y) = direction.position();
     let inward = if side == Side::Left { x > 0 } else { x < 0 };
     if inward {
-        return vec![Modifier::Alt, Modifier::Meta];
+        return match y {
+            -1 => vec![
+                Modifier::Ctrl,
+                Modifier::Alt,
+                Modifier::Shift,
+                Modifier::Meta,
+            ],
+            1 => vec![Modifier::Ctrl, Modifier::Alt, Modifier::Meta],
+            _ => vec![Modifier::Alt, Modifier::Meta],
+        };
     }
     let mut modifiers = vec![];
     if x != 0 {
@@ -804,8 +813,9 @@ mod stick_tests {
                     (_, Neutral) => vec![],
                     (_, Up) => vec![Alt],
                     (_, Down) => vec![Meta],
-                    (Side::Left, Right | UpRight | DownRight)
-                    | (Side::Right, Left | UpLeft | DownLeft) => vec![Alt, Meta],
+                    (Side::Left, UpRight) | (Side::Right, UpLeft) => vec![Ctrl, Alt, Shift, Meta],
+                    (Side::Left, DownRight) | (Side::Right, DownLeft) => vec![Ctrl, Alt, Meta],
+                    (Side::Left, Right) | (Side::Right, Left) => vec![Alt, Meta],
                     (_, Left | Right) => vec![Ctrl],
                     (_, UpLeft | UpRight) => vec![Ctrl, Alt],
                     (_, DownLeft | DownRight) => vec![Ctrl, Meta],

@@ -68,6 +68,11 @@ fn android_recognition_vectors_match_the_rust_engine() {
                     _ => continue,
                 };
                 let mut action = serde_json::to_value(action).unwrap();
+                assert!(
+                    modifiers.windows(2).all(|pair| pair[0] < pair[1]),
+                    "{}",
+                    case["name"]
+                );
                 let modifiers = modifiers.iter().fold(0, |mask, modifier| {
                     mask | match modifier {
                         Modifier::Ctrl => 1,

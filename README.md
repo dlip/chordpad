@@ -268,7 +268,9 @@ Both sticks provide the same modifiers, mirrored around the controller center:
 | Outward | Ctrl |
 | Outward-up | Ctrl + Alt |
 | Outward-down | Ctrl + Command |
-| Inward, inward-up, inward-down | Alt + Command |
+| Inward | Alt + Command |
+| Inward-up | Command + Ctrl + Alt + Shift |
+| Inward-down | Command + Ctrl + Alt |
 
 Inward is right on the left stick and left on the right stick. Stick modifiers
 combine with each other, L2 Shift, and the R2 numbers/symbols layer. They apply to
