@@ -40,7 +40,7 @@ final class LayoutReference {
                 if (key != null && layout.allows(held|mask,0)) navigation.add(new Binding(mask,0,held,Action.key(key)));
             }
             String note = "Hold R2 + L1. Add L2 for Shift selection. D-pad arrows send immediately and repeat while held; D-pad diagonals are unassigned.";
-            if (layout.navigationMedia) note += " Face taps send on release. Hold a single face button to repeat; media pairs send once and ignore modifiers.";
+            if (layout.navigationMedia) note += " Face taps send on release. Hold a single face button to repeat; adjacent pairs send Previous, Next, Delete, and Play/Pause once. Media controls ignore modifiers.";
             layers.add(layer("R2 + L1: navigation",note,navigation,held));
         }
         if (layout.functionLayer) {

@@ -402,7 +402,8 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     assert!(navigation.contains("<span>↑</span><span>↑</span>"));
     assert!(navigation.contains("<span>Page Down</span><span>A / ×</span>"));
     assert!(navigation.contains("<span>·</span><span>↗</span>"));
-    assert!(navigation.contains("<span>Play/Pause</span><span>A + X</span>"));
+    assert!(navigation.contains("<span>Delete</span><span>A + X</span>"));
+    assert!(navigation.contains("<span>Play/Pause</span><span>A + B</span>"));
     let functions = section(&html, "Function layer");
     assert!(functions.contains("<span>Volume Up</span><span>X + Y</span>"));
     assert!(functions.contains("<span>F2</span><span>↗</span>"));

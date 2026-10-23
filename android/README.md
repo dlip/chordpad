@@ -146,12 +146,13 @@ The bundled preset adds these adjacent face-button pairs:
 | --- | --- | --- |
 | Square + Triangle | Previous track | Volume up |
 | Triangle + Circle | Next track | Unassigned |
-| Cross + Square | Play/pause | Volume down |
-| Cross + Circle | Stop | Mute/unmute |
+| Cross + Square | Delete | Volume down |
+| Cross + Circle | Play/pause | Mute/unmute |
 
-Media and volume actions send once on full chord release and ignore keyboard
-modifiers. Android dispatches media keys to the current media session and changes
-the music stream volume, so these controls also work without a focused text field.
+Face pairs send once on full chord release. Delete supports L2 Shift and
+thumbstick modifiers. Media and volume actions ignore keyboard modifiers. Android
+dispatches media keys to the current media session and changes the music stream
+volume, so these controls also work without a focused text field.
 The app requests the normal `MODIFY_AUDIO_SETTINGS` permission; no runtime
 permission prompt is needed. Playback commands require a media app that handles them.
 The options `profile.navigation_media` and `profile.function_volume` are enabled in

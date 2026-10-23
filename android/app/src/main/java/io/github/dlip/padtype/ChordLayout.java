@@ -150,8 +150,8 @@ public final class ChordLayout {
             case A -> "page_down"; case B -> "end"; case X -> "home"; case Y -> "page_up";
             case X|Y -> navigationMedia ? "media_previous" : null;
             case Y|B -> navigationMedia ? "media_next" : null;
-            case A|X -> navigationMedia ? "media_play_pause" : null;
-            case A|B -> navigationMedia ? "media_stop" : null;
+            case A|X -> navigationMedia ? "delete" : null;
+            case A|B -> navigationMedia ? "media_play_pause" : null;
             default -> null;
         };
     }

@@ -143,15 +143,17 @@ The bundled preset also enables `profile.navigation_media` for adjacent face pai
 | --- | --- |
 | X + Y (Square + Triangle) | Previous track |
 | Y + B (Triangle + Circle) | Next track |
-| A + X (Cross + Square) | Play/pause |
-| A + B (Cross + Circle) | Stop |
+| A + X (Cross + Square) | Delete |
+| A + B (Cross + Circle) | Play/pause |
 
 Add L2 for Shift selection or a stick modifier for modified navigation. D-pad
 arrows fire on press and repeat after 400 ms, every 80 ms. Face taps send on full
 chord release, so adding a second button does not leak a page key. Holding one
 face button starts repeating after 400 ms; its release adds no extra output.
-Media pairs fire once on full release and never repeat. Adding a button after a
-single-button repeat cancels the remaining stroke. D-pad diagonals produce no arrows.
+Adjacent pairs fire once on full release and never repeat. Delete supports L2
+Shift and thumbstick modifiers; media controls ignore modifiers. Adding a button
+after a single-button repeat cancels the remaining stroke. D-pad diagonals produce
+no arrows.
 Without `navigation_media`, older layouts retain immediate independent face keys.
 Release either R2 or L1 to stop navigation; held navigation controls must release
 before typing again. Entering navigation discards unfinished typing strokes, and

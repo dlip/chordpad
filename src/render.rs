@@ -364,7 +364,7 @@ fn reference_layers(layout: &Layout) -> Vec<ReferenceLayer> {
     if layout.profile.navigation_layer {
         let bindings = layout.navigation_bindings();
         let face_note = if layout.profile.navigation_media {
-            " Face-button taps send on full chord release; holding a single face button starts repeating at 400 ms. Adjacent face pairs send media controls once on release and never repeat."
+            " Face-button taps send on full chord release; holding a single face button starts repeating at 400 ms. Adjacent face pairs send Previous, Next, Delete, and Play/Pause once on release and never repeat. Media controls ignore keyboard modifiers."
         } else {
             ""
         };

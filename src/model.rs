@@ -590,8 +590,8 @@ impl Profile {
             keys.extend([
                 (Button::X.bit() | Button::Y.bit(), Key::MediaPrevious),
                 (Button::Y.bit() | Button::B.bit(), Key::MediaNext),
-                (Button::A.bit() | Button::X.bit(), Key::MediaPlayPause),
-                (Button::A.bit() | Button::B.bit(), Key::MediaStop),
+                (Button::A.bit() | Button::X.bit(), Key::Delete),
+                (Button::A.bit() | Button::B.bit(), Key::MediaPlayPause),
             ]);
         }
         keys

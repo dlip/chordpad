@@ -30,7 +30,7 @@ public class LayoutReferenceTest {
     @Test public void derivedLayersShowNavigationMediaFunctionsAndVolume() throws Exception {
         var layers = layers();
         assertEquals(List.of("·","↑","·","←","·","→","·","↓","·"),outputs(layers.get(2).maps().get(0)));
-        assertEquals(List.of("Previous","Page Up","Next","Home","·","End","Play/Pause","Page Down","Stop"),outputs(layers.get(2).maps().get(1)));
+        assertEquals(List.of("Previous","Page Up","Next","Home","·","End","Delete","Page Down","Play/Pause"),outputs(layers.get(2).maps().get(1)));
         assertEquals(List.of("Volume Up","F9","·","F12","·","F10","Volume Down","F11","Mute"),outputs(layers.get(3).maps().get(1)));
     }
 
