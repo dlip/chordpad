@@ -62,6 +62,13 @@ pub fn key_code(key: Key) -> KeyCode {
         F10 => KeyCode::KEY_F10,
         F11 => KeyCode::KEY_F11,
         F12 => KeyCode::KEY_F12,
+        MediaPlayPause => KeyCode::KEY_PLAYPAUSE,
+        MediaNext => KeyCode::KEY_NEXTSONG,
+        MediaPrevious => KeyCode::KEY_PREVIOUSSONG,
+        MediaStop => KeyCode::KEY_STOPCD,
+        VolumeUp => KeyCode::KEY_VOLUMEUP,
+        VolumeDown => KeyCode::KEY_VOLUMEDOWN,
+        Mute => KeyCode::KEY_MUTE,
     }
 }
 
@@ -182,9 +189,17 @@ pub fn validate_layout(layout: &Layout) -> Result<()> {
 
 pub fn virtual_device() -> Result<VirtualDevice> {
     let mut keys = AttributeSet::<KeyCode>::new();
-    // Keyboard codes only, including the standard US section and navigation keys.
+    // Keyboard codes only, including the standard US section and consumer keys.
     for code in 1..=127 {
         keys.insert(KeyCode(code));
+    }
+    for key in [
+        Key::MediaPlayPause,
+        Key::MediaNext,
+        Key::MediaPrevious,
+        Key::MediaStop,
+    ] {
+        keys.insert(key_code(key));
     }
     VirtualDevice::builder()
         .and_then(|builder| builder.name("padtype virtual keyboard").with_keys(&keys))

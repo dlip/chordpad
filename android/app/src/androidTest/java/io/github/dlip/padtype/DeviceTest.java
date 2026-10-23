@@ -34,8 +34,19 @@ public class DeviceTest extends InstrumentationTestCase {
         String layout;
         try (var stream = getInstrumentation().getTargetContext().getAssets().open("default-layout.json")) { layout = new String(stream.readAllBytes(),StandardCharsets.UTF_8); }
         try (var stream = getInstrumentation().getContext().getAssets().open("chord-vectors.json")) {
-            assertEquals(260,RecognitionVectors.check(layout,new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8))));
+            assertEquals(341,RecognitionVectors.check(layout,new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8))));
         }
+    }
+    public void testConsumerKeyCodes() {
+        String[] keys = {"media_play_pause","media_next","media_previous","media_stop","volume_up","volume_down","mute"};
+        int[] codes = {KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,KeyEvent.KEYCODE_MEDIA_NEXT,KeyEvent.KEYCODE_MEDIA_PREVIOUS,KeyEvent.KEYCODE_MEDIA_STOP,KeyEvent.KEYCODE_VOLUME_UP,KeyEvent.KEYCODE_VOLUME_DOWN,KeyEvent.KEYCODE_VOLUME_MUTE};
+        for (int i = 0; i < keys.length; i++) {
+            assertTrue(Action.key(keys[i]).consumerKey());
+            assertEquals(codes[i],KeyboardOutput.keyCode(keys[i]));
+            KeyboardOutput.validate(Action.key(keys[i]));
+        }
+        assertFalse(Action.key("f1").consumerKey());
+        assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED,getInstrumentation().getTargetContext().checkSelfPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS));
     }
     public void testDualSenseAnalogAndButtonNormalization() {
         ControllerInput input = new ControllerInput(InputDevice.getDevice(deviceId()));

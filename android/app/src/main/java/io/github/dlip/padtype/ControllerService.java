@@ -50,6 +50,7 @@ public final class ControllerService extends AccessibilityService {
             case "back" -> GLOBAL_ACTION_BACK; case "home" -> GLOBAL_ACTION_HOME; case "recents" -> GLOBAL_ACTION_RECENTS;
             default -> throw new IllegalArgumentException("Unknown navigation action");
         });
+        if (action.consumerKey()) return ConsumerOutput.send(this,action);
         InputMethod method = getInputMethod();
         InputMethod.AccessibilityInputConnection connection = method == null ? null : method.getCurrentInputConnection();
         if (connection == null || !method.getCurrentInputStarted()) return false;

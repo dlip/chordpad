@@ -17,7 +17,7 @@ public class ControllerTest {
         try (var stream = getClass().getResourceAsStream("/chord-vectors.json")) {
             assertNotNull(stream);
             JSONArray cases = new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8));
-            assertEquals(260,RecognitionVectors.check(layout(),cases));
+            assertEquals(341,RecognitionVectors.check(layout(),cases));
         }
     }
     @Test public void analogThresholdsHaveHysteresis() {
@@ -57,7 +57,7 @@ public class ControllerTest {
     }
     @Test public void functionLayerRequiresDigitsAndDerivesTheirChords() throws Exception {
         ChordLayout layout = new ChordLayout(layout());
-        assertEquals(12,layout.functionBindings.size());
+        assertEquals(15,layout.functionBindings.size());
         for (int digit = 0; digit < 10; digit++) {
             String number = Integer.toString(digit), key = "f" + (digit == 0 ? 10 : digit);
             ChordLayout.Binding source = layout.bindings.stream().filter(b -> b.action().equals(Action.text(number))).findFirst().orElseThrow();
@@ -83,6 +83,7 @@ public class ControllerTest {
         assertEquals(Action.key("f11"),legacy.resolveFunction(0,1,128,0));
         assertEquals(Action.key("f12"),legacy.resolveFunction(0,8,128,0));
         JSONObject custom = new JSONObject(layout());
+        custom.getJSONObject("profile").put("function_volume",false);
         JSONArray extras = custom.getJSONObject("profile").getJSONArray("extra_function_chords");
         extras.getJSONObject(0).put("buttons",new JSONArray().put("A").put("X"));
         ChordEngine engine = new ChordEngine(new ChordLayout(custom.toString()));
@@ -95,5 +96,23 @@ public class ControllerTest {
         extras.put(1,extras.getJSONObject(0));
         try { new ChordLayout(custom.toString()); fail("Accepted duplicate extra function combos"); }
         catch (org.json.JSONException expected) { assertTrue(expected.getMessage().contains("must differ")); }
+    }
+    @Test public void mediaAndVolumeOptionsKeepOldLayoutsCompatibleAndRejectConflicts() throws Exception {
+        JSONObject json = new JSONObject(layout());
+        json.getJSONObject("profile").remove("navigation_media");
+        json.getJSONObject("profile").remove("function_volume");
+        ChordLayout legacy = new ChordLayout(json.toString());
+        assertFalse(legacy.navigationMedia); assertFalse(legacy.functionVolume);
+        assertEquals(12,legacy.functionBindings.size());
+        ChordEngine engine = new ChordEngine(legacy);
+        engine.update(Frame.NEUTRAL,0);
+        engine.update(new Frame(128|16,0,0,0,0,0,0,0),1);
+        assertEquals(List.of(Action.key("page_down"),Action.key("home")),engine.update(new Frame(128|16|1|4,0,0,0,0,0,0,0),2));
+        json = new JSONObject(layout());
+        json.getJSONObject("profile").getJSONArray("extra_function_chords").put(0,new JSONObject().put("buttons",new JSONArray().put("A").put("X")));
+        try { new ChordLayout(json.toString()); fail("Accepted volume/F11 conflict"); }
+        catch (org.json.JSONException expected) { assertTrue(expected.getMessage().contains("volume")); }
+        ChordLayout current = new ChordLayout(layout());
+        assertEquals(Action.key("volume_down"),current.resolveFunction(1|4,0,128|64,Action.CTRL));
     }
 }

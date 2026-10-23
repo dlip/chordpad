@@ -18,7 +18,7 @@ fn layout() -> Layout {
 fn function_keys_share_number_chords_and_have_twelve_reference_outputs() {
     let layout = layout();
     let functions = layout.function_bindings();
-    assert_eq!(functions.len(), 12);
+    assert_eq!(functions.len(), 15);
     for (digit, key) in [
         ('1', Key::F1),
         ('2', Key::F2),
@@ -111,6 +111,7 @@ fn bundled_numbers_follow_clockwise_dpad_and_face_positions() {
 #[test]
 fn older_layouts_keep_default_f11_f12_and_custom_pairs_are_supported() {
     let mut legacy = layout();
+    legacy.profile.function_volume = false;
     legacy.profile.extra_function_chords = Profile::default().extra_function_chords;
     legacy
         .bindings
@@ -143,6 +144,7 @@ fn older_layouts_keep_default_f11_f12_and_custom_pairs_are_supported() {
         );
     }
     let mut custom = layout();
+    custom.profile.function_volume = false;
     custom.profile.extra_function_chords[0].buttons = vec![Button::A, Button::X];
     custom.validate().unwrap();
     let mut engine = Recognizer::new(
@@ -180,6 +182,25 @@ fn older_layouts_keep_default_f11_f12_and_custom_pairs_are_supported() {
     ));
     custom.profile.extra_function_chords[1] = custom.profile.extra_function_chords[0].clone();
     assert!(custom.validate().is_err());
+}
+
+#[test]
+fn volume_controls_are_optional_and_reserve_their_function_chords() {
+    let mut layout = layout();
+    assert_eq!(layout.function_bindings().len(), 15);
+    layout.profile.extra_function_chords[0].buttons = vec![Button::A, Button::X];
+    assert!(layout.validate().is_err());
+    layout.profile.function_volume = false;
+    layout.validate().unwrap();
+    assert_eq!(layout.function_bindings().len(), 12);
+    assert!(
+        serde_json::to_value(&layout).unwrap()["profile"]
+            .get("function_volume")
+            .is_none()
+    );
+    layout.profile.function_volume = true;
+    layout.profile.function_layer = false;
+    assert!(layout.validate().unwrap_err().contains("function_volume"));
 }
 
 #[test]
@@ -223,7 +244,9 @@ fn invalid_function_layouts_and_pause_conflicts_are_rejected() {
 fn layouts_without_the_option_keep_r2_r1_symbol_chords() {
     let mut layout = layout();
     layout.profile.function_layer = false;
+    layout.profile.function_volume = false;
     layout.profile.navigation_layer = false;
+    layout.profile.navigation_media = false;
     layout.bindings = vec![Binding {
         action: Action::Character('1'),
         chord: Chord {

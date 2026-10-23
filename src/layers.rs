@@ -15,6 +15,155 @@ struct Repeating {
     at: u64,
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum FacePhase {
+    #[default]
+    Idle,
+    Collecting,
+    Releasing,
+    Cancelled,
+}
+
+#[derive(Default)]
+struct NavigationFace {
+    phase: FacePhase,
+    previous: u8,
+    frozen: u8,
+    held: u8,
+    modifiers: Vec<Modifier>,
+    previous_held: u8,
+    previous_modifiers: Vec<Modifier>,
+    repeated: bool,
+    repeating: Option<Repeating>,
+}
+
+impl NavigationFace {
+    fn event(
+        mask: u8,
+        held: u8,
+        modifiers: &[Modifier],
+        profile: &Profile,
+    ) -> Option<(Key, Event)> {
+        if !profile.allows(Input {
+            mask: mask | held,
+            dpad: Dpad::Neutral,
+        }) {
+            return None;
+        }
+        let key = profile
+            .navigation_face_keys()
+            .into_iter()
+            .find(|(buttons, _)| *buttons == mask)?
+            .1;
+        let mut modifiers = if key.is_consumer() {
+            vec![]
+        } else {
+            modifiers.to_vec()
+        };
+        if !key.is_consumer() && held & Button::L2.bit() != 0 {
+            modifiers.push(Modifier::Shift);
+            modifiers.sort();
+            modifiers.dedup();
+        }
+        Some((
+            key,
+            Event::Chord {
+                chord: Input {
+                    mask,
+                    dpad: Dpad::Neutral,
+                }
+                .chord(),
+                held: Input {
+                    mask: held,
+                    dpad: Dpad::Neutral,
+                }
+                .chord()
+                .buttons,
+                held_dpad: Dpad::Neutral,
+                keyboard_modifiers: modifiers,
+                action: Some(Action::Key(key)),
+            },
+        ))
+    }
+
+    fn update(
+        &mut self,
+        mask: u8,
+        held: u8,
+        modifiers: Vec<Modifier>,
+        profile: &Profile,
+        now: u64,
+    ) -> Vec<Event> {
+        let new_modifier = held & !self.previous_held != 0
+            || modifiers
+                .iter()
+                .any(|m| !self.previous_modifiers.contains(m));
+        self.previous_held = held;
+        self.previous_modifiers = modifiers.clone();
+        let mut events = vec![];
+        match self.phase {
+            FacePhase::Idle if mask != 0 => {
+                self.phase = FacePhase::Collecting;
+                self.held = held;
+                self.modifiers = modifiers;
+                self.repeated = false;
+            }
+            FacePhase::Collecting | FacePhase::Releasing => {
+                let added = mask & !self.previous != 0;
+                let released = self.previous & !mask != 0;
+                if new_modifier
+                    || (added && (released || self.phase == FacePhase::Releasing || self.repeated))
+                {
+                    self.phase = FacePhase::Cancelled;
+                } else {
+                    if self.phase == FacePhase::Collecting && released {
+                        self.frozen = self.previous;
+                        self.phase = FacePhase::Releasing;
+                    }
+                    if self.phase == FacePhase::Releasing && mask == 0 {
+                        if !self.repeated
+                            && let Some((_, event)) =
+                                Self::event(self.frozen, self.held, &self.modifiers, profile)
+                        {
+                            events.push(event);
+                        }
+                        self.phase = FacePhase::Idle;
+                    }
+                }
+            }
+            _ => {}
+        }
+        if self.phase == FacePhase::Cancelled && mask == 0 {
+            self.phase = FacePhase::Idle;
+        }
+        if self.phase != FacePhase::Collecting || !mask.is_power_of_two() {
+            self.repeating = None;
+        } else if self.repeating.is_none()
+            && let Some((key, event)) = Self::event(mask, self.held, &self.modifiers, profile)
+        {
+            self.repeating = Some(Repeating {
+                key,
+                event,
+                at: now.saturating_add(400),
+            });
+        }
+        self.previous = mask;
+        events
+    }
+
+    fn repeat(&mut self, now: u64) -> Vec<Event> {
+        if let Some(repeating) = &mut self.repeating
+            && now >= repeating.at
+        {
+            self.repeated = true;
+            repeating.at = now.saturating_add(80);
+            vec![repeating.event.clone()]
+        } else {
+            vec![]
+        }
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct HeldLayers {
     mode: Mode,
@@ -22,6 +171,7 @@ pub(crate) struct HeldLayers {
     blocked_buttons: u8,
     blocked_dpad: bool,
     active: Vec<Repeating>,
+    face: NavigationFace,
 }
 
 pub(crate) struct Change {
@@ -45,6 +195,9 @@ impl HeldLayers {
         };
         let changed = mode != self.mode;
         let function_exit = self.mode == Mode::Function && mode == Mode::Normal;
+        if changed {
+            self.face = NavigationFace::default();
+        }
         self.blocked_buttons &= input.mask;
         if input.dpad == Dpad::Neutral {
             self.blocked_dpad = false;
@@ -96,13 +249,24 @@ impl HeldLayers {
                     key,
                 ));
             }
+            if profile.navigation_media {
+                events.extend(self.face.update(
+                    input.mask & !self.blocked_buttons & 0x0f,
+                    held_mask,
+                    snapshot.modifiers(),
+                    profile,
+                    now,
+                ));
+            }
             for (button, key) in [
                 (Button::A, Key::PageDown),
                 (Button::B, Key::End),
                 (Button::X, Key::Home),
                 (Button::Y, Key::PageUp),
             ] {
-                if input.mask & !self.blocked_buttons & button.bit() != 0 {
+                if !profile.navigation_media
+                    && input.mask & !self.blocked_buttons & button.bit() != 0
+                {
                     controls.push((
                         Input {
                             mask: button.bit(),
@@ -171,6 +335,7 @@ impl HeldLayers {
                 active.at = now.saturating_add(80);
             }
         }
+        events.extend(self.face.repeat(now));
         events
     }
 }

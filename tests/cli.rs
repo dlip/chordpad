@@ -437,7 +437,7 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
     assert_eq!(layout.profile.base_punctuation, ['\'', ',', '.', ';', '/']);
     assert!(layout.profile.navigation_layer);
     assert!(layout.profile.function_layer);
-    assert_eq!(layout.function_bindings().len(), 12);
+    assert_eq!(layout.function_bindings().len(), 15);
     for (digit, dpad) in ('1'..='8').zip([
         Dpad::Up,
         Dpad::UpRight,

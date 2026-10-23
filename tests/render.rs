@@ -361,6 +361,7 @@ fn number_overview_includes_face_symbols_and_shifted_outputs() {
     }
     // Symbol-only layouts should still get a layer overview.
     layout.profile.function_layer = false;
+    layout.profile.function_volume = false;
     layout.bindings.retain(|b| {
         !matches!(b.action, Action::Character(c) if c.is_ascii_digit() || "!@#$%^&*()".contains(c))
     });
@@ -401,10 +402,13 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     assert!(navigation.contains("<span>↑</span><span>↑</span>"));
     assert!(navigation.contains("<span>Page Down</span><span>A / ×</span>"));
     assert!(navigation.contains("<span>·</span><span>↗</span>"));
+    assert!(navigation.contains("<span>Play/Pause</span><span>A + X</span>"));
     let functions = section(&html, "Function layer");
+    assert!(functions.contains("<span>Volume Up</span><span>X + Y</span>"));
     assert!(functions.contains("<span>F2</span><span>↗</span>"));
     assert!(functions.contains("<span>F11</span><span>A / ×</span>"));
     // Imported function positions and profile restrictions must reach the maps.
+    layout.profile.function_volume = false;
     layout.profile.extra_function_chords[0].buttons = vec![Button::A, Button::X];
     layout.profile.forbidden_chords.push(Chord {
         dpad: Dpad::Right,
@@ -413,7 +417,10 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     let html = render::html(&layout).unwrap();
     assert!(section(&html, "Function layer").contains("<span>F11</span><span>A + X</span>"));
     assert!(section(&html, "Navigation layer").contains("<span>·</span><span>→</span>"));
-    assert_eq!(exported_labels(&html).len(), layout.bindings.len() + 12 + 7);
+    assert_eq!(
+        exported_labels(&html).len(),
+        layout.bindings.len() + 12 + 11
+    );
 }
 
 #[test]

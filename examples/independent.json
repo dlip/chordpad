@@ -24,7 +24,9 @@
           "X"
         ]
       }
-    ]
+    ],
+    "navigation_media": true,
+    "function_volume": true
   },
   "strategies": [
     {

@@ -301,6 +301,28 @@ pub enum Key {
     F10,
     F11,
     F12,
+    MediaPlayPause,
+    MediaNext,
+    MediaPrevious,
+    MediaStop,
+    VolumeUp,
+    VolumeDown,
+    Mute,
+}
+
+impl Key {
+    pub fn is_consumer(self) -> bool {
+        matches!(
+            self,
+            Self::MediaPlayPause
+                | Self::MediaNext
+                | Self::MediaPrevious
+                | Self::MediaStop
+                | Self::VolumeUp
+                | Self::VolumeDown
+                | Self::Mute
+        )
+    }
 }
 
 impl Action {
@@ -512,6 +534,10 @@ fn default_function_chords(chords: &[Chord; 2]) -> bool {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Profile {
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub navigation_media: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub function_volume: bool,
     #[serde(skip_serializing_if = "default_function_chords")]
     pub extra_function_chords: [Chord; 2],
     #[serde(default, skip_serializing_if = "is_false")]
@@ -534,6 +560,8 @@ pub struct Profile {
 impl Default for Profile {
     fn default() -> Self {
         Self {
+            navigation_media: false,
+            function_volume: false,
             exclude_opposite_face_pairs: false,
             function_layer: false,
             extra_function_chords: default_extra_function_chords(),
@@ -551,18 +579,67 @@ impl Default for Profile {
 }
 
 impl Profile {
+    pub fn navigation_face_keys(&self) -> Vec<(u8, Key)> {
+        let mut keys = vec![
+            (Button::A.bit(), Key::PageDown),
+            (Button::B.bit(), Key::End),
+            (Button::X.bit(), Key::Home),
+            (Button::Y.bit(), Key::PageUp),
+        ];
+        if self.navigation_media {
+            keys.extend([
+                (Button::X.bit() | Button::Y.bit(), Key::MediaPrevious),
+                (Button::Y.bit() | Button::B.bit(), Key::MediaNext),
+                (Button::A.bit() | Button::X.bit(), Key::MediaPlayPause),
+                (Button::A.bit() | Button::B.bit(), Key::MediaStop),
+            ]);
+        }
+        keys
+    }
+
+    pub fn function_extras(&self) -> Vec<(Chord, Key)> {
+        let mut extras: Vec<_> = self
+            .extra_function_chords
+            .iter()
+            .cloned()
+            .zip([Key::F11, Key::F12])
+            .collect();
+        if self.function_volume {
+            for (buttons, key) in [
+                (vec![Button::X, Button::Y], Key::VolumeUp),
+                (vec![Button::A, Button::X], Key::VolumeDown),
+                (vec![Button::A, Button::B], Key::Mute),
+            ] {
+                extras.push((
+                    Chord {
+                        dpad: Dpad::Neutral,
+                        buttons,
+                    },
+                    key,
+                ));
+            }
+        }
+        extras
+    }
+
     pub fn validate(&self) -> Result<()> {
         button_mask(&self.disabled_buttons)?;
         button_mask(&self.modifier_only_buttons)?;
+        if self.navigation_media && !self.navigation_layer {
+            return Err("navigation_media requires the navigation layer".into());
+        }
+        if self.function_volume && !self.function_layer {
+            return Err("function_volume requires the function layer".into());
+        }
         let mut function_chords = BTreeSet::new();
-        for chord in &self.extra_function_chords {
+        for (chord, _) in self.function_extras() {
             let input = chord.input()?;
             if input.typing_side().is_none()
                 || input.mask & !0x0f != 0
                 || !function_chords.insert(input)
             {
                 return Err(
-                    "F11/F12 require distinct D-pad or face-button combos without shoulders".into(),
+                    "Function extras require distinct D-pad or face-button combos without shoulders".into(),
                 );
             }
         }
@@ -686,9 +763,9 @@ pub fn independent_binding_allowed(
         return context.mask & Button::R2.bit() != 0
             && input.mask & (Button::L1.bit() | Button::R1.bit()) == 0
             && !profile
-                .extra_function_chords
+                .function_extras()
                 .iter()
-                .any(|chord| chord.input().ok() == Some(input))
+                .any(|(chord, _)| chord.input().ok() == Some(input))
             && profile.allows(input.with_context(Input {
                 mask: Button::R1.bit() | Button::R2.bit(),
                 dpad: Dpad::Neutral,
@@ -877,6 +954,74 @@ pub struct Layout {
 }
 
 impl Layout {
+    pub fn navigation_bindings(&self) -> Vec<Binding> {
+        if !self.profile.navigation_layer {
+            return vec![];
+        }
+        let mut controls = vec![
+            (
+                Input {
+                    mask: 0,
+                    dpad: Dpad::Up,
+                },
+                Key::Up,
+            ),
+            (
+                Input {
+                    mask: 0,
+                    dpad: Dpad::Down,
+                },
+                Key::Down,
+            ),
+            (
+                Input {
+                    mask: 0,
+                    dpad: Dpad::Left,
+                },
+                Key::Left,
+            ),
+            (
+                Input {
+                    mask: 0,
+                    dpad: Dpad::Right,
+                },
+                Key::Right,
+            ),
+        ];
+        controls.extend(
+            self.profile
+                .navigation_face_keys()
+                .into_iter()
+                .map(|(mask, key)| {
+                    (
+                        Input {
+                            mask,
+                            dpad: Dpad::Neutral,
+                        },
+                        key,
+                    )
+                }),
+        );
+        controls
+            .into_iter()
+            .map(|(input, key)| Binding {
+                chord: input.chord(),
+                held: vec![Button::L1, Button::R2],
+                held_dpad: Dpad::Neutral,
+                action: Action::Key(key),
+            })
+            .filter(|binding| {
+                self.profile.allows(
+                    binding
+                        .chord
+                        .input()
+                        .unwrap()
+                        .with_context(binding.context().unwrap()),
+                )
+            })
+            .collect()
+    }
+
     pub fn function_bindings(&self) -> Vec<Binding> {
         if !self.profile.function_layer {
             return vec![];
@@ -907,15 +1052,10 @@ impl Layout {
                 });
             }
         }
-        for (chord, key) in self
-            .profile
-            .extra_function_chords
-            .iter()
-            .zip([Key::F11, Key::F12])
-        {
+        for (chord, key) in self.profile.function_extras() {
             bindings.push(Binding {
                 action: Action::Key(key),
-                chord: chord.clone(),
+                chord,
                 held: vec![Button::R1, Button::R2],
                 held_dpad: Dpad::Neutral,
             });
@@ -1019,7 +1159,7 @@ impl Layout {
         }
         if self.profile.function_layer {
             let bindings = self.function_bindings();
-            if bindings.len() != 12
+            if bindings.len() != 12 + if self.profile.function_volume { 3 } else { 0 }
                 || bindings.iter().any(|b| {
                     !self
                         .profile

@@ -16,6 +16,7 @@ public final class ChordLayout {
     public final List<Binding> bindings = new ArrayList<>();
     public final boolean navigationLayer;
     public final boolean functionLayer;
+    public final boolean navigationMedia, functionVolume;
     public final List<Binding> functionBindings = new ArrayList<>();
     private final Map<Integer,Action> functionActions = new HashMap<>();
     private final Map<Integer, Action> actions = new HashMap<>();
@@ -39,6 +40,8 @@ public final class ChordLayout {
         JSONObject profile = object.getJSONObject("profile");
         navigationLayer = profile.optBoolean("navigation_layer");
         functionLayer = profile.optBoolean("function_layer");
+        navigationMedia = profile.optBoolean("navigation_media"); functionVolume = profile.optBoolean("function_volume");
+        if ((navigationMedia && !navigationLayer) || (functionVolume && !functionLayer)) throw new JSONException("Media/volume controls require their parent layer");
         int[] extraButtons = {0,0}, extraDpad = {1,8};
         JSONArray extras = profile.optJSONArray("extra_function_chords");
         if (profile.has("extra_function_chords") && (extras == null || extras.length() != 2)) throw new JSONException("F11/F12 require two extra function combos");
@@ -48,6 +51,7 @@ public final class ChordLayout {
         }
         for (int i = 0; i < 2; i++) if ((extraButtons[i] & ~0x0f) != 0 || (extraDpad[i] != 0 && extraButtons[i] != 0) || (extraDpad[i] == 0 && extraButtons[i] == 0)) throw new JSONException("F11/F12 require D-pad or face-button combos without shoulders");
         if (extraButtons[0] == extraButtons[1] && extraDpad[0] == extraDpad[1]) throw new JSONException("F11/F12 combos must differ");
+        if (functionVolume) for (int i = 0; i < 2; i++) if (extraDpad[i] == 0 && (extraButtons[i] == (X|Y) || extraButtons[i] == (A|X) || extraButtons[i] == (A|B))) throw new JSONException("F11/F12 conflict with volume combos");
         diagonals = profile.optBoolean("diagonals", true);
         excludeOpposites = profile.optBoolean("exclude_opposite_face_pairs");
         disabled = buttons(profile.optJSONArray("disabled_buttons"));
@@ -118,12 +122,14 @@ public final class ChordLayout {
                 for (Binding binding : bindings) if (binding.held() == R2 && binding.action().equals(Action.text(Integer.toString(digit)))) number = binding;
                 if (number == null || (number.buttons() & (L1 | R1)) != 0
                         || (number.buttons() == extraButtons[0] && number.dpad() == extraDpad[0])
-                        || (number.buttons() == extraButtons[1] && number.dpad() == extraDpad[1])) {
+                        || (number.buttons() == extraButtons[1] && number.dpad() == extraDpad[1])
+                        || (functionVolume && number.dpad() == 0 && (number.buttons() == (X|Y) || number.buttons() == (A|X) || number.buttons() == (A|B)))) {
                     throw new JSONException("The function layer requires all ten number combos without L1/R1 or F11/F12 conflicts");
                 }
                 functionBinding(number.buttons(),number.dpad(),"f" + (digit == 0 ? 10 : digit));
             }
             functionBinding(extraButtons[0],extraDpad[0],"f11"); functionBinding(extraButtons[1],extraDpad[1],"f12");
+            if (functionVolume) { functionBinding(X|Y,0,"volume_up"); functionBinding(A|X,0,"volume_down"); functionBinding(A|B,0,"mute"); }
         }
     }
 
@@ -136,7 +142,18 @@ public final class ChordLayout {
     public Action resolveFunction(int mask,int dpad,int held,int modifiers) {
         if (!allows(mask | held | R1 | R2,dpad)) return null;
         Action action = functionActions.get(slot(mask,dpad,0));
-        return action == null ? null : action.modified(modifiers | ((held & L2) != 0 ? Action.SHIFT : 0));
+        return action == null ? null : action.consumerKey() ? action : action.modified(modifiers | ((held & L2) != 0 ? Action.SHIFT : 0));
+    }
+
+    public String navigationFace(int mask) {
+        return switch (mask) {
+            case A -> "page_down"; case B -> "end"; case X -> "home"; case Y -> "page_up";
+            case X|Y -> navigationMedia ? "media_previous" : null;
+            case Y|B -> navigationMedia ? "media_next" : null;
+            case A|X -> navigationMedia ? "media_play_pause" : null;
+            case A|B -> navigationMedia ? "media_stop" : null;
+            default -> null;
+        };
     }
 
     public boolean allows(int mask, int dpad) {

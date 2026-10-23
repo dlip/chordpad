@@ -21,6 +21,7 @@ public final class KeyboardOutput {
             case "right" -> KeyEvent.KEYCODE_DPAD_RIGHT;
             case "home" -> KeyEvent.KEYCODE_MOVE_HOME;
             case "end" -> KeyEvent.KEYCODE_MOVE_END;
+            case "mute" -> KeyEvent.KEYCODE_VOLUME_MUTE;
             default -> KeyEvent.keyCodeFromString("KEYCODE_" + key.toUpperCase(Locale.ROOT));
         };
     }

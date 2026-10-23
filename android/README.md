@@ -66,8 +66,12 @@ disconnects, and pauses discard pending output and require neutral controls.
 
 With `profile.navigation_layer` enabled (as in the bundled layout), hold R2 + L1
 before pressing navigation inputs. D-pad cardinal directions send arrows;
-Triangle sends Page Up, Cross Page Down, Square Home, and Circle End. Keys fire
-on press and repeat after 400 ms, every 80 ms. Add L2 for Shift selection; stick
+Triangle sends Page Up, Cross Page Down, Square Home, and Circle End. D-pad
+arrows fire on press and repeat after 400 ms, every 80 ms. With the bundled
+`profile.navigation_media` option, face-button taps send on full chord release;
+holding one face button starts repeating after 400 ms. Adding a second face
+button forms a media chord without leaking a page key. Media chords never
+repeat. Add L2 for Shift selection; stick
 modifiers also apply. D-pad diagonals produce no arrows. Releasing either R2 or
 L1 stops repeat, and held navigation inputs must release before typing again.
 Entering navigation discards unfinished typing strokes. L1 does not send
@@ -95,6 +99,24 @@ older layouts without the field retain D-pad Left/Down. Entering either extra
 layer cancels unfinished typing; switching between
 the extra layers cancels unfinished strokes and consumes held controls. Holding
 R2 + L1 + R1 suppresses typing; adding L2 uses the normal pause gesture.
+
+The bundled preset adds these adjacent face-button pairs:
+
+| Face pair | Navigation (R2 + L1) | Functions (R2 + R1) |
+| --- | --- | --- |
+| Square + Triangle | Previous track | Volume up |
+| Triangle + Circle | Next track | Unassigned |
+| Cross + Square | Play/pause | Volume down |
+| Cross + Circle | Stop | Mute/unmute |
+
+Media and volume actions send once on full chord release and ignore keyboard
+modifiers. Android dispatches media keys to the current media session and changes
+the music stream volume, so these controls also work without a focused text field.
+The app requests the normal `MODIFY_AUDIO_SETTINGS` permission; no runtime
+permission prompt is needed. Playback commands require a media app that handles them.
+The options `profile.navigation_media` and `profile.function_volume` are enabled in
+the bundled preset. Older imports without them keep their original behavior;
+volume combos must not overlap number or F11/F12 bindings.
 
 Triggers engage at 65% and release at 35%; sticks engage at 55% and release at
 35%. D-pad hat axes and analog trigger axes take precedence over their duplicate
@@ -139,7 +161,7 @@ From `android/`, run:
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
-The JVM and Rust tests use the same 260 recognition vectors, covering every
+The JVM and Rust tests use the same 341 recognition vectors, covering every
 bundled binding, overlapping releases, rolled diagonals, held and late modifiers,
 stick directions, menus, resets, forbidden pairs, startup, and queue overflow.
 Run the Rust half from the repository root with `cargo test --test android`.

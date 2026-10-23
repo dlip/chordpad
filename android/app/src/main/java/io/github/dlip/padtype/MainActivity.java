@@ -83,7 +83,7 @@ public final class MainActivity extends Activity {
 
         chordCard = card(page); chordCard.addView(text("Typing layout",20,INK));
         profile = text("",14,MUTED); chordCard.addView(profile);
-        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nBundled numbers: clockwise D-pad 1–8; Triangle 9, Circle 0; Square -, Cross =. Add L2 for _ and +.\nBundled layout: hold R2 + L1 for navigation. D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End. Add L2 to select text.\nHold R2 + R1: function keys using number combos (0 = F10); Cross/Square = F11/F12.\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Alt + Command.",15,INK));
+        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nBundled numbers: clockwise D-pad 1–8; Triangle 9, Circle 0; Square -, Cross =. Add L2 for _ and +.\nBundled layout: hold R2 + L1 for navigation. D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End. Add L2 to select text.\nHold R2 + R1: function keys using number combos (0 = F10); Cross/Square = F11/F12.\nAdjacent face pairs add media in navigation and volume in functions.\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Alt + Command.",15,INK));
         chordCard.addView(button("View chord reference",v -> reference()));
         LinearLayout files = row(); chordCard.addView(files);
         files.addView(button("Import layout…",v -> {
@@ -146,6 +146,8 @@ public final class MainActivity extends Activity {
         LinearLayout list = column(); list.setPadding(dp(20),dp(8),dp(20),dp(12));
         list.addView(text("Options → Enter\nShare → Escape",17,BLUE));
         if (state.layout.navigationLayer) list.addView(text("Hold R2 + L1: navigation layer\nD-pad ↑ ↓ ← →: arrow keys\nTriangle: Page Up · Cross: Page Down\nSquare: Home · Circle: End\nAdd L2 for Shift selection. Hold inputs to repeat.\nR2 alone: numbers/symbols.",17,BLUE));
+        if (state.layout.navigationMedia) list.addView(text("Navigation media: Square+Triangle previous; Triangle+Circle next; Cross+Square play/pause; Cross+Circle stop.\nFace taps send on release. Hold a single face button to repeat; media pairs never repeat.",16,BLUE));
+        if (state.layout.functionVolume) list.addView(text("Function volume: Square+Triangle up; Cross+Square down; Cross+Circle mute. One action per chord release.",16,BLUE));
         List<ChordLayout.Binding> bindings = new java.util.ArrayList<>(state.layout.bindings);
         bindings.addAll(state.layout.functionBindings);
         for (ChordLayout.Binding binding : bindings) {
@@ -174,7 +176,7 @@ public final class MainActivity extends Activity {
                 new AlertDialog.Builder(this).setTitle("Text for " + label(control)).setView(input).setNegativeButton("Cancel",null)
                         .setPositiveButton("Save",(d,w) -> save(control,Action.text(input.getText().toString()))).show();
             } else if (index == 1) {
-                String[] keys = {"enter","escape","space","backspace","delete","tab","up","down","left","right","home","end","page_up","page_down","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12"};
+                String[] keys = {"enter","escape","space","backspace","delete","tab","up","down","left","right","home","end","page_up","page_down","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12","media_play_pause","media_next","media_previous","media_stop","volume_up","volume_down","mute"};
                 new AlertDialog.Builder(this).setTitle("Output key").setItems(keys,(d,w) -> save(control,Action.key(keys[w]))).show();
             } else if (index == 2) {
                 String[] modifiers = {"ctrl","alt","shift","meta"};

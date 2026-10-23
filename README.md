@@ -132,8 +132,22 @@ The example configuration enables `profile.navigation_layer`, a third, held laye
 | X / Square | Home |
 | B / Circle | End |
 
-Add L2 for Shift selection or a stick modifier for modified navigation. Keys fire
-on press and repeat after 400 ms, every 80 ms. D-pad diagonals produce no arrows.
+The bundled preset also enables `profile.navigation_media` for adjacent face pairs:
+
+| Navigation face pair | Output |
+| --- | --- |
+| X + Y (Square + Triangle) | Previous track |
+| Y + B (Triangle + Circle) | Next track |
+| A + X (Cross + Square) | Play/pause |
+| A + B (Cross + Circle) | Stop |
+
+Add L2 for Shift selection or a stick modifier for modified navigation. D-pad
+arrows fire on press and repeat after 400 ms, every 80 ms. Face taps send on full
+chord release, so adding a second button does not leak a page key. Holding one
+face button starts repeating after 400 ms; its release adds no extra output.
+Media pairs fire once on full release and never repeat. Adding a button after a
+single-button repeat cancels the remaining stroke. D-pad diagonals produce no arrows.
+Without `navigation_media`, older layouts retain immediate independent face keys.
 Release either R2 or L1 to stop navigation; held navigation controls must release
 before typing again. Entering navigation discards unfinished typing strokes, and
 L1 does not send Backspace when used as the layer key.
@@ -169,6 +183,20 @@ Function keys send once when the whole ordinary chord releases; they do not
 repeat. The prefix can stay held for sequential function keys. L2 adds Shift,
 and thumbstick modifiers apply. Releasing the prefix early preserves a function
 stroke already started; R1 does not send Space as a layer modifier.
+
+With `profile.function_volume` enabled (as in the bundled preset), R2 + R1 also
+provides volume controls on adjacent face pairs:
+
+| Function face pair | Output |
+| --- | --- |
+| X + Y (Square + Triangle) | Volume up |
+| A + X (Cross + Square) | Volume down |
+| A + B (Cross + Circle) | Mute/unmute |
+
+Volume controls fire once on full chord release. Media and volume keys ignore
+keyboard modifiers. These optional additions require their parent layers and
+reserve their combos against numbers and F11/F12; incompatible custom bindings
+are rejected. Older layouts without the two options retain their behavior.
 
 Use `--independent --function-layer` or `profile.function_layer` for new layouts.
 Generation includes all ten digits even with `--alphabet corpus` and derives

@@ -14,6 +14,7 @@ fn layout() -> Layout {
     ))
     .unwrap();
     layout.profile.function_layer = false;
+    layout.profile.function_volume = false;
     layout
 }
 
@@ -43,6 +44,7 @@ fn navigation_reservations_validate_and_older_layouts_keep_their_digit() {
     }];
     assert!(layout.validate().unwrap_err().contains("reserved"));
     layout.profile.navigation_layer = false;
+    layout.profile.navigation_media = false;
     layout.validate().unwrap();
     assert!(
         !serde_json::to_string(&layout)
@@ -162,6 +164,44 @@ fn typing_sends_modified_navigation_and_pause_or_disconnect_stops_it() {
 }
 
 #[test]
+fn older_navigation_profiles_keep_immediate_independent_face_keys() {
+    let mut layout = layout();
+    layout.profile.navigation_media = false;
+    let json = serde_json::to_value(&layout).unwrap();
+    assert!(json["profile"].get("navigation_media").is_none());
+    let mut engine = Recognizer::new(
+        layout.strategy.clone(),
+        layout.profile.clone(),
+        Some(layout),
+    )
+    .unwrap();
+    engine.update_at(&state(Dpad::Neutral, &[]), 0);
+    engine.update_at(&state(Dpad::Neutral, &[Button::R2, Button::L1]), 1);
+    let events = engine.update_at(
+        &state(
+            Dpad::Neutral,
+            &[Button::R2, Button::L1, Button::A, Button::X],
+        ),
+        2,
+    );
+    let keys: Vec<_> = events
+        .into_iter()
+        .filter_map(|event| {
+            if let Event::Chord {
+                action: Some(Action::Key(key)),
+                ..
+            } = event
+            {
+                Some(key)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(keys, [Key::PageDown, Key::Home]);
+}
+
+#[test]
 fn visual_reference_includes_eight_navigation_outputs() {
     let html = render::html(&layout()).unwrap();
     let navigation = html
@@ -171,7 +211,7 @@ fn visual_reference_includes_eight_navigation_outputs() {
         .split("</section>")
         .next()
         .unwrap();
-    assert_eq!(navigation.matches("class=\"chord-card\"").count(), 8);
+    assert_eq!(navigation.matches("class=\"chord-card\"").count(), 12);
     assert_eq!(navigation.matches("class=\"binding-map\"").count(), 2);
     assert!(!html.contains("<svg"));
     assert!(html.contains("R2 + L1: navigation"));

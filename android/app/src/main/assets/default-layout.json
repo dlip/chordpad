@@ -60,7 +60,9 @@
       "same_side_shoulders": 0.7,
       "held_load": 0.15,
       "modifier_change": 0.35
-    }
+    },
+    "navigation_media": true,
+    "function_volume": true
   },
   "weights": {
     "effort": 1.0,

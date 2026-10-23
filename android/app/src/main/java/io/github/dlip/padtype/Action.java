@@ -9,6 +9,9 @@ public record Action(String type, String value, int modifiers) {
     public static Action text(String text) { return new Action("character", text, 0); }
     public static Action key(String key) { return new Action("key", key, 0); }
     public Action modified(int mask) { return new Action(type, value, modifiers | mask); }
+    public boolean consumerKey() {
+        return type.equals("key") && java.util.List.of("media_play_pause","media_next","media_previous","media_stop","volume_up","volume_down","mute").contains(value);
+    }
 
     public static Action read(JSONObject object) throws JSONException {
         String type = object.getString("type");

@@ -22,6 +22,13 @@ fn key_name(key: Key) -> String {
     match key {
         Key::PageUp => "Page Up".into(),
         Key::PageDown => "Page Down".into(),
+        Key::MediaPlayPause => "Play/Pause".into(),
+        Key::MediaNext => "Next".into(),
+        Key::MediaPrevious => "Previous".into(),
+        Key::MediaStop => "Stop".into(),
+        Key::VolumeUp => "Volume Up".into(),
+        Key::VolumeDown => "Volume Down".into(),
+        Key::Mute => "Mute".into(),
         _ => format!("{key:?}"),
     }
 }
@@ -355,39 +362,27 @@ fn reference_layers(layout: &Layout) -> Vec<ReferenceLayer> {
         });
     }
     if layout.profile.navigation_layer {
-        let bindings = [
-            (Dpad::Up, vec![], Key::Up),
-            (Dpad::Down, vec![], Key::Down),
-            (Dpad::Left, vec![], Key::Left),
-            (Dpad::Right, vec![], Key::Right),
-            (Dpad::Neutral, vec![Button::Y], Key::PageUp),
-            (Dpad::Neutral, vec![Button::A], Key::PageDown),
-            (Dpad::Neutral, vec![Button::X], Key::Home),
-            (Dpad::Neutral, vec![Button::B], Key::End),
-        ]
-        .into_iter()
-        .map(|(dpad, buttons, key)| Binding {
-            chord: Chord { dpad, buttons },
-            held: vec![Button::L1, Button::R2],
-            held_dpad: Dpad::Neutral,
-            action: Action::Key(key),
-        })
-        .filter(|b| {
-            layout
-                .profile
-                .allows(b.chord.input().unwrap().with_context(b.context().unwrap()))
-        })
-        .collect();
+        let bindings = layout.navigation_bindings();
+        let face_note = if layout.profile.navigation_media {
+            " Face-button taps send on full chord release; holding a single face button starts repeating at 400 ms. Adjacent face pairs send media controls once on release and never repeat."
+        } else {
+            ""
+        };
         layers.push(ReferenceLayer {
             title: "R2 + L1: navigation".into(), label: "Navigation layer".into(),
-            note: "Hold R2 and L1. Press and hold an input to repeat after 400 ms, every 80 ms. D-pad diagonals produce no arrows. Add L2 to select text; thumbstick modifiers also apply. Release either layer key to stop. Held inputs must release before typing again.".into(),
+            note: format!("Hold R2 and L1. D-pad arrows fire immediately and repeat after 400 ms, every 80 ms.{face_note} D-pad diagonals produce no arrows. Add L2 to select text; thumbstick modifiers also apply. Release either layer key to stop. Held inputs must release before typing again."),
             contexts: vec![Button::L1.bit() | Button::R2.bit()], bindings,
         });
     }
     if layout.profile.function_layer {
+        let volume_note = if layout.profile.function_volume {
+            " Adjacent face pairs add Volume Up, Volume Down, and Mute, once per chord. Media and volume controls ignore keyboard modifiers."
+        } else {
+            ""
+        };
         layers.push(ReferenceLayer {
             title: "R2 + R1: function keys".into(), label: "Function layer".into(),
-            note: "Hold R2 and R1. Number combos 1–9 send F1–F9; 0 sends F10. F11 and F12 use the separate combos shown here. Release the entire ordinary chord to send one function key. Keep the prefix held for sequential inputs. Add L2 for Shift or use thumbstick modifiers.".into(),
+            note: format!("Hold R2 and R1. Number combos 1–9 send F1–F9; 0 sends F10. F11 and F12 use the separate combos shown here. Release the entire ordinary chord to send one key. Keep the prefix held for sequential inputs. Add L2 for Shift or use thumbstick modifiers.{volume_note}"),
             contexts: vec![Button::R1.bit() | Button::R2.bit()], bindings: layout.function_bindings(),
         });
     }

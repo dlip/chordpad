@@ -14,6 +14,7 @@ final class HeldLayers {
     private boolean blockedDpad;
     private int previousButtons, previousDpad, blockedButtons;
     private Map<String,Repeating> active = new LinkedHashMap<>();
+    private NavigationFace face = new NavigationFace();
 
     Change update(Frame frame, ChordLayout layout, long now) {
         int buttons = frame.buttons(), direction = frame.dpad();
@@ -23,6 +24,7 @@ final class HeldLayers {
         Mode nextMode = navigation && function ? Mode.AMBIGUOUS : navigation ? Mode.NAVIGATION : function ? Mode.FUNCTION : Mode.NORMAL;
         boolean changed = nextMode != mode;
         boolean functionExit = mode == Mode.FUNCTION && nextMode == Mode.NORMAL;
+        if (changed) face = new NavigationFace();
         blockedButtons &= buttons;
         if (direction == 0) blockedDpad = false;
         if (changed && !functionExit) {
@@ -47,7 +49,8 @@ final class HeldLayers {
                 if (key != null) add(next,output,key,modifiers,now);
             }
             String[] keys = {"page_down","end","home","page_up"};
-            for (int i = 0; i < 4; i++) if ((buttons & ~blockedButtons & (1 << i)) != 0 && layout.allows(held | (1 << i),0)) {
+            if (layout.navigationMedia) output.addAll(face.update(buttons & ~blockedButtons & 0x0f,held,frame.modifiers(),layout,now));
+            for (int i = 0; i < 4; i++) if (!layout.navigationMedia && (buttons & ~blockedButtons & (1 << i)) != 0 && layout.allows(held | (1 << i),0)) {
                 add(next,output,keys[i],modifiers,now);
             }
         }
@@ -68,6 +71,7 @@ final class HeldLayers {
             if (now < entry.at()) return entry;
             output.add(entry.action()); return new Repeating(entry.action(),now + 80);
         });
+        output.addAll(face.repeat(now));
         return output;
     }
 }

@@ -74,6 +74,13 @@ fn uinput_round_trip_has_balanced_keys_and_report_boundaries() {
             Action::Key(Key::F10),
             Action::Key(Key::F11),
             Action::Key(Key::F12),
+            Action::Key(Key::MediaPlayPause),
+            Action::Key(Key::MediaNext),
+            Action::Key(Key::MediaPrevious),
+            Action::Key(Key::MediaStop),
+            Action::Key(Key::VolumeUp),
+            Action::Key(Key::VolumeDown),
+            Action::Key(Key::Mute),
             Action::Shortcut(Shortcut {
                 modifiers: vec![Modifier::Ctrl, Modifier::Shift],
                 key: Key::C,

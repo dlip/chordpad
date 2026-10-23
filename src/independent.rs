@@ -139,6 +139,9 @@ impl Engine {
                 .into_iter()
                 .find(|b| b.chord.input().ok() == Some(input))
                 .map(|b| b.action);
+            if matches!(action, Some(Action::Key(key)) if key.is_consumer()) {
+                keyboard_modifiers.clear();
+            }
             return match action {
                 Some(action) => Event::Chord {
                     chord: input.chord(),
