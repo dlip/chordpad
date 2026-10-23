@@ -2,3 +2,6 @@
 /layout.json
 /layout.report.json
 /layout.html
+/android/.gradle/
+/android/local.properties
+/android/**/build/

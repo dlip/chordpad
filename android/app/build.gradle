@@ -1,0 +1,34 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'io.github.dlip.padtype'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'io.github.dlip.padtype'
+        minSdk 34
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+        testInstrumentationRunner 'android.test.InstrumentationTestRunner'
+    }
+    useLibrary 'android.test.runner'
+    useLibrary 'android.test.base'
+    sourceSets {
+        test.java.srcDir 'src/sharedTest/java'
+        androidTest.java.srcDir 'src/sharedTest/java'
+        androidTest.assets.srcDir 'src/test/resources'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    testOptions.unitTests.all {
+        systemProperty 'padtype.assets', file('src/main/assets').absolutePath
+    }
+    lint { abortOnError true }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}

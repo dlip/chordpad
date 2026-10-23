@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#1557B0</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#F6F5F0</item>
+    </style>
+    <string name="service_description">Use a game controller as a keyboard. padtype reads controller buttons and joysticks and sends your mapped text or keys to the focused text field. Start and stop remapping in the app. It does not read screen contents, record typing, or use the internet.</string>
+    <string name="mode_chords_label">Padtype chords</string>
+    <string name="mode_direct_label">Direct mapping</string>
+    <string name="last_output">Last output: %1$s</string>
+    <plurals name="binding_count">
+        <item quantity="one">%1$d binding · Each half releases independently</item>
+        <item quantity="other">%1$d bindings · Each half releases independently</item>
+    </plurals>
+    <string name="mapping_label">%1$s    →    %2$s</string>
+</resources>

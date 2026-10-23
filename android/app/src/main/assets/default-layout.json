@@ -1,0 +1,1457 @@
+{
+  "schema_version": 2,
+  "cost_model_version": 2,
+  "strategy": {
+    "independent": true,
+    "name": "independent",
+    "shift": "L2",
+    "layer": "R2"
+  },
+  "profile": {
+    "exclude_opposite_face_pairs": true,
+    "base_punctuation": [
+      "'",
+      ",",
+      ".",
+      ";",
+      "/"
+    ],
+    "diagonals": true,
+    "disabled_buttons": [],
+    "modifier_only_buttons": [
+      "L2",
+      "R2"
+    ],
+    "max_chord_size": null,
+    "forbidden_combinations": [],
+    "forbidden_chords": [],
+    "costs": {
+      "same_hand_transition": 1.0,
+      "buttons": {
+        "A": 1.0,
+        "B": 1.0,
+        "X": 1.0,
+        "Y": 1.0,
+        "L1": 1.1,
+        "R1": 1.1,
+        "L2": 1.4,
+        "R2": 1.4
+      },
+      "dpad": 1.0,
+      "diagonal_extra": 0.6,
+      "chord_complexity": 0.18,
+      "multiple_face_buttons": 1.5,
+      "same_side_shoulders": 0.7,
+      "held_load": 0.15,
+      "modifier_change": 0.35
+    }
+  },
+  "weights": {
+    "effort": 1.0,
+    "activations": 1.5,
+    "movement": 0.4,
+    "coverage": 0.1,
+    "learning": 0.1
+  },
+  "normalization": {
+    "effort": 1.9380249999999952,
+    "activations": 1.3866666666666645,
+    "movement": 1.4546946471615998,
+    "coverage": 6.4180808080808065,
+    "learning": 60.0
+  },
+  "recognition": "independent-release",
+  "bindings": [
+    {
+      "action": {
+        "type": "character",
+        "value": "\t"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": " "
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "!"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": []
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "\""
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "#"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": []
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "$"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": []
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "%"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "&"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "'"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "("
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": []
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ")"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": []
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "*"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "+"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ","
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "-"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "R1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "."
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "Y",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "/"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "Y",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "0"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "1"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "2"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "3"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "4"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "5"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "6"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "7"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "8"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "9"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": []
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ":"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ";"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "<"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "="
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": ">"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "Y",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "?"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "Y",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "@"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "A"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "B"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "C"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "D"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "E"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "F"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "G"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "Y"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "H"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "I"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "J"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "K"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "Y"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "L"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "M"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "N"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "O"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "P"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "Q"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "R"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "S"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "T"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "U"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "V"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "W"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": []
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "X"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "Y"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "Z"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "["
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "R1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "\\"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y",
+          "R1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "]"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "^"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": []
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "_"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "`"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "R1"
+        ]
+      },
+      "held": [
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "a"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "b"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "c"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "d"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "e"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "f"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "g"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "Y"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "h"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "i"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "j"
+      },
+      "chord": {
+        "dpad": "down-right",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "k"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "Y"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "l"
+      },
+      "chord": {
+        "dpad": "up-right",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "m"
+      },
+      "chord": {
+        "dpad": "up-left",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "n"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "o"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "p"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "q"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "B"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "r"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "s"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "t"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "u"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "v"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "X",
+          "R1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "w"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": []
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "x"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "X"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "y"
+      },
+      "chord": {
+        "dpad": "up",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "z"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "{"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "B",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "|"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "Y",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "}"
+      },
+      "chord": {
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "~"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "A",
+          "R1"
+        ]
+      },
+      "held": [
+        "L2",
+        "R2"
+      ]
+    },
+    {
+      "action": {
+        "type": "key",
+        "value": "backspace"
+      },
+      "chord": {
+        "dpad": "neutral",
+        "buttons": [
+          "L1"
+        ]
+      },
+      "held": []
+    }
+  ]
+}

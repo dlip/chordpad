@@ -3,6 +3,9 @@
 Gamepad typing for Linux, with a layout generator that searches for comfortable,
 efficient chords.
 
+An [Android app](android/README.md) also supports the independent typing layout,
+editable controller mappings, and DualSense input on Android 14 and newer.
+
 Inputs are the D-pad, A/B/X/Y, L1/R1, L2/R2, Start/Select, and both thumbsticks.
 Direct typing chords use the D-pad and A/B/X/Y/L1/R1 by default. The analog L2/R2 triggers are reserved for
 held Shift or layers. Thumbsticks supply Alt, Ctrl, and Command/Meta. The

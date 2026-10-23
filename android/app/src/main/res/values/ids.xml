@@ -1,0 +1,6 @@
+<resources>
+    <item name="start_remapping" type="id" />
+    <item name="test_field" type="id" />
+    <item name="mode_chords" type="id" />
+    <item name="mode_direct" type="id" />
+</resources>
