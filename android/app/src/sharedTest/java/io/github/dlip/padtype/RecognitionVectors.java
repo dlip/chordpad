@@ -20,12 +20,14 @@ public final class RecognitionVectors {
             for (int j = 0; j < frames.length(); j++) {
                 JSONObject frame = frames.getJSONObject(j);
                 if (frame.optBoolean("reset")) { engine.reset(); continue; }
+                long now = frame.optLong("at_ms",0);
+                if (frame.optBoolean("tick")) { actual.addAll(engine.repeat(now)); continue; }
                 int[] left = stick(frame.optString("left_stick","neutral")), right = stick(frame.optString("right_stick","neutral"));
                 int modifiers = ControllerInput.modifiers(left[0],left[1],true) | ControllerInput.modifiers(right[0],right[1],false);
                 int menu = 0;
                 JSONArray buttons = frame.optJSONArray("menu_buttons");
                 if (buttons != null) for (int k = 0; k < buttons.length(); k++) menu |= buttons.getString(k).equals("Start") ? 1 : 2;
-                actual.addAll(engine.update(new Frame(ChordLayout.buttons(frame.getJSONArray("buttons")),frame.isNull("dpad") ? 3 : ChordLayout.direction(frame.getString("dpad")),modifiers,menu,left[0],left[1],right[0],right[1])));
+                actual.addAll(engine.update(new Frame(ChordLayout.buttons(frame.getJSONArray("buttons")),frame.isNull("dpad") ? 3 : ChordLayout.direction(frame.getString("dpad")),modifiers,menu,left[0],left[1],right[0],right[1]),now));
             }
             JSONArray actions = test.getJSONArray("actions");
             for (int j = 0; j < actions.length(); j++) expected.add(Action.read(actions.getJSONObject(j)));

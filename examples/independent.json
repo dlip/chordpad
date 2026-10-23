@@ -1,5 +1,7 @@
 {
   "profile": {
+    "navigation_layer": true,
+    "function_layer": true,
     "exclude_opposite_face_pairs": true,
     "costs": {
       "same_hand_transition": 1.0

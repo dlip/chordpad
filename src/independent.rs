@@ -1,3 +1,4 @@
+use crate::layers::HeldLayers;
 use crate::{
     Result,
     chord::{Engine as HalfEngine, Event, MenuKeys, Phase},
@@ -5,12 +6,14 @@ use crate::{
     model::*,
 };
 use std::collections::VecDeque;
+use std::time::Instant;
 
 const MAX_PENDING: usize = 64;
 
 struct Half {
     engine: HalfEngine,
     pending: Option<u64>,
+    function: bool,
 }
 
 impl Half {
@@ -20,6 +23,7 @@ impl Half {
         Ok(Self {
             engine: HalfEngine::new(strategy, Profile::default(), None)?,
             pending: None,
+            function: false,
         })
     }
 }
@@ -37,6 +41,8 @@ pub struct Engine {
     next_id: u64,
     menu: MenuKeys,
     menu_pending: [Option<u64>; 2],
+    layers: HeldLayers,
+    started: Instant,
 }
 
 impl Engine {
@@ -53,6 +59,8 @@ impl Engine {
             next_id: 0,
             menu: MenuKeys::default(),
             menu_pending: [None; 2],
+            layers: HeldLayers::default(),
+            started: Instant::now(),
         })
     }
 
@@ -75,6 +83,7 @@ impl Engine {
         self.queue.clear();
         self.menu = MenuKeys::default();
         self.menu_pending = [None; 2];
+        self.layers = HeldLayers::default();
         self.waiting = true;
         for half in &mut self.halves {
             half.engine.reset(reason);
@@ -98,8 +107,9 @@ impl Engine {
     fn resolve(
         &self,
         input: Input,
-        held: Vec<Button>,
+        mut held: Vec<Button>,
         mut keyboard_modifiers: Vec<Modifier>,
+        function: bool,
     ) -> Event {
         let context = Input {
             mask: button_mask(&held).unwrap(),
@@ -107,6 +117,43 @@ impl Engine {
         };
         if let Err(reason) = validate_independent_input(&self.layout.profile, input, context) {
             return Event::Cancelled { reason };
+        }
+        if function {
+            held.push(Button::R1);
+            held.sort();
+            if !self.layout.profile.allows(Input {
+                mask: input.mask | button_mask(&held).unwrap(),
+                ..input
+            }) {
+                return Event::Cancelled {
+                    reason: "function chord or held context is forbidden by the profile".into(),
+                };
+            }
+            if held.contains(&Button::L2) {
+                keyboard_modifiers.push(Modifier::Shift);
+                keyboard_modifiers.sort();
+            }
+            let action = self
+                .layout
+                .function_bindings()
+                .into_iter()
+                .find(|b| b.chord.input().ok() == Some(input))
+                .map(|b| b.action);
+            return match action {
+                Some(action) => Event::Chord {
+                    chord: input.chord(),
+                    held,
+                    held_dpad: Dpad::Neutral,
+                    keyboard_modifiers,
+                    action: Some(action),
+                },
+                None => Event::Unmapped {
+                    chord: input.chord(),
+                    held,
+                    held_dpad: Dpad::Neutral,
+                    keyboard_modifiers,
+                },
+            };
         }
         let fixed = independent_fixed_action(input);
         if fixed.is_some() && held.contains(&Button::L2) {
@@ -140,6 +187,21 @@ impl Engine {
     }
 
     pub fn update(&mut self, snapshot: &Snapshot) -> Vec<Event> {
+        self.update_at(snapshot, self.started.elapsed().as_millis() as u64)
+    }
+
+    pub fn repeat(&mut self) -> Vec<Event> {
+        self.repeat_at(self.started.elapsed().as_millis() as u64)
+    }
+
+    pub fn repeat_at(&mut self, now: u64) -> Vec<Event> {
+        if self.waiting || !self.queue.is_empty() {
+            return vec![];
+        }
+        self.layers.repeat(now)
+    }
+
+    pub fn update_at(&mut self, snapshot: &Snapshot, now: u64) -> Vec<Event> {
         let input = snapshot.input();
         if snapshot.dpad.is_none() {
             return vec![self.reset("invalid D-pad position")];
@@ -154,6 +216,37 @@ impl Engine {
             }
             return vec![Event::Ready];
         }
+        let change = if self.layout.profile.navigation_layer || self.layout.profile.function_layer {
+            self.layers.update(snapshot, &self.layout.profile, now)
+        } else {
+            crate::layers::Change {
+                changed: false,
+                function: false,
+                input,
+                events: vec![],
+            }
+        };
+        if change.changed {
+            for side in Side::ALL {
+                let _ = self.complete(
+                    side,
+                    Event::Cancelled {
+                        reason: "layer changed during a stroke".into(),
+                    },
+                );
+                self.halves[side.index()].engine.reset("layer changed");
+                self.halves[side.index()].engine.update(&Snapshot {
+                    buttons: vec![],
+                    menu_buttons: vec![],
+                    dpad: Some(Dpad::Neutral),
+                    l2: 0.0,
+                    r2: 0.0,
+                    left_stick: Dpad::Neutral,
+                    right_stick: Dpad::Neutral,
+                });
+            }
+        }
+        let input = change.input;
         let modifiers = input.mask & self.layout.strategy.modifier_mask();
         let mut events = vec![];
         // Same-report starts are ordered left, then right.
@@ -161,7 +254,7 @@ impl Engine {
             let i = side.index();
             let local = Input {
                 mask: input.mask & !self.layout.strategy.modifier_mask(),
-                ..input
+                dpad: input.dpad,
             }
             .half(side);
             if self.halves[i].engine.phase == Phase::Idle && local.controls() != 0 {
@@ -172,6 +265,7 @@ impl Engine {
                 self.next_id = self.next_id.wrapping_add(1);
                 self.queue.push_back(Pending { id, event: None });
                 self.halves[i].pending = Some(id);
+                self.halves[i].function = change.function;
             }
             let local_snapshot = Snapshot {
                 menu_buttons: vec![],
@@ -194,12 +288,30 @@ impl Engine {
                         held,
                         keyboard_modifiers,
                         ..
-                    } => self.resolve(chord.input().unwrap(), held, keyboard_modifiers),
+                    } => self.resolve(
+                        chord.input().unwrap(),
+                        held,
+                        keyboard_modifiers,
+                        self.halves[i].function,
+                    ),
                     Event::Ready => continue,
                     other => other,
                 };
                 if let Some(event) = self.complete(side, event) {
                     events.push(event);
+                }
+            }
+            if side == Side::Left {
+                for event in &change.events {
+                    if self.queue.len() == MAX_PENDING {
+                        return vec![self.reset("too many pending strokes")];
+                    }
+                    let id = self.next_id;
+                    self.next_id = self.next_id.wrapping_add(1);
+                    self.queue.push_back(Pending {
+                        id,
+                        event: Some(event.clone()),
+                    });
                 }
             }
         }

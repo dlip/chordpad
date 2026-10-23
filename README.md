@@ -115,12 +115,53 @@ and layout validation:
 | Control | Role |
 | --- | --- |
 | D-pad, A/B/X/Y, L1/R1 combinations | Digital typing chords; all letters use the base bank |
-| R1 alone | Space in every layer |
-| L1 alone | Backspace in every layer |
+| R1 alone | Space; with R2, hold the function layer when enabled |
+| L1 alone | Backspace; with R2, hold the navigation layer when enabled |
 | Start | Enter in every layer |
 | Select | Escape in every layer |
 | L2 | Held Shift; uppercase uses the lowercase chord |
 | R2 | Held numbers/symbols layer; combine with L2 for shifted symbols |
+
+The example configuration enables `profile.navigation_layer`, a third, held layer:
+
+| Hold R2 + L1, then press | Output |
+| --- | --- |
+| D-pad Up / Down / Left / Right | Arrow keys |
+| Y / Triangle | Page Up |
+| A / Cross | Page Down |
+| X / Square | Home |
+| B / Circle | End |
+
+Add L2 for Shift selection or a stick modifier for modified navigation. Keys fire
+on press and repeat after 400 ms, every 80 ms. D-pad diagonals produce no arrows.
+Release either R2 or L1 to stop navigation; held navigation controls must release
+before typing again. Entering navigation discards unfinished typing strokes, and
+L1 does not send Backspace when used as the layer key.
+
+R2 alone retains the numbers/symbols layer, including D-pad chords. Generation
+reserves R2 + L1 and relocates symbols that would conflict with the navigation
+modifier. Base letters and punctuation are unchanged in the bundled layout.
+For a new layout, use `--independent --navigation-layer` or enable
+`profile.navigation_layer` in its generation configuration. Existing layouts
+need regeneration to relocate conflicting symbols; layouts without this option
+retain their existing behavior.
+
+The example also enables `profile.function_layer`. Hold **R2 + R1** and use the
+same ordinary combos as the numbers: **1–9 → F1–F9**, **0 → F10**. F11 uses D-pad
+Left and F12 uses D-pad Down. Number placement reserves those two function slots
+and avoids L1/R1 so every number combo works with the held function prefix.
+Function keys send once when the whole ordinary chord releases; they do not
+repeat. The prefix can stay held for sequential function keys. L2 adds Shift,
+and thumbstick modifiers apply. Releasing the prefix early preserves a function
+stroke already started; R1 does not send Space as a layer modifier.
+
+Use `--independent --function-layer` or `profile.function_layer` for new layouts.
+Generation includes all ten digits even with `--alphabet corpus` and derives
+F1–F10 from their final positions. Regenerate layouts with R2 + R1 symbols to
+move the conflicts. Changing between navigation and functions cancels unfinished
+strokes; holding both L1 and R1 with R2 suppresses typing until one is released.
+The normal L1 + R1 + L2 + R2 pause gesture still takes precedence. Navigation and
+function tasks do not add separate frequencies to the text corpus score.
 
 `profile.base_punctuation` permits selected unshifted ASCII punctuation on the
 base bank, with its usual L2 Shift pair. Other numbers and symbols require R2.

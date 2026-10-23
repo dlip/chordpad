@@ -29,25 +29,31 @@ fn android_recognition_vectors_match_the_rust_engine() {
                 engine.reset("test reset");
                 continue;
             }
-            let snapshot = Snapshot {
-                buttons: serde_json::from_value(frame["buttons"].clone()).unwrap(),
-                dpad: serde_json::from_value(frame["dpad"].clone()).unwrap(),
-                menu_buttons: serde_json::from_value(
-                    frame.get("menu_buttons").cloned().unwrap_or(json!([])),
-                )
-                .unwrap(),
-                l2: 0.0,
-                r2: 0.0,
-                left_stick: frame
-                    .get("left_stick")
-                    .map(|value| serde_json::from_value(value.clone()).unwrap())
-                    .unwrap_or(Dpad::Neutral),
-                right_stick: frame
-                    .get("right_stick")
-                    .map(|value| serde_json::from_value(value.clone()).unwrap())
-                    .unwrap_or(Dpad::Neutral),
+            let now = frame.get("at_ms").and_then(Value::as_u64).unwrap_or(0);
+            let events = if frame["tick"] == true {
+                engine.repeat_at(now)
+            } else {
+                let snapshot = Snapshot {
+                    buttons: serde_json::from_value(frame["buttons"].clone()).unwrap(),
+                    dpad: serde_json::from_value(frame["dpad"].clone()).unwrap(),
+                    menu_buttons: serde_json::from_value(
+                        frame.get("menu_buttons").cloned().unwrap_or(json!([])),
+                    )
+                    .unwrap(),
+                    l2: 0.0,
+                    r2: 0.0,
+                    left_stick: frame
+                        .get("left_stick")
+                        .map(|value| serde_json::from_value(value.clone()).unwrap())
+                        .unwrap_or(Dpad::Neutral),
+                    right_stick: frame
+                        .get("right_stick")
+                        .map(|value| serde_json::from_value(value.clone()).unwrap())
+                        .unwrap_or(Dpad::Neutral),
+                };
+                engine.update_at(&snapshot, now)
             };
-            for event in engine.update(&snapshot) {
+            for event in events {
                 let (action, modifiers) = match event {
                     Event::Chord {
                         action: Some(action),

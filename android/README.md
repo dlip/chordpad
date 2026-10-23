@@ -51,8 +51,10 @@ Android yet.
 | Cross, Circle, Square, Triangle | A, B, X, Y, by physical position |
 | D-pad and L1 | Independent left typing half |
 | Face buttons and R1 | Independent right typing half |
-| L1 alone / R1 alone | Backspace / Space |
+| L1 alone / R1 alone | Backspace / Space; with R2, navigation / functions |
 | L2 / R2 | Held Shift / numbers and symbols |
+| R2 + L1 | Held navigation layer: D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End |
+| R2 + R1 | Held function layer: number combos 1–9 → F1–F9, 0 → F10; Left/Down → F11/F12 |
 | Options / Share | Enter / Escape in every layer |
 | Sticks | Up Alt, down Command/Meta, outward Ctrl, inward Alt + Command |
 
@@ -61,6 +63,29 @@ Alt + Command. The layout's opposite-face-pair and forbidden-chord constraints
 are enforced. Stroke output follows start order, including overlapping halves
 and Options/Share. The queue is bounded at 64 pending strokes. Focus changes,
 disconnects, and pauses discard pending output and require neutral controls.
+
+With `profile.navigation_layer` enabled (as in the bundled layout), hold R2 + L1
+before pressing navigation inputs. D-pad cardinal directions send arrows;
+Triangle sends Page Up, Cross Page Down, Square Home, and Circle End. Keys fire
+on press and repeat after 400 ms, every 80 ms. Add L2 for Shift selection; stick
+modifiers also apply. D-pad diagonals produce no arrows. Releasing either R2 or
+L1 stops repeat, and held navigation inputs must release before typing again.
+Entering navigation discards unfinished typing strokes. L1 does not send
+Backspace as a layer modifier.
+
+R2 alone still provides numbers and symbols, including on the D-pad. Generation
+reserves R2 + L1 and relocates conflicting symbol bindings. Base letters and
+punctuation remain unchanged. Imported older layouts keep their original
+behavior until regenerated with the navigation option enabled.
+
+With `profile.function_layer` enabled, hold R2 + R1 and press the same ordinary
+combos as numbers 1–9 for F1–F9, or 0 for F10. D-pad Left is F11 and D-pad Down
+is F12. Function keys fire once on full chord release, with L2 Shift and stick
+modifiers supported. The prefix can stay held across sequential inputs. Early
+prefix release preserves a function stroke already started, without sending
+Space. Entering either extra layer cancels unfinished typing; switching between
+the extra layers cancels unfinished strokes and consumes held controls. Holding
+R2 + L1 + R1 suppresses typing; adding L2 uses the normal pause gesture.
 
 Triggers engage at 65% and release at 35%; sticks engage at 55% and release at
 35%. D-pad hat axes and analog trigger axes take precedence over their duplicate
@@ -105,7 +130,7 @@ From `android/`, run:
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
-The JVM and Rust tests use the same 146 recognition vectors, covering every
+The JVM and Rust tests use the same 264 recognition vectors, covering every
 bundled binding, overlapping releases, rolled diagonals, held and late modifiers,
 stick directions, menus, resets, forbidden pairs, startup, and queue overflow.
 Run the Rust half from the repository root with `cargo test --test android`.

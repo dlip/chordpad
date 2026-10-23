@@ -62,6 +62,18 @@ fn uinput_round_trip_has_balanced_keys_and_report_boundaries() {
             Action::Key(Key::Backspace),
             Action::Key(Key::Escape),
             Action::Key(Key::Left),
+            Action::Key(Key::F1),
+            Action::Key(Key::F2),
+            Action::Key(Key::F3),
+            Action::Key(Key::F4),
+            Action::Key(Key::F5),
+            Action::Key(Key::F6),
+            Action::Key(Key::F7),
+            Action::Key(Key::F8),
+            Action::Key(Key::F9),
+            Action::Key(Key::F10),
+            Action::Key(Key::F11),
+            Action::Key(Key::F12),
             Action::Shortcut(Shortcut {
                 modifiers: vec![Modifier::Ctrl, Modifier::Shift],
                 key: Key::C,
@@ -306,6 +318,128 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
     );
     println!(
         "Signals, gestures, reconnect with a new event node, grab restoration, held input and stop while disconnected passed"
+    );
+}
+
+#[test]
+#[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
+fn linux_navigation_repeats_without_new_reports_and_stops_on_release() {
+    let mut gamepad = gamepad("padtype navigation test gamepad", 255);
+    let path = event_node(&mut gamepad);
+    let dir = tempfile::tempdir().unwrap();
+    let layout_path = dir.path().join("layout.json");
+    std::fs::write(
+        &layout_path,
+        include_str!("../../android/app/src/main/assets/default-layout.json"),
+    )
+    .unwrap();
+    let mut process = Process(
+        Command::new(env!("CARGO_BIN_EXE_padtype"))
+            .args(["type", "--device"])
+            .arg(path)
+            .arg("--layout")
+            .arg(layout_path)
+            .args(["--dry-run", "--grab", "--start-active", "--duration", "5"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let (tx, rx) = mpsc::channel();
+    pump(process.0.stdout.take().unwrap(), "OUT: ", tx.clone());
+    pump(process.0.stderr.take().unwrap(), "ERR: ", tx);
+    let mut log = vec![];
+    until(&rx, &mut log, "READY");
+    emit(&mut gamepad, &[(3, 5, 255), (1, 310, 1)]);
+    emit(&mut gamepad, &[(3, 16, -1)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE Left");
+    until(&rx, &mut log, "OUT: WOULD TYPE Left");
+    // An editor receives fresh Shift on subsequent repeats while navigation stays held.
+    emit(&mut gamepad, &[(3, 2, 255)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + Left");
+    emit(&mut gamepad, &[(3, 16, 0), (1, KeyCode::BTN_NORTH.0, 1)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + PageUp");
+    until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + PageUp");
+    emit(&mut gamepad, &[(3, 5, 0)]);
+    // A following menu event confirms the trigger release was consumed.
+    emit(&mut gamepad, &[(1, 315, 1)]);
+    emit(&mut gamepad, &[(1, 315, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + Enter");
+    let after_release = log.len();
+    emit(&mut gamepad, &[(1, KeyCode::BTN_NORTH.0, 0), (1, 310, 0)]);
+    thread::sleep(Duration::from_millis(180));
+    log.extend(rx.try_iter());
+    assert!(
+        !log[after_release..].iter().any(|s| s.starts_with("OUT:")),
+        "{log:?}"
+    );
+    assert_eq!(
+        unsafe { libc::kill(process.0.id() as i32, libc::SIGTERM) },
+        0
+    );
+    assert!(process.0.wait().unwrap().success());
+}
+
+#[test]
+#[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
+fn linux_function_layer_uses_number_combos_without_leaking_space() {
+    let mut gamepad = gamepad("padtype function test gamepad", 255);
+    let path = event_node(&mut gamepad);
+    let dir = tempfile::tempdir().unwrap();
+    let layout_path = dir.path().join("layout.json");
+    std::fs::write(
+        &layout_path,
+        include_str!("../../android/app/src/main/assets/default-layout.json"),
+    )
+    .unwrap();
+    let mut process = Process(
+        Command::new(env!("CARGO_BIN_EXE_padtype"))
+            .args(["type", "--device"])
+            .arg(path)
+            .arg("--layout")
+            .arg(layout_path)
+            .args(["--dry-run", "--grab", "--start-active", "--duration", "5"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let (tx, rx) = mpsc::channel();
+    pump(process.0.stdout.take().unwrap(), "OUT: ", tx.clone());
+    pump(process.0.stderr.take().unwrap(), "ERR: ", tx);
+    let mut log = vec![];
+    until(&rx, &mut log, "READY");
+    emit(&mut gamepad, &[(3, 5, 255), (1, 311, 1)]);
+    emit(&mut gamepad, &[(3, 16, 1)]);
+    thread::sleep(Duration::from_millis(40));
+    log.extend(rx.try_iter());
+    assert!(!log.iter().any(|s| s.starts_with("OUT:")), "{log:?}");
+    emit(&mut gamepad, &[(3, 16, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE F1");
+    emit(&mut gamepad, &[(3, 2, 255)]);
+    emit(&mut gamepad, &[(1, 304, 1), (1, 305, 1)]);
+    emit(&mut gamepad, &[(1, 304, 0)]);
+    emit(&mut gamepad, &[(1, 305, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + F7");
+    for (axis, value, key) in [(17, -1, "F10"), (16, -1, "F11"), (17, 1, "F12")] {
+        emit(&mut gamepad, &[(3, axis, value)]);
+        emit(&mut gamepad, &[(3, axis, 0)]);
+        until(&rx, &mut log, &format!("OUT: WOULD TYPE [Shift] + {key}"));
+    }
+    emit(&mut gamepad, &[(3, 2, 0), (3, 5, 0), (1, 311, 0)]);
+    emit(&mut gamepad, &[(1, 315, 1)]);
+    emit(&mut gamepad, &[(1, 315, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE Enter");
+    assert_eq!(
+        unsafe { libc::kill(process.0.id() as i32, libc::SIGTERM) },
+        0
+    );
+    assert!(process.0.wait().unwrap().success());
+    log.extend(rx.try_iter());
+    assert_eq!(
+        log.iter().filter(|s| s.starts_with("OUT:")).count(),
+        6,
+        "{log:?}"
     );
 }
 

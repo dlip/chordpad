@@ -1,0 +1,165 @@
+use padtype::{
+    chord::{Event, Recognizer},
+    controller::Snapshot,
+    model::*,
+    render,
+    typing::validate_pause,
+};
+use std::{fs, process::Command};
+
+fn layout() -> Layout {
+    serde_json::from_str(include_str!(
+        "../android/app/src/main/assets/default-layout.json"
+    ))
+    .unwrap()
+}
+
+#[test]
+fn function_keys_share_number_chords_and_have_twelve_reference_cards() {
+    let layout = layout();
+    let functions = layout.function_bindings();
+    assert_eq!(functions.len(), 12);
+    for (digit, key) in [
+        ('1', Key::F1),
+        ('2', Key::F2),
+        ('3', Key::F3),
+        ('4', Key::F4),
+        ('5', Key::F5),
+        ('6', Key::F6),
+        ('7', Key::F7),
+        ('8', Key::F8),
+        ('9', Key::F9),
+        ('0', Key::F10),
+    ] {
+        let number = layout
+            .bindings
+            .iter()
+            .find(|b| b.action == Action::Character(digit) && b.held == [Button::R2])
+            .unwrap();
+        let function = functions
+            .iter()
+            .find(|b| b.action == Action::Key(key))
+            .unwrap();
+        assert_eq!(function.chord, number.chord);
+        assert_eq!(function.held, [Button::R1, Button::R2]);
+    }
+    let html = render::html(&layout).unwrap();
+    assert_eq!(html.matches("class=\"function-card\"").count(), 12);
+    assert!(html.contains("R2 + R1: function keys"));
+}
+
+#[test]
+fn invalid_function_layouts_and_pause_conflicts_are_rejected() {
+    let original = layout();
+    let mut missing = original.clone();
+    missing
+        .bindings
+        .retain(|b| b.action != Action::Character('0'));
+    assert!(
+        missing
+            .validate()
+            .unwrap_err()
+            .contains("ten number bindings")
+    );
+    let mut collision = original.clone();
+    for binding in &mut collision.bindings {
+        if binding.action.group(true).0 == Action::Character('1') {
+            binding.chord = Chord {
+                dpad: Dpad::Left,
+                buttons: vec![],
+            };
+        }
+    }
+    assert!(collision.validate().is_err());
+    let mut forbidden = original.clone();
+    forbidden
+        .profile
+        .forbidden_combinations
+        .push(vec![Button::R1, Button::R2]);
+    assert!(forbidden.validate().is_err());
+    assert!(
+        validate_pause(&original, &[Button::R1, Button::R2])
+            .unwrap_err()
+            .contains("function")
+    );
+    assert!(validate_pause(&original, &[Button::L1, Button::R1, Button::L2, Button::R2]).is_ok());
+}
+
+#[test]
+fn layouts_without_the_option_keep_r2_r1_symbol_chords() {
+    let mut layout = layout();
+    layout.profile.function_layer = false;
+    layout.profile.navigation_layer = false;
+    layout.bindings = vec![Binding {
+        action: Action::Character('1'),
+        chord: Chord {
+            dpad: Dpad::Neutral,
+            buttons: vec![Button::A, Button::R1],
+        },
+        held: vec![Button::R2],
+        held_dpad: Dpad::Neutral,
+    }];
+    layout.validate().unwrap();
+    assert!(layout.function_bindings().is_empty());
+    let mut engine = Recognizer::new(
+        layout.strategy.clone(),
+        layout.profile.clone(),
+        Some(layout),
+    )
+    .unwrap();
+    let snapshot = |buttons: Vec<Button>| Snapshot {
+        buttons,
+        menu_buttons: vec![],
+        dpad: Some(Dpad::Neutral),
+        l2: 0.0,
+        r2: 0.0,
+        left_stick: Dpad::Neutral,
+        right_stick: Dpad::Neutral,
+    };
+    engine.update(&snapshot(vec![]));
+    assert!(
+        engine
+            .update(&snapshot(vec![Button::A, Button::R1, Button::R2]))
+            .is_empty()
+    );
+    assert!(matches!(
+        engine.update(&snapshot(vec![Button::R2])).as_slice(),
+        [Event::Chord {
+            action: Some(Action::Character('1')),
+            ..
+        }]
+    ));
+}
+
+#[test]
+fn generator_includes_all_digits_for_function_layer_with_a_small_corpus() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("corpus.txt"), "aA").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_padtype"))
+        .current_dir(dir.path())
+        .args([
+            "generate",
+            "--independent",
+            "--function-layer",
+            "--alphabet",
+            "corpus",
+            "--corpus",
+            "corpus.txt",
+            "--iterations",
+            "10",
+            "--restarts",
+            "1",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let layout: Layout =
+        serde_json::from_slice(&fs::read(dir.path().join("layout.json")).unwrap()).unwrap();
+    layout.validate().unwrap();
+    assert!(layout.profile.function_layer);
+    assert_eq!(layout.function_bindings().len(), 12);
+}

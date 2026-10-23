@@ -496,6 +496,10 @@ impl Default for Weights {
 #[serde(default, deny_unknown_fields)]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "is_false")]
+    pub function_layer: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub navigation_layer: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
     pub exclude_opposite_face_pairs: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub base_punctuation: Vec<char>,
@@ -512,6 +516,8 @@ impl Default for Profile {
     fn default() -> Self {
         Self {
             exclude_opposite_face_pairs: false,
+            function_layer: false,
+            navigation_layer: false,
             base_punctuation: vec![],
             diagonals: true,
             disabled_buttons: vec![],
@@ -644,6 +650,15 @@ pub fn independent_binding_allowed(
     input: Input,
     context: Input,
 ) -> bool {
+    if profile.function_layer && matches!(action, Action::Character(c) if c.is_ascii_digit()) {
+        return context.mask & Button::R2.bit() != 0
+            && input.mask & (Button::L1.bit() | Button::R1.bit()) == 0
+            && !(input.mask == 0 && matches!(input.dpad, Dpad::Left | Dpad::Down))
+            && profile.allows(input.with_context(Input {
+                mask: Button::R1.bit() | Button::R2.bit(),
+                dpad: Dpad::Neutral,
+            }));
+    }
     if let Some(fixed) = independent_fixed_action(input) {
         return *action == fixed && context.controls() == 0;
     }
@@ -659,6 +674,18 @@ pub fn independent_binding_allowed(
 }
 
 pub fn validate_independent_input(profile: &Profile, input: Input, context: Input) -> Result<()> {
+    if profile.function_layer
+        && context.mask & Button::R2.bit() != 0
+        && input.mask & Button::R1.bit() != 0
+    {
+        return Err("R2 + R1 is reserved for the function layer".into());
+    }
+    if profile.navigation_layer
+        && context.mask & Button::R2.bit() != 0
+        && input.mask & Button::L1.bit() != 0
+    {
+        return Err("R2 + L1 is reserved for the navigation layer".into());
+    }
     input
         .typing_side()
         .ok_or("independent typing chords must use one half and cannot contain triggers")?;
@@ -732,6 +759,12 @@ impl Config {
                 && (strategy.shift != Some(Button::L2) || strategy.layer != Some(Button::R2))
             {
                 return Err("independent strategies require L2 as Shift and R2 as the numbers/symbols layer".into());
+            }
+            if self.profile.navigation_layer && !strategy.independent {
+                return Err("the navigation layer requires an independent strategy".into());
+            }
+            if self.profile.function_layer && !strategy.independent {
+                return Err("the function layer requires an independent strategy".into());
             }
             if strategy.name.is_empty() || !names.insert(&strategy.name) {
                 return Err("strategy names must be nonempty and unique".into());
@@ -809,6 +842,50 @@ pub struct Layout {
 }
 
 impl Layout {
+    pub fn function_bindings(&self) -> Vec<Binding> {
+        if !self.profile.function_layer {
+            return vec![];
+        }
+        let keys = [
+            Key::F10,
+            Key::F1,
+            Key::F2,
+            Key::F3,
+            Key::F4,
+            Key::F5,
+            Key::F6,
+            Key::F7,
+            Key::F8,
+            Key::F9,
+        ];
+        let mut bindings = vec![];
+        for binding in &self.bindings {
+            if let Action::Character(c) = binding.action
+                && c.is_ascii_digit()
+                && binding.held == [Button::R2]
+            {
+                bindings.push(Binding {
+                    action: Action::Key(keys[c as usize - '0' as usize]),
+                    chord: binding.chord.clone(),
+                    held: vec![Button::R1, Button::R2],
+                    held_dpad: Dpad::Neutral,
+                });
+            }
+        }
+        for (dpad, key) in [(Dpad::Left, Key::F11), (Dpad::Down, Key::F12)] {
+            bindings.push(Binding {
+                action: Action::Key(key),
+                chord: Chord {
+                    dpad,
+                    buttons: vec![],
+                },
+                held: vec![Button::R1, Button::R2],
+                held_dpad: Dpad::Neutral,
+            });
+        }
+        bindings
+    }
+
     pub fn scoring_actions(&self) -> Vec<Action> {
         let mut actions: Vec<_> = self.bindings.iter().map(|b| b.action.clone()).collect();
         if self.strategy.independent {
@@ -901,6 +978,21 @@ impl Layout {
                 .is_some_and(|previous| previous != group)
             {
                 return Err("two groups occupy the same chord and layer".into());
+            }
+        }
+        if self.profile.function_layer {
+            let bindings = self.function_bindings();
+            if bindings.len() != 12
+                || bindings.iter().any(|b| {
+                    !self
+                        .profile
+                        .allows(b.chord.input().unwrap().with_context(b.context().unwrap()))
+                })
+            {
+                return Err(
+                    "the function layer requires all ten number bindings and allowed F1–F12 combos"
+                        .into(),
+                );
             }
         }
         Ok(())

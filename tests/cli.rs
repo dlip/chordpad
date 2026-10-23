@@ -435,6 +435,11 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
         serde_json::from_slice(&fs::read(dir.path().join("layout.json")).unwrap()).unwrap();
     layout.validate().unwrap();
     assert_eq!(layout.profile.base_punctuation, ['\'', ',', '.', ';', '/']);
+    assert!(layout.profile.navigation_layer);
+    assert!(layout.profile.function_layer);
+    assert_eq!(layout.function_bindings().len(), 12);
+    assert!(layout.bindings.iter().all(|b| !b.held.contains(&Button::R2)
+        || (!b.chord.buttons.contains(&Button::L1) && !b.chord.buttons.contains(&Button::R1))));
     for (plain, shifted, buttons) in [
         ('\'', Some('"'), vec![Button::A, Button::B, Button::R1]),
         (',', Some('<'), vec![Button::A, Button::X, Button::R1]),

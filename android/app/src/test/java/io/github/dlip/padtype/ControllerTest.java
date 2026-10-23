@@ -17,7 +17,7 @@ public class ControllerTest {
         try (var stream = getClass().getResourceAsStream("/chord-vectors.json")) {
             assertNotNull(stream);
             JSONArray cases = new JSONArray(new String(stream.readAllBytes(),StandardCharsets.UTF_8));
-            assertEquals(146,RecognitionVectors.check(layout(),cases));
+            assertEquals(264,RecognitionVectors.check(layout(),cases));
         }
     }
     @Test public void analogThresholdsHaveHysteresis() {
@@ -54,5 +54,20 @@ public class ControllerTest {
         json.getJSONArray("bindings").put(binding);
         try { new ChordLayout(json.toString()); fail("Accepted a duplicate binding"); }
         catch (org.json.JSONException expected) { assertTrue(expected.getMessage().contains("Duplicate")); }
+    }
+    @Test public void functionLayerRequiresDigitsAndDerivesTheirChords() throws Exception {
+        ChordLayout layout = new ChordLayout(layout());
+        assertEquals(12,layout.functionBindings.size());
+        for (int digit = 0; digit < 10; digit++) {
+            String number = Integer.toString(digit), key = "f" + (digit == 0 ? 10 : digit);
+            ChordLayout.Binding source = layout.bindings.stream().filter(b -> b.action().equals(Action.text(number))).findFirst().orElseThrow();
+            ChordLayout.Binding output = layout.functionBindings.stream().filter(b -> b.action().equals(Action.key(key))).findFirst().orElseThrow();
+            assertEquals(source.buttons(),output.buttons()); assertEquals(source.dpad(),output.dpad());
+        }
+        JSONObject json = new JSONObject(layout());
+        org.json.JSONArray bindings = json.getJSONArray("bindings");
+        for (int i = bindings.length()-1; i >= 0; i--) if (bindings.getJSONObject(i).getJSONObject("action").optString("value").equals("0")) bindings.remove(i);
+        try { new ChordLayout(json.toString()); fail("Accepted missing number 0"); }
+        catch (org.json.JSONException expected) { assertTrue(expected.getMessage().contains("ten number")); }
     }
 }

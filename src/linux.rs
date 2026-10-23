@@ -339,6 +339,7 @@ enum LiveEvent {
     Frame(Vec<RawEvent>),
     Reset(&'static str),
     Control(Vec<RawEvent>),
+    Tick,
 }
 
 struct ControlFlags {
@@ -394,6 +395,9 @@ fn drive(
         let events = match device.fetch_events() {
             Ok(events) => events.collect::<Vec<_>>(),
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                if controls.is_some() {
+                    consume(at_us(started), LiveEvent::Tick)?;
+                }
                 thread::sleep(Duration::from_millis(5));
                 continue;
             }
@@ -476,6 +480,7 @@ pub fn inspect(args: InspectArgs) -> Result<()> {
                 reason: reason.into(),
             }),
             LiveEvent::Control(_) => unreachable!(),
+            LiveEvent::Tick => unreachable!(),
         },
     );
     session.finish(
@@ -625,6 +630,7 @@ pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
             |_, event| {
                 let before = runtime.paused();
                 match event {
+                    LiveEvent::Tick => {}
                     LiveEvent::Frame(events) => {
                         feedback(&runtime.update(&normalizer.apply(&events)?)?)
                     }
@@ -639,6 +645,7 @@ pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
                         feedback(&runtime.update(&normalizer.apply(&events)?)?);
                     }
                 }
+                feedback(&runtime.repeat()?);
                 if runtime.paused() != before {
                     typing_status(runtime.paused());
                 }

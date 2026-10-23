@@ -93,6 +93,20 @@ pub fn validate_pause(layout: &Layout, buttons: &[Button]) -> Result<u8> {
     if mask == 0 {
         return Err("pause gesture must contain at least one button".into());
     }
+    if layout.profile.navigation_layer
+        && (Button::L1.bit() | Button::L2.bit() | Button::R2.bit()) & mask == mask
+    {
+        return Err(
+            "pause gesture conflicts with R2 + L1 navigation; choose --pause-buttons".into(),
+        );
+    }
+    if layout.profile.function_layer
+        && (Button::R1.bit() | Button::L2.bit() | Button::R2.bit()) & mask == mask
+    {
+        return Err(
+            "pause gesture conflicts with R2 + R1 function layer; choose --pause-buttons".into(),
+        );
+    }
     if buttons
         .iter()
         .any(|b| layout.profile.disabled_buttons.contains(b))
@@ -177,7 +191,21 @@ impl<O: Output> Runtime<O> {
             return Ok(vec![]);
         }
         let events = self.engine.update(snapshot);
-        for event in &events {
+        self.emit(&events)?;
+        Ok(events)
+    }
+
+    pub fn repeat(&mut self) -> Result<Vec<Event>> {
+        if self.paused || self.gesture_latched {
+            return Ok(vec![]);
+        }
+        let events = self.engine.repeat();
+        self.emit(&events)?;
+        Ok(events)
+    }
+
+    fn emit(&mut self, events: &[Event]) -> Result<()> {
+        for event in events {
             if let Event::Chord {
                 action: Some(action),
                 keyboard_modifiers,
@@ -192,7 +220,7 @@ impl<O: Output> Runtime<O> {
                 self.output.send_modified(action, keyboard_modifiers)?;
             }
         }
-        Ok(events)
+        Ok(())
     }
 }
 

@@ -73,6 +73,12 @@ struct Generate {
     /// Generate independent half strokes with L2 Shift, R2 numbers/symbols, and fixed editing keys.
     #[arg(long)]
     independent: bool,
+    /// Add a held R2 + L1 navigation layer with arrows and page/home/end keys.
+    #[arg(long)]
+    navigation_layer: bool,
+    /// Add a held R2 + R1 function layer using the number chords for F1–F10.
+    #[arg(long)]
+    function_layer: bool,
     /// Exclude A+Y and B+X, including their supersets and modifier contexts.
     #[arg(long)]
     exclude_opposite_face_pairs: bool,
@@ -245,6 +251,12 @@ fn generate(args: Generate) -> Result<()> {
     if args.exclude_opposite_face_pairs {
         config.profile.exclude_opposite_face_pairs = true;
     }
+    if args.navigation_layer {
+        config.profile.navigation_layer = true;
+    }
+    if args.function_layer {
+        config.profile.function_layer = true;
+    }
     if let Some(cost) = args.same_hand_penalty {
         config.profile.costs.same_hand_transition = cost;
     }
@@ -279,6 +291,9 @@ fn generate(args: Generate) -> Result<()> {
         .into_iter()
         .collect::<BTreeSet<_>>();
     actions.extend(config.pinned_bindings.iter().map(|b| b.action.clone()));
+    if config.profile.function_layer {
+        actions.extend(('0'..='9').map(Action::Character));
+    }
     if config.strategies.iter().any(|s| s.independent) {
         actions.insert(Action::Character('\n'));
         actions.insert(Action::Character(' '));

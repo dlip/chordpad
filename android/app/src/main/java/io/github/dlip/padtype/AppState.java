@@ -167,6 +167,7 @@ public final class AppState implements InputManager.InputDeviceListener {
         @Override public void run() {
             if (!enabled) return;
             if (!paused && ready && mode.equals("direct")) emit(direct.repeat(SystemClock.uptimeMillis()));
+            if (!paused && ready && mode.equals("chords")) emit(engine.repeat());
             handler.postDelayed(this, 80);
         }
     };

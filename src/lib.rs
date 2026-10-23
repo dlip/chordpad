@@ -3,6 +3,7 @@ pub mod controller;
 pub mod corpus;
 pub mod independent;
 pub mod inspector;
+mod layers;
 #[cfg(target_os = "linux")]
 pub mod linux;
 pub mod model;

@@ -83,7 +83,7 @@ public final class MainActivity extends Activity {
 
         chordCard = card(page); chordCard.addView(text("Typing layout",20,INK));
         profile = text("",14,MUTED); chordCard.addView(profile);
-        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Alt + Command.",15,INK));
+        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nBundled layout: hold R2 + L1 for navigation. D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End. Add L2 to select text.\nHold R2 + R1: function keys using number combos (0 = F10); D-pad Left/Down = F11/F12.\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Alt + Command.",15,INK));
         chordCard.addView(button("View chord reference",v -> reference()));
         LinearLayout files = row(); chordCard.addView(files);
         files.addView(button("Import layout…",v -> {
@@ -145,10 +145,14 @@ public final class MainActivity extends Activity {
     private void reference() {
         LinearLayout list = column(); list.setPadding(dp(20),dp(8),dp(20),dp(12));
         list.addView(text("Options → Enter\nShare → Escape",17,BLUE));
-        for (ChordLayout.Binding binding : state.layout.bindings) {
+        if (state.layout.navigationLayer) list.addView(text("Hold R2 + L1: navigation layer\nD-pad ↑ ↓ ← →: arrow keys\nTriangle: Page Up · Cross: Page Down\nSquare: Home · Circle: End\nAdd L2 for Shift selection. Hold inputs to repeat.\nR2 alone: numbers/symbols.",17,BLUE));
+        List<ChordLayout.Binding> bindings = new java.util.ArrayList<>(state.layout.bindings);
+        bindings.addAll(state.layout.functionBindings);
+        for (ChordLayout.Binding binding : bindings) {
             StringBuilder controls = new StringBuilder();
             if ((binding.held() & ChordLayout.L2) != 0) controls.append("Hold L2 + ");
             if ((binding.held() & ChordLayout.R2) != 0) controls.append("Hold R2 + ");
+            if ((binding.held() & ChordLayout.R1) != 0) controls.append("Hold R1 + ");
             if (binding.dpad() != 0) controls.append("D-pad ").append(direction(binding.dpad())).append(" + ");
             for (int bit = 0; bit < 6; bit++) if ((binding.buttons() & (1 << bit)) != 0) controls.append(label(DirectMapper.CONTROLS[bit])).append(" + ");
             String notation = controls.length() > 3 ? controls.substring(0,controls.length()-3) : controls.toString();

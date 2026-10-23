@@ -14,6 +14,10 @@ public final class ChordLayout {
     public static final int A = 1, B = 2, X = 4, Y = 8, L1 = 16, R1 = 32, L2 = 64, R2 = 128;
     public record Binding(int buttons, int dpad, int held, Action action) {}
     public final List<Binding> bindings = new ArrayList<>();
+    public final boolean navigationLayer;
+    public final boolean functionLayer;
+    public final List<Binding> functionBindings = new ArrayList<>();
+    private final Map<Integer,Action> functionActions = new HashMap<>();
     private final Map<Integer, Action> actions = new HashMap<>();
     private final Set<Integer> forbiddenChords = new HashSet<>();
     private final List<Integer> forbiddenCombinations = new ArrayList<>();
@@ -33,6 +37,8 @@ public final class ChordLayout {
             throw new JSONException("This app supports independent layouts with L2 Shift and R2 symbols");
         }
         JSONObject profile = object.getJSONObject("profile");
+        navigationLayer = profile.optBoolean("navigation_layer");
+        functionLayer = profile.optBoolean("function_layer");
         diagonals = profile.optBoolean("diagonals", true);
         excludeOpposites = profile.optBoolean("exclude_opposite_face_pairs");
         disabled = buttons(profile.optJSONArray("disabled_buttons"));
@@ -64,6 +70,8 @@ public final class ChordLayout {
             if ((held & ~(L2 | R2)) != 0 || !item.optString("held_dpad", "neutral").equals("neutral")
                     || (mask & (L2 | R2 | modifierOnly)) != 0 || (mask == 0 && dpad == 0)
                     || (dpad != 0 && (mask & ~L1) != 0) || ((mask & L1) != 0 && (mask & ~L1) != 0)
+                    || (navigationLayer && (held & R2) != 0 && (mask & L1) != 0)
+                    || (functionLayer && (held & R2) != 0 && (mask & R1) != 0)
                     || !allows(mask | held, dpad)) throw new JSONException("Forbidden or mixed-half chord at binding " + i);
             String plain = action.value();
             boolean shifted = false;
@@ -95,6 +103,29 @@ public final class ChordLayout {
                     || actions.putIfAbsent(slot(mask, dpad, held), action) != null) throw new JSONException("Duplicate action or chord");
             bindings.add(binding);
         }
+        if (functionLayer) {
+            for (int digit = 0; digit < 10; digit++) {
+                Binding number = null;
+                for (Binding binding : bindings) if (binding.held() == R2 && binding.action().equals(Action.text(Integer.toString(digit)))) number = binding;
+                if (number == null || (number.buttons() & (L1 | R1)) != 0 || (number.buttons() == 0 && (number.dpad() == 1 || number.dpad() == 8))) {
+                    throw new JSONException("The function layer requires all ten number combos without L1/R1; D-pad Left/Down are F11/F12");
+                }
+                functionBinding(number.buttons(),number.dpad(),"f" + (digit == 0 ? 10 : digit));
+            }
+            functionBinding(0,1,"f11"); functionBinding(0,8,"f12");
+        }
+    }
+
+    private void functionBinding(int mask,int dpad,String key) throws JSONException {
+        if (!allows(mask | R1 | R2,dpad)) throw new JSONException("A function combo is forbidden by the profile");
+        Action action = Action.key(key);
+        functionBindings.add(new Binding(mask,dpad,R1 | R2,action));
+        functionActions.put(slot(mask,dpad,0),action);
+    }
+    public Action resolveFunction(int mask,int dpad,int held,int modifiers) {
+        if (!allows(mask | held | R1 | R2,dpad)) return null;
+        Action action = functionActions.get(slot(mask,dpad,0));
+        return action == null ? null : action.modified(modifiers | ((held & L2) != 0 ? Action.SHIFT : 0));
     }
 
     public boolean allows(int mask, int dpad) {

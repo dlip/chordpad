@@ -357,6 +357,24 @@ impl Recognizer {
             Self::Independent(e) => e.update(snapshot),
         }
     }
+    pub fn update_at(&mut self, snapshot: &Snapshot, now: u64) -> Vec<Event> {
+        match self {
+            Self::Unified(e) => e.update(snapshot),
+            Self::Independent(e) => e.update_at(snapshot, now),
+        }
+    }
+    pub fn repeat(&mut self) -> Vec<Event> {
+        match self {
+            Self::Unified(_) => vec![],
+            Self::Independent(e) => e.repeat(),
+        }
+    }
+    pub fn repeat_at(&mut self, now: u64) -> Vec<Event> {
+        match self {
+            Self::Unified(_) => vec![],
+            Self::Independent(e) => e.repeat_at(now),
+        }
+    }
     pub fn reset(&mut self, reason: &str) -> Event {
         match self {
             Self::Unified(e) => e.reset(reason),

@@ -11,6 +11,7 @@ public final class ChordEngine {
     private static final class Half {
         int phase, buttons, dpad, frozenButtons, frozenDpad, held, modifiers;
         Pending pending;
+        boolean function;
     }
     private final ChordLayout layout;
     private final ArrayDeque<Pending> queue = new ArrayDeque<>();
@@ -19,12 +20,14 @@ public final class ChordEngine {
     private boolean[] cancelledMenu;
     private int previousHeld, previousModifiers, previousMenuModifiers;
     private boolean waiting;
+    private HeldLayers layers;
     public String status = "Release all controls";
 
     public ChordEngine(ChordLayout layout) { this.layout = layout; reset(); }
     public boolean ready() { return !waiting; }
     public void reset() {
         queue.clear();
+        layers = new HeldLayers();
         halves = new Half[]{new Half(), new Half()};
         menu = new Pending[2];
         cancelledMenu = new boolean[2];
@@ -34,12 +37,27 @@ public final class ChordEngine {
     }
 
     public List<Action> update(Frame frame) {
+        return update(frame,now());
+    }
+    static long now() { return System.nanoTime() / 1_000_000; }
+    public List<Action> repeat() { return repeat(now()); }
+    public List<Action> repeat(long now) {
+        return waiting || !queue.isEmpty() ? List.of() : layers.repeat(now);
+    }
+    public List<Action> update(Frame frame, long now) {
         if (!frame.valid()) { reset(); status = "Invalid D-pad position"; return List.of(); }
         if (waiting) {
             if (frame.neutral()) { waiting = false; status = "Ready"; }
             return List.of();
         }
         int held = frame.buttons() & (L2 | R2);
+        HeldLayers.Change layerChange = (layout.navigationLayer || layout.functionLayer) ? layers.update(frame,layout,now) : new HeldLayers.Change(false,false,frame,List.of());
+        if (layerChange.changed()) {
+            for (Half half : halves) if (half.pending != null) { half.pending.action = null; half.pending.done = true; }
+            halves = new Half[]{new Half(),new Half()};
+        }
+        List<Action> arrows = layerChange.actions();
+        frame = layerChange.frame();
         boolean newModifier = (held & ~previousHeld) != 0 || (frame.modifiers() & ~previousModifiers) != 0;
         previousHeld = held;
         previousModifiers = frame.modifiers();
@@ -53,6 +71,7 @@ public final class ChordEngine {
                 half.pending = new Pending();
                 queue.add(half.pending);
                 half.held = held;
+                half.function = layerChange.function();
                 half.modifiers = frame.modifiers();
                 half.phase = COLLECTING;
             } else if (half.phase == COLLECTING || half.phase == RELEASING) {
@@ -73,7 +92,7 @@ public final class ChordEngine {
                         half.phase = RELEASING;
                     }
                     if (half.phase == RELEASING && current == 0) {
-                        half.pending.action = layout.resolve(half.frozenButtons, half.frozenDpad, half.held, half.modifiers);
+                        half.pending.action = half.function ? layout.resolveFunction(half.frozenButtons,half.frozenDpad,half.held,half.modifiers) : layout.resolve(half.frozenButtons, half.frozenDpad, half.held, half.modifiers);
                         if (half.pending.action == null) status = "Unmapped or forbidden chord";
                         half.pending.done = true;
                         half.pending = null;
@@ -84,6 +103,10 @@ public final class ChordEngine {
             if (half.phase == CANCELLED && current == 0) half.phase = IDLE;
             half.buttons = buttons;
             half.dpad = dpad;
+            if (side == 0) for (Action arrow : arrows) {
+                if (queue.size() == 64) return overflow();
+                Pending pending = new Pending(); pending.action = arrow; pending.done = true; queue.add(pending);
+            }
         }
         int menuModifiers = frame.modifiers() | ((held & L2) != 0 ? Action.SHIFT : 0);
         boolean addedMenuModifier = (menuModifiers & ~previousMenuModifiers) != 0;
