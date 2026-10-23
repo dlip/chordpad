@@ -143,25 +143,7 @@ public final class MainActivity extends Activity {
                 .setItems(devices.stream().map(InputDevice::getName).toArray(String[]::new),(dialog,index) -> state.choose(devices.get(index))).show();
     }
     private void reference() {
-        LinearLayout list = column(); list.setPadding(dp(20),dp(8),dp(20),dp(12));
-        list.addView(text("Options → Enter\nShare → Escape",17,BLUE));
-        if (state.layout.navigationLayer) list.addView(text("Hold R2 + L1: navigation layer\nD-pad ↑ ↓ ← →: arrow keys\nTriangle: Page Up · Cross: Page Down\nSquare: Home · Circle: End\nAdd L2 for Shift selection. Hold inputs to repeat.\nR2 alone: numbers/symbols.",17,BLUE));
-        if (state.layout.navigationMedia) list.addView(text("Navigation media: Square+Triangle previous; Triangle+Circle next; Cross+Square play/pause; Cross+Circle stop.\nFace taps send on release. Hold a single face button to repeat; media pairs never repeat.",16,BLUE));
-        if (state.layout.functionVolume) list.addView(text("Function volume: Square+Triangle up; Cross+Square down; Cross+Circle mute. One action per chord release.",16,BLUE));
-        List<ChordLayout.Binding> bindings = new java.util.ArrayList<>(state.layout.bindings);
-        bindings.addAll(state.layout.functionBindings);
-        for (ChordLayout.Binding binding : bindings) {
-            StringBuilder controls = new StringBuilder();
-            if ((binding.held() & ChordLayout.L2) != 0) controls.append("Hold L2 + ");
-            if ((binding.held() & ChordLayout.R2) != 0) controls.append("Hold R2 + ");
-            if ((binding.held() & ChordLayout.R1) != 0) controls.append("Hold R1 + ");
-            if (binding.dpad() != 0) controls.append("D-pad ").append(direction(binding.dpad())).append(" + ");
-            for (int bit = 0; bit < 6; bit++) if ((binding.buttons() & (1 << bit)) != 0) controls.append(label(DirectMapper.CONTROLS[bit])).append(" + ");
-            String notation = controls.length() > 3 ? controls.substring(0,controls.length()-3) : controls.toString();
-            TextView line = text(binding.action().label() + "    ←    " + notation,16,INK); line.setPadding(0,dp(8),0,dp(8)); list.addView(line);
-        }
-        ScrollView scroll = new ScrollView(this); scroll.addView(list);
-        new AlertDialog.Builder(this).setTitle("Chord reference").setView(scroll).setPositiveButton("Done",null).show();
+        startActivity(new Intent(this,ReferenceActivity.class));
     }
     static String direction(int bits) { return ((bits&4)!=0 ? "↑" : (bits&8)!=0 ? "↓" : "") + ((bits&1)!=0 ? "←" : (bits&2)!=0 ? "→" : ""); }
     static String label(String control) {

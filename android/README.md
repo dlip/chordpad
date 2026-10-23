@@ -46,6 +46,13 @@ previous layout is kept if import fails. Export writes the current JSON to a
 location you choose. Legacy unified recognition strategies are not supported on
 Android yet.
 
+**View chord reference** opens eight-way maps for the active layout, including
+imported layouts. Base letters and numbers share cells with their L2 Shift
+outputs (for example, `m / M` and `, / <`). Navigation, function, media, volume,
+and mirrored thumbstick maps use the same format. Use the layer selector to
+focus on one layer, or expand its text chord reference to see every combo.
+Maps sit side by side on tablets and stack on narrower screens.
+
 | DualSense control | Padtype role |
 | --- | --- |
 | Cross, Circle, Square, Triangle | A, B, X, Y, by physical position |

@@ -4,6 +4,7 @@
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
     <application android:name=".PadtypeApplication" android:label="padtype" android:theme="@style/AppTheme" android:icon="@drawable/ic_padtype"
         android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
+        <activity android:name=".ReferenceActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation">
             <intent-filter>
