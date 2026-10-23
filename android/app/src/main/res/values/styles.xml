@@ -15,6 +15,8 @@
     <string name="controller_input_on">Controller input on. Release all controls to start.</string>
     <string name="controller_input_off">Controller input off</string>
     <string name="controller_input_waiting">Controller input on; waiting for a controller</string>
+    <string name="hide_soft_keyboard">Hide software keyboard while remapping</string>
+    <string name="hide_soft_keyboard_description">Restore normal keyboard behavior when input pauses, stops, or the controller disconnects.</string>
     <plurals name="binding_count">
         <item quantity="one">%1$d binding · Each half releases independently</item>
         <item quantity="other">%1$d bindings · Each half releases independently</item>

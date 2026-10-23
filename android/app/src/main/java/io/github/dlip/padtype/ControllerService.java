@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 public final class ControllerService extends AccessibilityService {
     private AppState state;
+    private int previousKeyboardMode = -1;
     private final AccessibilityButtonController.AccessibilityButtonCallback buttonCallback = new AccessibilityButtonController.AccessibilityButtonCallback() {
         @Override public void onClicked(AccessibilityButtonController controller) {
             if (state == null) return;
@@ -41,6 +42,20 @@ public final class ControllerService extends AccessibilityService {
         info.setMotionEventSources(state.enabled ? InputDevice.SOURCE_JOYSTICK : 0);
         setServiceInfo(info);
     }
+    public void updateSoftKeyboard() {
+        if (state != null && state.hideSoftKeyboard && state.enabled && !state.paused && state.device != null) {
+            if (previousKeyboardMode != -1) return;
+            SoftKeyboardController keyboard = getSoftKeyboardController();
+            int mode = keyboard.getShowMode();
+            if (mode != SHOW_MODE_HIDDEN && keyboard.setShowMode(SHOW_MODE_HIDDEN)) previousKeyboardMode = mode;
+        } else restoreSoftKeyboard();
+    }
+    private void restoreSoftKeyboard() {
+        if (previousKeyboardMode == -1) return;
+        SoftKeyboardController keyboard = getSoftKeyboardController();
+        if (keyboard.getShowMode() != SHOW_MODE_HIDDEN || keyboard.setShowMode(
+                previousKeyboardMode == SHOW_MODE_IGNORE_HARD_KEYBOARD ? SHOW_MODE_IGNORE_HARD_KEYBOARD : SHOW_MODE_AUTO)) previousKeyboardMode = -1;
+    }
     @Override public InputMethod onCreateInputMethod() {
         if (state == null) state = AppState.get(this);
         return new InputMethod(this) {
@@ -61,6 +76,7 @@ public final class ControllerService extends AccessibilityService {
     }
     @Override public void onInterrupt() { if (state != null) state.setEnabled(false); }
     @Override public void onDestroy() {
+        restoreSoftKeyboard();
         getAccessibilityButtonController().unregisterAccessibilityButtonCallback(buttonCallback);
         cancelLastAppSwitch();
         if (state != null) { state.service = null; state.editor = false; state.setEnabled(false); }

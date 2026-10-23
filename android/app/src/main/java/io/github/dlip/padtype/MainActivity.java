@@ -20,6 +20,7 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ public final class MainActivity extends Activity {
     private AppState state;
     private TextView connection, status, serviceStatus, profile, action;
     private Button start, pause;
+    private Switch hideSoftKeyboard;
     private ControllerView controller;
     private LinearLayout directCard, chordCard;
     private final Map<String, Button> mappingButtons = new LinkedHashMap<>();
@@ -72,7 +74,12 @@ public final class MainActivity extends Activity {
         setup.addView(text("Controller input",20,INK));
         serviceStatus = text("",14,MUTED); setup.addView(serviceStatus);
         setup.addView(button("Enable controller input…",v -> accessibility()));
-        setup.addView(text("Sends text and keys to a focused text field in this or another app. Your current on-screen keyboard stays available. Games and apps without a text input connection may not accept mapped keys.",14,MUTED));
+        setup.addView(text("Sends text and keys to a focused text field in this or another app. Games and apps without a text input connection may not accept mapped keys.",14,MUTED));
+        hideSoftKeyboard = new Switch(this); hideSoftKeyboard.setId(R.id.hide_soft_keyboard);
+        hideSoftKeyboard.setText(R.string.hide_soft_keyboard); hideSoftKeyboard.setChecked(state.hideSoftKeyboard);
+        hideSoftKeyboard.setOnCheckedChangeListener((button,checked) -> { if (checked != state.hideSoftKeyboard) state.setHideSoftKeyboard(checked); });
+        setup.addView(hideSoftKeyboard);
+        setup.addView(text(getString(R.string.hide_soft_keyboard_description),14,MUTED));
 
         LinearLayout modes = card(page); modes.addView(text("Input mode",20,INK));
         RadioGroup group = new RadioGroup(this); group.setOrientation(LinearLayout.HORIZONTAL);
@@ -108,7 +115,7 @@ public final class MainActivity extends Activity {
         EditText field = new EditText(this); field.setId(R.id.test_field); field.setHint("Type here with the DualSense…");
         field.setMinLines(4); field.setGravity(Gravity.TOP); field.setTextSize(18);
         field.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        field.setShowSoftInputOnFocus(false); test.addView(field,new LinearLayout.LayoutParams(-1,dp(180)));
+        test.addView(field,new LinearLayout.LayoutParams(-1,dp(180)));
         test.addView(button("Focus test field",v -> field.requestFocus()));
         page.addView(text("Android 14+ · Stored on this device · No network access",12,MUTED));
         refresh();
@@ -120,6 +127,7 @@ public final class MainActivity extends Activity {
         connection.setText(state.device == null ? "Waiting for a controller" : state.device.getName());
         start.setText(state.enabled ? "Stop remapping" : "Start remapping");
         pause.setEnabled(state.enabled); pause.setText(state.paused ? "Resume" : "Pause");
+        hideSoftKeyboard.setChecked(state.hideSoftKeyboard);
         status.setText(!state.enabled ? "Remapping is off" : state.status);
         action.setText(getString(R.string.last_output,state.lastAction));
         serviceStatus.setText(state.service == null ? "Enable padtype in Android accessibility settings to type across apps." : "Controller service connected" + (state.editor ? " · Text field connected" : " · Focus a text field to type"));

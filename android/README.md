@@ -34,6 +34,12 @@ any app. Each tap confirms whether controller input is on or off. Starting while
 the controller is disconnected waits for it to reconnect. Release all controls
 after starting input.
 
+**Hide software keyboard while remapping** is on by default. The software keyboard
+stays hidden while remapping is active and the selected controller is connected.
+Pausing, stopping, disconnecting, or turning this option off restores the previous
+keyboard behavior. Resuming or reconnecting hides it again. Your selected keyboard
+is unchanged; focus a text field to open it normally when remapping is inactive.
+
 The accessibility service uses Android's
 [joystick event capture](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#onMotionEvent(android.view.MotionEvent))
 and [accessibility input connection](https://developer.android.com/reference/android/accessibilityservice/InputMethod.AccessibilityInputConnection).

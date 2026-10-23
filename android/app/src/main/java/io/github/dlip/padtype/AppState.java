@@ -30,7 +30,7 @@ public final class AppState implements InputManager.InputDeviceListener {
     public ChordLayout layout;
     public ChordEngine engine;
     public final DirectMapper direct = new DirectMapper();
-    public boolean enabled, paused, ready, editor;
+    public boolean enabled, paused, ready, editor, hideSoftKeyboard;
     public String mode, status = "Remapping is off", lastAction = "None", layoutJson;
     private boolean gesture;
     private Frame latest = Frame.NEUTRAL;
@@ -38,6 +38,7 @@ public final class AppState implements InputManager.InputDeviceListener {
     AppState(Context context) {
         this.context = context;
         preferences = context.getSharedPreferences("padtype", Context.MODE_PRIVATE);
+        hideSoftKeyboard = preferences.getBoolean("hide_soft_keyboard", true);
         manager = context.getSystemService(InputManager.class);
         mode = preferences.getString("mode", "chords");
         try {
@@ -96,6 +97,7 @@ public final class AppState implements InputManager.InputDeviceListener {
     public void unlisten(Runnable listener) { listeners.remove(listener); }
     public void changed() { for (Runnable listener : new ArrayList<>(listeners)) listener.run(); }
     public void reset(String reason) {
+        if (service != null) service.updateSoftKeyboard();
         if (service != null && (!enabled || paused || device == null)) service.cancelLastAppSwitch();
         ready = false; gesture = true; engine.reset(); direct.reset(); status = reason;
         changed();
@@ -109,6 +111,11 @@ public final class AppState implements InputManager.InputDeviceListener {
         changed();
     }
     public void setPaused(boolean paused) { this.paused = paused; reset(paused ? "Paused" : "Release all controls"); process(); }
+    public void setHideSoftKeyboard(boolean hide) {
+        hideSoftKeyboard = hide; preferences.edit().putBoolean("hide_soft_keyboard", hide).apply();
+        if (service != null) service.updateSoftKeyboard();
+        changed();
+    }
     public void setMode(String mode) {
         this.mode = mode; preferences.edit().putString("mode", mode).apply(); reset("Release all controls"); process();
     }
