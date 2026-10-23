@@ -314,26 +314,28 @@ or explicit shortcut/navigation tasks.
 cargo run -- render --layout layout.json --output layout.html
 ```
 
-Open `layout.html` in a browser. It is a self-contained document with SVG
-controller diagrams, so it works offline without a server, external fonts, or
-images. The overview shows simple base bindings directly on the controller.
-Navigation keys use short labels; an ellipsis marks longer action names. Hover
-over a control or find its card to read the full action.
-Every binding also gets a chord card, grouped by its actual held modifier
-state. Solid blue controls mean press; dashed
-amber controls mean hold. Each card includes text instructions and an accessible description of its chord.
+Open `layout.html` in a browser. It is a self-contained document with 8-way
+D-pad and face-button maps, so it works offline without a server, external fonts,
+or images. Base and Shift share one set of maps: pairs such as `m / M` and
+`, / <` show the normal output followed by its shifted output. Numbers and
+shifted symbols share another set. Navigation and function keys have their own
+maps and layer filters.
 
-Search for a literal character to find its exact binding: `a` and `A` are distinct,
-and a literal space selects Space. Action names such as `Space`, `Backspace`, and
-`Ctrl + C` also work. Select a modifier-state filter to narrow the list. Clicking
-a card shows its full-size controller preview; Reset overview restores the base
-bindings. All cards remain readable without JavaScript.
+Shoulder maps show chords with L1/R1, with the shoulder alone in the center.
+The maps use the layout's actual bindings. Open **Text chord reference** for full
+instructions or combinations outside the maps, including opposite face buttons
+and chords with more than two face buttons.
 
-Use **Print / Save PDF** to produce reference sheets. Printing includes every
-binding even if the screen is filtered, starts each modifier state on a new page,
-and keeps individual chord cards together. Long sections can continue onto
-additional pages. The print layout defaults to A4 landscape; browser print
-settings can change paper size or scale.
+Search for a literal character to find its exact chord: `m` and `M` select the
+same paired chord, while a literal space selects Space. Action names such as
+`Backspace`, `F11`, and `Ctrl + C` also work. Search opens matching text references;
+select a layer filter to narrow the results. Maps and text references also work
+without JavaScript.
+
+Use **Print / Save PDF** to produce reference sheets. Printing includes all
+layers and text references even if the screen is filtered, and starts each layer
+on a new page. The print layout defaults to A4 landscape; browser print settings
+can change paper size or scale.
 
 Re-run the command after generating a new layout. The document is derived from
 the validated bindings and records their strategy name. Existing HTML output is

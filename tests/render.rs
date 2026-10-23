@@ -103,50 +103,70 @@ fn layout() -> Layout {
     }
 }
 
+fn exported_labels(html: &str) -> Vec<String> {
+    html.split("data-labels=\"")
+        .skip(1)
+        .flat_map(|part| {
+            let attribute = part
+                .split('"')
+                .next()
+                .unwrap()
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&");
+            serde_json::from_str::<Vec<String>>(&attribute).unwrap()
+        })
+        .collect()
+}
+
 #[test]
-fn export_covers_every_binding_and_highlights_ordinary_and_held_controls() {
+fn export_pairs_shift_and_keeps_every_binding_without_controller_svgs() {
     let layout = layout();
     let html = render::html(&layout).unwrap();
-    assert_eq!(
-        html.matches("class=\"chord-card\"").count(),
-        layout.bindings.len()
-    );
-    assert_eq!(html.matches("<section class=\"layer\"").count(), 4);
-    assert!(html.contains("R2 · Shift"));
-    assert!(html.contains("L2 · Layer"));
+    assert_eq!(exported_labels(&html).len(), layout.bindings.len());
+    assert!(!html.contains("<svg"));
+    assert!(!html.contains("preview-diagram"));
+    assert_eq!(html.matches("<section class=\"layer\"").count(), 2);
+    assert!(html.contains("<span>a / A</span>"));
+    assert!(html.contains("<span>b / B</span>"));
+    assert!(html.contains("Hold L2 + R2; press D-pad Up Left + L1"));
     assert!(html.contains("Ctrl + Shift + C"));
-    assert!(html.contains("data-character=\"é\""));
-    assert!(html.contains("data-character=\" \""));
-    let tab = html
-        .split("data-label=\"Tab\"")
-        .nth(1)
-        .unwrap()
-        .split("</button>")
-        .next()
-        .unwrap();
-    assert!(tab.contains("class=\"action-label word\""));
-    let upper = html
-        .split("class=\"chord-card\" data-character=\"B\"")
-        .nth(1)
-        .unwrap()
-        .split("</button>")
-        .next()
-        .unwrap();
-    assert!(upper.contains("Hold L2 + R2; press D-pad Up Left + L1"));
-    for button in ["L2", "R2"] {
-        assert!(upper.contains(&format!("class=\"control held\" data-button=\"{button}\"")));
-    }
-    assert!(upper.contains("class=\"control pressed\" data-button=\"L1\""));
-    for direction in ["Up", "Left"] {
-        assert!(upper.contains(&format!(
-            "class=\"control pressed\" data-direction=\"{direction}\""
-        )));
+    let labels = exported_labels(&html);
+    for label in ["é", "Space", "Tab", "Enter", "<", "'", "\""] {
+        assert!(labels.iter().any(|value| value == label));
     }
     assert_eq!(render::html(&layout).unwrap(), html);
 }
 
 #[test]
-fn long_single_control_actions_keep_full_names_without_overflowing_overview_labels() {
+fn combinations_outside_the_maps_keep_paired_searchable_text_instructions() {
+    let mut layout = layout();
+    for (character, held) in [('g', vec![]), ('G', vec![Button::R2])] {
+        layout.bindings.push(Binding {
+            action: Action::Character(character),
+            chord: Chord {
+                dpad: Dpad::Neutral,
+                buttons: if character == 'G' {
+                    vec![Button::Y, Button::B, Button::A]
+                } else {
+                    vec![Button::A, Button::B, Button::Y]
+                },
+            },
+            held,
+            held_dpad: Dpad::Neutral,
+        });
+    }
+    let html = render::html(&layout).unwrap();
+    assert!(html.contains("<strong class=\"action-label\">g / G</strong>"));
+    assert!(html.contains("G: Hold R2; press Y + B + A"));
+    assert!(!html.contains("<span>g / G</span>"));
+    assert_eq!(exported_labels(&html).len(), layout.bindings.len());
+}
+
+#[test]
+fn long_actions_keep_full_names_in_maps_and_text_reference() {
     let mut layout = layout();
     layout.strategy.shift = None;
     layout.strategy.layer = None;
@@ -200,23 +220,14 @@ fn long_single_control_actions_keep_full_names_without_overflowing_overview_labe
         },
     ];
     let html = render::html(&layout).unwrap();
-    let overview = html
-        .split("id=\"preview-diagram\">")
-        .nth(1)
-        .unwrap()
-        .split("</svg>")
-        .next()
-        .unwrap();
-    assert!(overview.contains("class=\"output-label\">…</text>"));
-    assert!(overview.contains("class=\"shoulder-label\">L1  …</text>"));
-    assert!(overview.contains("class=\"dpad-label compact\">Pg↓</text>"));
-    assert!(overview.contains("class=\"dpad-label compact\">Esc</text>"));
-    assert!(overview.contains("<title>Ctrl + Alt + Shift + Meta + Page Down</title>"));
-    assert!(!overview.contains("class=\"output-label\">Ctrl"));
-    assert!(html.contains("data-label=\"Ctrl + Alt + Shift + Meta + Page Down\""));
-    assert!(html.contains(
-        "class=\"action-label word\" dir=\"auto\">Ctrl + Alt + Shift + Meta + Page Down</span>"
-    ));
+    assert!(html.contains("<span>Ctrl + Alt + Shift + Meta + Page Down</span>"));
+    assert!(
+        html.contains(
+            "<strong class=\"action-label\">Ctrl + Alt + Shift + Meta + Page Down</strong>"
+        )
+    );
+    assert!(html.contains("<span>Page Down</span>"));
+    assert!(!html.contains("<svg"));
 }
 
 #[test]
@@ -226,9 +237,10 @@ fn export_escapes_layout_text_and_handles_direct_and_custom_modifier_roles() {
     let html = render::html(&layout).unwrap();
     assert!(!html.contains("<script>alert(1)</script>"));
     assert!(html.contains("&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;&amp;&quot;"));
-    assert!(html.contains("data-character=\"&lt;\""));
-    assert!(html.contains("data-character=\"&#39;\""));
-    assert!(html.contains("data-character=\"&quot;\""));
+    let labels = exported_labels(&html);
+    for label in ["<", "'", "\""] {
+        assert!(labels.iter().any(|value| value == label));
+    }
     layout.bindings.retain(|b| b.held.is_empty());
     layout.strategy.shift = None;
     layout.strategy.layer = None;
@@ -250,8 +262,8 @@ fn export_escapes_layout_text_and_handles_direct_and_custom_modifier_roles() {
         held: vec![Button::L1],
     });
     let html = render::html(&layout).unwrap();
-    assert!(html.contains("L1 · Shift"));
-    assert!(!html.contains("R2 · Shift"));
+    assert!(html.contains("with L1 held"));
+    assert!(!html.contains("with R2 held"));
     layout.schema_version = 99;
     assert!(render::html(&layout).is_err());
 }
@@ -356,6 +368,55 @@ fn number_overview_includes_face_symbols_and_shifted_outputs() {
 }
 
 #[test]
+fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
+    let mut layout: Layout = serde_json::from_str(include_str!(
+        "../android/app/src/main/assets/default-layout.json"
+    ))
+    .unwrap();
+    let section = |html: &str, label: &str| {
+        html.split(&format!("aria-label=\"{label}\""))
+            .nth(1)
+            .unwrap()
+            .split("</section>")
+            .next()
+            .unwrap()
+            .to_string()
+    };
+    let html = render::html(&layout).unwrap();
+    let base = section(&html, "Base and Shift positions");
+    assert_eq!(base.matches("class=\"binding-map\"").count(), 4);
+    for cell in [
+        "<span>s / S</span><span>↑</span>",
+        "<span>g / G</span><span>Y + B</span>",
+        "<span>x / X</span><span>A + X</span>",
+        "<span>; / :</span><span>↖ + L1</span>",
+        "<span>&#39; / &quot;</span><span>A + B + R1</span>",
+        "<span>Backspace</span><span>L1 alone</span>",
+        "<span>Space</span><span>R1 alone</span>",
+    ] {
+        assert!(base.contains(cell), "Missing base map cell: {cell}");
+    }
+    let navigation = section(&html, "Navigation layer");
+    assert_eq!(navigation.matches("class=\"binding-map\"").count(), 2);
+    assert!(navigation.contains("<span>↑</span><span>↑</span>"));
+    assert!(navigation.contains("<span>Page Down</span><span>A / ×</span>"));
+    assert!(navigation.contains("<span>·</span><span>↗</span>"));
+    let functions = section(&html, "Function layer");
+    assert!(functions.contains("<span>F2</span><span>↗</span>"));
+    assert!(functions.contains("<span>F11</span><span>A / ×</span>"));
+    // Imported function positions and profile restrictions must reach the maps.
+    layout.profile.extra_function_chords[0].buttons = vec![Button::A, Button::X];
+    layout.profile.forbidden_chords.push(Chord {
+        dpad: Dpad::Right,
+        buttons: vec![Button::L1, Button::R2],
+    });
+    let html = render::html(&layout).unwrap();
+    assert!(section(&html, "Function layer").contains("<span>F11</span><span>A + X</span>"));
+    assert!(section(&html, "Navigation layer").contains("<span>·</span><span>→</span>"));
+    assert_eq!(exported_labels(&html).len(), layout.bindings.len() + 12 + 7);
+}
+
+#[test]
 fn independent_reference_shows_fixed_keys_shift_pairs_and_number_layer() {
     let mut layout = layout();
     layout.strategy = Strategy {
@@ -381,10 +442,10 @@ fn independent_reference_shows_fixed_keys_shift_pairs_and_number_layer() {
         make('!', vec![Button::R2, Button::L2]),
     ];
     let html = render::html(&layout).unwrap();
-    assert_eq!(html.matches("class=\"chord-card\"").count(), 4);
-    assert_eq!(html.matches("<section class=\"layer\"").count(), 4);
-    assert!(html.contains("L2 · Shift"));
-    assert!(html.contains("R2 · Layer"));
+    assert_eq!(html.matches("class=\"chord-card\"").count(), 2);
+    assert_eq!(html.matches("<section class=\"layer\"").count(), 2);
+    assert!(html.contains("with L2 held"));
+    assert!(html.contains("Hold R2"));
     assert!(html.contains("R1 is Space and L1 is Backspace in every layer"));
     assert!(html.contains("uppercase letters use the same chords as lowercase"));
     assert!(html.contains("Hold L2 + R2; press A"));
@@ -392,4 +453,16 @@ fn independent_reference_shows_fixed_keys_shift_pairs_and_number_layer() {
     assert_eq!(html.matches("class=\"stick-cell\"").count(), 18);
     assert!(html.contains("Alt + Command"));
     assert!(html.contains("Ctrl + Command"));
+    for (index, output) in ["a / A", "1 / !"].into_iter().enumerate() {
+        let layer = html
+            .split(&format!("<section class=\"layer\" data-layer=\"{index}\""))
+            .nth(1)
+            .unwrap()
+            .split("</section>")
+            .next()
+            .unwrap();
+        let maps = layer.split("<div class=\"chord-grid\">").next().unwrap();
+        assert_eq!(maps.matches("class=\"binding-map\"").count(), 2);
+        assert!(maps.contains(&format!("<span>{output}</span><span>A / ×</span>")));
+    }
 }

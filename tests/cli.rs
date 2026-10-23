@@ -384,12 +384,12 @@ fn independent_generation_scores_and_renders_every_binding_reproducibly() {
         .unwrap();
     }
     success(run(dir.path(), &["render", "--layout", "layout.json"]));
-    assert_eq!(
-        fs::read_to_string(dir.path().join("layout.html"))
-            .unwrap()
-            .matches("class=\"chord-card\"")
-            .count(),
-        layout.bindings.len()
+    let html = fs::read_to_string(dir.path().join("layout.html")).unwrap();
+    assert!(!html.contains("<svg"));
+    assert!(html.contains("data-labels="));
+    assert!(
+        html.contains("<span>a / A</span>")
+            || html.contains("<strong class=\"action-label\">a / A</strong>")
     );
     fs::write(dir.path().join("task.txt"), "the quick brown fox\n").unwrap();
     let scored = success(run(

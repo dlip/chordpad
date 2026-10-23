@@ -15,7 +15,7 @@ fn layout() -> Layout {
 }
 
 #[test]
-fn function_keys_share_number_chords_and_have_twelve_reference_cards() {
+fn function_keys_share_number_chords_and_have_twelve_reference_outputs() {
     let layout = layout();
     let functions = layout.function_bindings();
     assert_eq!(functions.len(), 12);
@@ -44,7 +44,10 @@ fn function_keys_share_number_chords_and_have_twelve_reference_cards() {
         assert_eq!(function.held, [Button::R1, Button::R2]);
     }
     let html = render::html(&layout).unwrap();
-    assert_eq!(html.matches("class=\"function-card\"").count(), 12);
+    for key in 1..=12 {
+        assert!(html.contains(&format!("<span>F{key}</span>")));
+    }
+    assert!(!html.contains("<svg"));
     assert!(html.contains("R2 + R1: function keys"));
     assert!(html.contains("R2: numbers"));
     for (key, button) in [(Key::F11, Button::A), (Key::F12, Button::X)] {

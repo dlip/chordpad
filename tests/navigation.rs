@@ -162,9 +162,18 @@ fn typing_sends_modified_navigation_and_pause_or_disconnect_stops_it() {
 }
 
 #[test]
-fn visual_reference_includes_eight_navigation_diagrams() {
+fn visual_reference_includes_eight_navigation_outputs() {
     let html = render::html(&layout()).unwrap();
-    assert_eq!(html.matches("class=\"navigation-card\"").count(), 8);
+    let navigation = html
+        .split("aria-label=\"Navigation layer\"")
+        .nth(1)
+        .unwrap()
+        .split("</section>")
+        .next()
+        .unwrap();
+    assert_eq!(navigation.matches("class=\"chord-card\"").count(), 8);
+    assert_eq!(navigation.matches("class=\"binding-map\"").count(), 2);
+    assert!(!html.contains("<svg"));
     assert!(html.contains("R2 + L1: navigation"));
     assert!(html.contains("Add L2 to select text"));
 }
