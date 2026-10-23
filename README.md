@@ -18,6 +18,11 @@ The layout generator, visual layout exporter, controller inspector, and Linux
 virtual-keyboard runtime are implemented. Desktop editor and terminal testing is
 still pending.
 
+The checked-in [layout.json](layout.json) is a ready-to-use 97-binding independent
+layout matching the Android default. Use it directly for typing or rendering.
+Generating a new layout updates this file by default; use `--output custom-layout.json`
+to write a separate layout.
+
 ## Generate a layout
 
 With Rust and Cargo available, run:
