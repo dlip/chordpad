@@ -9,6 +9,21 @@ public record Action(String type, String value, int modifiers) {
     public static Action text(String text) { return new Action("character", text, 0); }
     public static Action key(String key) { return new Action("key", key, 0); }
     public Action modified(int mask) { return new Action(type, value, modifiers | mask); }
+    public String systemAction(boolean editorAvailable) {
+        if (type.equals("system")) return value;
+        if ((modifiers == META || modifiers == ALT) && ((type.equals("key") && value.equals("tab"))
+                || (type.equals("character") && value.equals("\t")))) return modifiers == ALT ? "last_app" : "recents";
+        if (!editorAvailable && modifiers == 0) {
+            if (type.equals("character") && value.equals("\n")) return "dpad_center";
+            if (type.equals("key")) return switch (value) {
+                case "up", "down", "left", "right" -> "dpad_" + value;
+                case "enter" -> "dpad_center";
+                case "escape" -> "back";
+                default -> null;
+            };
+        }
+        return null;
+    }
     public boolean consumerKey() {
         return type.equals("key") && java.util.List.of("media_play_pause","media_next","media_previous","media_stop","volume_up","volume_down","mute").contains(value);
     }

@@ -48,6 +48,34 @@ public class DeviceTest extends InstrumentationTestCase {
         assertFalse(Action.key("f1").consumerKey());
         assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED,getInstrumentation().getTargetContext().checkSelfPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS));
     }
+    public void testMediaKeysReachPlayerWithoutEditor() {
+        UiAutomation automation = getInstrumentation().getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
+        Intent player = new Intent().setClassName("io.github.dlip.padtype.test","io.github.dlip.padtype.MediaTestActivity")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        try {
+            getInstrumentation().getContext().startActivity(player);
+            waitFor(() -> {
+                AccessibilityNodeInfo root = automation.getRootInActiveWindow();
+                return root != null && "io.github.dlip.padtype.test".contentEquals(root.getPackageName())
+                        && !root.findAccessibilityNodeInfosByText("padtype media output test").isEmpty();
+            },"Test player did not open");
+            SystemClock.sleep(500);
+            StringBuilder expected = new StringBuilder();
+            for (String key : new String[]{"media_play_pause","media_next","media_previous","media_stop"}) {
+                assertTrue(ConsumerOutput.send(getInstrumentation().getTargetContext(),Action.key(key)));
+                for (int action : new int[]{KeyEvent.ACTION_DOWN,KeyEvent.ACTION_UP}) {
+                    if (expected.length() != 0) expected.append(",");
+                    expected.append(KeyEvent.keyCodeToString(KeyboardOutput.keyCode(key))).append(":").append(action);
+                }
+            }
+            waitFor(() -> {
+                AccessibilityNodeInfo root = automation.getRootInActiveWindow();
+                return root != null && !root.findAccessibilityNodeInfosByText(expected.toString()).isEmpty();
+            },"Media keys did not reach the player with balanced presses and releases");
+        } finally {
+            getInstrumentation().getContext().startActivity(player.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("finish",true));
+        }
+    }
     public void testDualSenseAnalogAndButtonNormalization() {
         ControllerInput input = new ControllerInput(InputDevice.getDevice(deviceId()));
         input.key(new KeyEvent(0,0,KeyEvent.ACTION_DOWN,KeyEvent.KEYCODE_BUTTON_A,0,0,deviceId(),0,0,InputDevice.SOURCE_GAMEPAD));

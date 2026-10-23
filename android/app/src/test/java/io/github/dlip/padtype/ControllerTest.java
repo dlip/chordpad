@@ -31,6 +31,36 @@ public class ControllerTest {
         assertEquals(64,ControllerInput.trigger(64,64,.4f));
         assertEquals(0,ControllerInput.trigger(64,64,.35f));
     }
+    @Test public void appSwitcherShortcutsWorkWithAndWithoutAnEditor() {
+        for (boolean editor : new boolean[]{false,true}) {
+            for (int modifiers : new int[]{Action.META,Action.ALT}) {
+                String expected = modifiers == Action.ALT ? "last_app" : "recents";
+                assertEquals(expected,Action.text("\t").modified(modifiers).systemAction(editor));
+                assertEquals(expected,Action.key("tab").modified(modifiers).systemAction(editor));
+            }
+            assertEquals("back",new Action("system","back",0).systemAction(editor));
+            for (int modifiers : new int[]{0,Action.SHIFT,Action.CTRL,Action.META|Action.CTRL,15}) {
+                assertNull(Action.text("\t").modified(modifiers).systemAction(editor));
+                assertNull(Action.key("tab").modified(modifiers).systemAction(editor));
+            }
+            assertNull(Action.key("a").modified(Action.META).systemAction(editor));
+        }
+    }
+    @Test public void globalNavigationOnlyAppliesWithoutAnEditorOrKeyboardModifiers() {
+        for (String key : new String[]{"up","down","left","right","enter","escape"}) {
+            String expected = switch (key) { case "enter" -> "dpad_center"; case "escape" -> "back"; default -> "dpad_" + key; };
+            assertEquals(expected,Action.key(key).systemAction(false));
+            assertNull(Action.key(key).systemAction(true));
+            for (int modifier : new int[]{Action.SHIFT,Action.CTRL,Action.ALT,Action.META,15}) {
+                assertNull(Action.key(key).modified(modifier).systemAction(false));
+            }
+        }
+        assertEquals("dpad_center",Action.text("\n").systemAction(false));
+        assertNull(Action.text("\n").systemAction(true));
+        assertNull(Action.text("\n").modified(Action.SHIFT).systemAction(false));
+        assertNull(Action.text("a").systemAction(false));
+        assertNull(Action.key("backspace").systemAction(false));
+    }
     @Test public void directDirectionsRepeatAndReleaseAndModifiersStayBalanced() {
         DirectMapper mapper = new DirectMapper();
         Frame up = new Frame(0,0,Action.ALT,0,0,-1,0,0);

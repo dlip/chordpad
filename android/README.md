@@ -53,6 +53,19 @@ and mirrored thumbstick maps use the same format. Use the layer selector to
 focus on one layer, or expand its text chord reference to see every combo.
 Maps sit side by side on tablets and stack on narrower screens.
 
+Alt + Tab switches directly to the previous app using Android's double-Recents
+quick switch. Tap it again to return. Pending switches cancel when remapping
+stops, pauses, or the controller disconnects.
+
+Command + Tab opens Android's Recent Apps view, including when no text field is
+focused. Release the controls, then hold R2 + L1 and use the D-pad
+arrows to choose an app. Options (Enter) selects it; Share (Escape) closes the
+switcher. When no editor is connected, unmodified arrows, Enter, and Escape use
+Android's global navigation actions. In a text field they keep their normal
+editing behavior. Plain Tab and other modified Tab combinations go to the
+focused app. This opens the Android app switcher; it does not emulate holding
+Alt or Command while cycling between apps on a desktop.
+
 | DualSense control | Padtype role |
 | --- | --- |
 | Cross, Circle, Square, Triangle | A, B, X, Y, by physical position |

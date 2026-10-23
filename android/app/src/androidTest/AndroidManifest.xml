@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity android:name="io.github.dlip.padtype.MediaTestActivity" android:exported="true" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
         <activity android:name="io.github.dlip.padtype.TestEditorActivity" android:exported="true" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
     </application>
 </manifest>
