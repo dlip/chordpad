@@ -3,7 +3,7 @@
     android:description="@string/service_description"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRequestFilterKeyEvents|flagInputMethodEditor"
+    android:accessibilityFlags="flagRequestFilterKeyEvents|flagInputMethodEditor|flagRequestAccessibilityButton"
     android:canRequestFilterKeyEvents="true"
     android:canRetrieveWindowContent="false"
     android:settingsActivity="io.github.dlip.padtype.MainActivity"

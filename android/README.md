@@ -29,6 +29,11 @@ active; use **Stop remapping** to give joystick input back to other apps.
 The selected controller is remembered by descriptor and reattaches automatically.
 App or service restarts leave remapping off.
 
+Assign padtype to Android's accessibility button to start or stop remapping from
+any app. Each tap confirms whether controller input is on or off. Starting while
+the controller is disconnected waits for it to reconnect. Release all controls
+after starting input.
+
 The accessibility service uses Android's
 [joystick event capture](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#onMotionEvent(android.view.MotionEvent))
 and [accessibility input connection](https://developer.android.com/reference/android/accessibilityservice/InputMethod.AccessibilityInputConnection).

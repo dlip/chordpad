@@ -2,6 +2,7 @@ package io.github.dlip.padtype;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.accessibilityservice.AccessibilityButtonController;
 import android.accessibilityservice.InputMethod;
 import android.os.Handler;
 import android.os.Looper;
@@ -10,9 +11,19 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.EditorInfo;
+import android.widget.Toast;
 
 public final class ControllerService extends AccessibilityService {
     private AppState state;
+    private final AccessibilityButtonController.AccessibilityButtonCallback buttonCallback = new AccessibilityButtonController.AccessibilityButtonCallback() {
+        @Override public void onClicked(AccessibilityButtonController controller) {
+            if (state == null) return;
+            state.setEnabled(!state.enabled);
+            int message = !state.enabled ? R.string.controller_input_off
+                    : state.device == null ? R.string.controller_input_waiting : R.string.controller_input_on;
+            Toast.makeText(ControllerService.this,message,Toast.LENGTH_SHORT).show();
+        }
+    };
     private final Handler outputHandler = new Handler(Looper.getMainLooper());
     private final LastAppSwitch lastAppSwitch = new LastAppSwitch(
             () -> state != null && state.enabled && !state.paused && state.device != null,
@@ -20,6 +31,7 @@ public final class ControllerService extends AccessibilityService {
             task -> outputHandler.postDelayed(task,150));
     @Override protected void onServiceConnected() {
         state = AppState.get(this); state.service = this;
+        getAccessibilityButtonController().registerAccessibilityButtonCallback(buttonCallback);
         updateCapture(); state.reset("Service connected; start remapping when ready");
     }
     public void updateCapture() {
@@ -49,6 +61,7 @@ public final class ControllerService extends AccessibilityService {
     }
     @Override public void onInterrupt() { if (state != null) state.setEnabled(false); }
     @Override public void onDestroy() {
+        getAccessibilityButtonController().unregisterAccessibilityButtonCallback(buttonCallback);
         cancelLastAppSwitch();
         if (state != null) { state.service = null; state.editor = false; state.setEnabled(false); }
         super.onDestroy();

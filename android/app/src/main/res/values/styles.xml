@@ -12,6 +12,9 @@
     <string name="mode_chords_label">Padtype chords</string>
     <string name="mode_direct_label">Direct mapping</string>
     <string name="last_output">Last output: %1$s</string>
+    <string name="controller_input_on">Controller input on. Release all controls to start.</string>
+    <string name="controller_input_off">Controller input off</string>
+    <string name="controller_input_waiting">Controller input on; waiting for a controller</string>
     <plurals name="binding_count">
         <item quantity="one">%1$d binding · Each half releases independently</item>
         <item quantity="other">%1$d bindings · Each half releases independently</item>
