@@ -83,7 +83,7 @@ public class DeviceTest extends InstrumentationTestCase {
         MotionEvent event = motion(.8f,.8f,-.8f);
         input.motion(event,-1); event.recycle();
         assertEquals(1|64|128,input.frame().buttons());
-        assertEquals(Action.ALT|Action.META,input.frame().modifiers());
+        assertEquals(Action.CTRL|Action.ALT|Action.META,input.frame().modifiers());
         input.key(new KeyEvent(0,0,KeyEvent.ACTION_UP,KeyEvent.KEYCODE_BUTTON_L2,0,0,deviceId(),0,0,InputDevice.SOURCE_GAMEPAD));
         assertTrue((input.frame().buttons()&64)!=0);
         event = motion(.4f,.4f,-.4f); input.motion(event,-1); event.recycle();

@@ -156,9 +156,9 @@ fn menu_keys_keep_their_actions_on_every_layer_and_latch_keyboard_modifiers() {
             let release = menu_snapshot(Neutral, &[], &[]);
             let events = e.update(&release);
             let expected = if held.contains(&Button::L2) {
-                vec![Alt, Shift, Meta]
+                vec![Ctrl, Alt, Shift, Meta]
             } else {
-                vec![Alt, Meta]
+                vec![Ctrl, Alt, Meta]
             };
             assert!(
                 matches!(events.as_slice(), [Event::Menu { action, keyboard_modifiers, .. }]
@@ -749,11 +749,11 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
         let records = frames.borrow();
         assert_eq!(
             records[records.len() - 2],
-            [(56, 1), (42, 1), (125, 1), (expected, 1)]
+            [(29, 1), (56, 1), (42, 1), (125, 1), (expected, 1)]
         );
         assert_eq!(
             records[records.len() - 1],
-            [(expected, 0), (125, 0), (42, 0), (56, 0)]
+            [(expected, 0), (125, 0), (42, 0), (56, 0), (29, 0)]
         );
     }
     state = snapshot(input(Neutral, &[R2]));
@@ -895,7 +895,7 @@ fn raw_stick_reports_replay_latched_modifiers_with_shift_and_number_layer() {
     );
     assert_eq!(
         chords[0]["keyboard_modifiers"],
-        serde_json::json!(["alt", "meta"])
+        serde_json::json!(["ctrl", "alt", "meta"])
     );
     for chord in &chords[1..] {
         assert_eq!(chord["keyboard_modifiers"], serde_json::json!(["ctrl"]));

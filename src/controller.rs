@@ -456,8 +456,8 @@ pub fn thumbstick_modifiers(side: Side, direction: Dpad) -> Vec<Modifier> {
                 Modifier::Shift,
                 Modifier::Meta,
             ],
-            1 => vec![Modifier::Ctrl, Modifier::Alt, Modifier::Meta],
-            _ => vec![Modifier::Alt, Modifier::Meta],
+            1 => vec![Modifier::Alt, Modifier::Meta],
+            _ => vec![Modifier::Ctrl, Modifier::Alt, Modifier::Meta],
         };
     }
     let mut modifiers = vec![];
@@ -814,8 +814,8 @@ mod stick_tests {
                     (_, Up) => vec![Alt],
                     (_, Down) => vec![Meta],
                     (Side::Left, UpRight) | (Side::Right, UpLeft) => vec![Ctrl, Alt, Shift, Meta],
-                    (Side::Left, DownRight) | (Side::Right, DownLeft) => vec![Ctrl, Alt, Meta],
-                    (Side::Left, Right) | (Side::Right, Left) => vec![Alt, Meta],
+                    (Side::Left, DownRight) | (Side::Right, DownLeft) => vec![Alt, Meta],
+                    (Side::Left, Right) | (Side::Right, Left) => vec![Ctrl, Alt, Meta],
                     (_, Left | Right) => vec![Ctrl],
                     (_, UpLeft | UpRight) => vec![Ctrl, Alt],
                     (_, DownLeft | DownRight) => vec![Ctrl, Meta],
@@ -850,8 +850,8 @@ mod stick_tests {
         assert!(n.apply(&[]).unwrap().is_neutral());
         for (raw, expected) in [
             (540, vec![]),
-            (560, vec![Alt, Meta]),
-            (400, vec![Alt, Meta]),
+            (560, vec![Ctrl, Alt, Meta]),
+            (400, vec![Ctrl, Alt, Meta]),
             (350, vec![]),
             (-600, vec![Ctrl]),
             (-400, vec![Ctrl]),
@@ -899,7 +899,7 @@ mod stick_tests {
             }])
             .unwrap()
             .modifiers(),
-            [Alt, Meta]
+            [Ctrl, Alt, Meta]
         );
     }
     #[test]

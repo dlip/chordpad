@@ -56,10 +56,10 @@ public class LayoutReferenceTest {
         var maps = LayoutReference.sticks();
         assertEquals("Ctrl + Alt + Shift + Command",maps.get(0).cells().get(2).output());
         assertEquals("Ctrl + Alt + Shift + Command",maps.get(1).cells().get(0).output());
-        assertEquals("Ctrl + Alt + Command",maps.get(0).cells().get(8).output());
-        assertEquals("Ctrl + Alt + Command",maps.get(1).cells().get(6).output());
-        assertEquals("Alt + Command",maps.get(0).cells().get(5).output());
-        assertEquals("Alt + Command",maps.get(1).cells().get(3).output());
+        assertEquals("Alt + Command",maps.get(0).cells().get(8).output());
+        assertEquals("Alt + Command",maps.get(1).cells().get(6).output());
+        assertEquals("Ctrl + Alt + Command",maps.get(0).cells().get(5).output());
+        assertEquals("Ctrl + Alt + Command",maps.get(1).cells().get(3).output());
     }
 
     @Test public void textReferenceKeepsImportedCombosOutsideTheGrid() throws Exception {

@@ -95,10 +95,10 @@ Alt or Command while cycling between apps on a desktop.
 | R2 + L1 | Held navigation layer: D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End |
 | R2 + R1 | Held function layer: number combos 1–9 → F1–F9, 0 → F10; Cross/Square → F11/F12 |
 | Options / Share | Enter / Escape in every layer |
-| Sticks | Up Alt, down Command/Meta, outward Ctrl, inward Alt + Command |
+| Sticks | Up Alt, down Command/Meta, outward Ctrl, inward Ctrl + Alt + Command |
 
 Outward diagonals combine adjacent directions. Inward-up sends Command + Ctrl + Alt +
-Shift; inward-down sends Command + Ctrl + Alt. Straight inward remains Alt +
+Shift; inward-down sends Alt + Command. Straight inward sends Ctrl + Alt +
 Command. The layout's opposite-face-pair and forbidden-chord constraints
 are enforced. Stroke output follows start order, including overlapping halves
 and Options/Share. The queue is bounded at 64 pending strokes. Focus changes,

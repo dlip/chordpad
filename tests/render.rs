@@ -460,6 +460,17 @@ fn independent_reference_shows_fixed_keys_shift_pairs_and_number_layer() {
     assert_eq!(html.matches("class=\"stick-cell\"").count(), 18);
     assert!(html.contains("Alt + Command"));
     assert!(html.contains("Ctrl + Command"));
+    for (side, inward, inward_down) in [
+        ("Left", "Right", "Down Right"),
+        ("Right", "Left", "Down Left"),
+    ] {
+        assert!(html.contains(&format!(
+            "aria-label=\"{side} stick {inward}: Ctrl + Alt + Command\""
+        )));
+        assert!(html.contains(&format!(
+            "aria-label=\"{side} stick {inward_down}: Alt + Command\""
+        )));
+    }
     for (index, output) in ["a / A", "1 / !"].into_iter().enumerate() {
         let layer = html
             .split(&format!("<section class=\"layer\" data-layer=\"{index}\""))
