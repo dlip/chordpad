@@ -385,7 +385,7 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
             .to_string()
     };
     let html = render::html(&layout).unwrap();
-    let base = section(&html, "Base and Shift positions");
+    let base = section(&html, "Base letter and punctuation positions");
     assert_eq!(base.matches("class=\"binding-map\"").count(), 4);
     for cell in [
         "<span>t / T</span><span>↑</span>",

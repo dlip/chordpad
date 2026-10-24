@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Rename the base chord reference section to `Base: letters and punctuation`.
+
 ## 1.0.3
 
 - Move `l` to D-pad ← + L1 in the default layout.

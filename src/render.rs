@@ -335,7 +335,10 @@ fn reference_layers(layout: &Layout) -> Vec<ReferenceLayer> {
         };
         let (title, label) = if layout.strategy.independent {
             if held == 0 {
-                ("Base + L2: Shift".into(), "Base and Shift positions".into())
+                (
+                    "Base: letters and punctuation".into(),
+                    "Base letter and punctuation positions".into(),
+                )
             } else {
                 (
                     "R2: numbers and symbols".into(),

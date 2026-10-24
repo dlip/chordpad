@@ -20,7 +20,7 @@ object LayoutReference {
             }
         }
         val paired = "Pairs show normal / L2 Shift. A single label applies to both. Press adjacent controls together for diagonals. In shoulder maps, the center is the shoulder alone. · means unassigned."
-        layers.add(layer("Base + L2: Shift", paired, typing, 0, L2))
+        layers.add(layer("Base: letters and punctuation", paired, typing, 0, L2))
         if (typing.any { it.held and R2 != 0 }) layers.add(layer("R2: numbers and symbols", "Hold R2. $paired", typing, R2, R2 or L2))
         if (layout.navigationLayer) {
             val held = R2 or L1
