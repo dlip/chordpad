@@ -30,6 +30,8 @@ X/Square west, and Y/Triangle north.
 
 | Control | Action |
 | --- | --- |
+| A / Cross | `a`; hold L2 for `A` |
+| B / Circle | `o`; hold L2 for `O` |
 | R1 / L1 alone | Space / Backspace |
 | Start (Options) / Select (Share) | Enter / Escape in every layer |
 | Hold L2 | Shift: uppercase letters and shifted punctuation |

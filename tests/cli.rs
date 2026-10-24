@@ -468,6 +468,8 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
     assert!(layout.bindings.iter().all(|b| !b.held.contains(&Button::R2)
         || (!b.chord.buttons.contains(&Button::L1) && !b.chord.buttons.contains(&Button::R1))));
     for (plain, shifted, buttons) in [
+        ('a', Some('A'), vec![Button::A]),
+        ('o', Some('O'), vec![Button::B]),
         ('\'', Some('"'), vec![Button::A, Button::B, Button::R1]),
         (',', Some('<'), vec![Button::A, Button::X, Button::R1]),
         ('.', Some('>'), vec![Button::B, Button::Y, Button::R1]),

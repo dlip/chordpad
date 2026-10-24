@@ -47,6 +47,28 @@
     {
       "action": {
         "type": "character",
+        "value": "a"
+      },
+      "chord": {
+        "buttons": [
+          "A"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "o"
+      },
+      "chord": {
+        "buttons": [
+          "B"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
         "value": "'"
       },
       "chord": {

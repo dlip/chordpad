@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pin `a` to A/Cross and `o` to B/Circle, and regenerate the default layout and chord references.
+
 ## 1.0.1
 
 - Convert the Android app, tests, and gamepad test helper to Kotlin.

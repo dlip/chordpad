@@ -130,8 +130,9 @@ cargo run --release -- generate \
 cargo run -- render --layout independent.json --output independent.html
 ```
 
-[examples/independent.json](../examples/independent.json) pins punctuation, numbers,
-symbols, and Tab, and adds finger and thumb comfort costs to this preset. Use it with
+[examples/independent.json](../examples/independent.json) pins `a` to A and `o` to B,
+along with punctuation, numbers, symbols, and Tab. L2 adds uppercase `A` and `O`.
+It also enables finger and thumb comfort costs. Use it with
 `--config examples/independent.json` and your own corpus.
 
 Regenerate the checked-in default and refresh its reference:
