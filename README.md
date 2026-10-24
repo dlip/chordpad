@@ -9,7 +9,8 @@ to use, with letters, numbers, punctuation, navigation, and keyboard shortcuts.
 The [Android app](android/README.md) supports Android 14 and newer, with a live
 DualSense preview, a chord reference, and editable controller mappings.
 
-1. [Build and install the app](android/README.md#install-and-use).
+1. Download `chordpad.apk` from [GitHub Releases](https://github.com/dlip/chordpad/releases/latest)
+   and install it on your device, or [build it yourself](android/README.md#install-and-use).
 2. Pair your controller in Android's Bluetooth settings.
 3. Open **Chordpad → Enable controller input…** and enable **Chordpad controller
    input** in accessibility settings.

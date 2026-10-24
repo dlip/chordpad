@@ -7,8 +7,8 @@ android {
         applicationId 'io.github.dlip.chordpad'
         minSdk 34
         targetSdk 35
-        versionCode 1
-        versionName '0.1.0'
+        versionCode = (project.findProperty('chordpadVersionCode') ?: '1').toInteger()
+        versionName = project.findProperty('chordpadVersionName') ?: '0.1.0'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
     }
     useLibrary 'android.test.runner'

@@ -6,7 +6,11 @@ The app does not need root, network access, or a replacement on-screen keyboard.
 
 ## Install and use
 
-Build the debug APK, then install it on a tablet with USB debugging enabled:
+Download `chordpad.apk` from the [latest GitHub release](https://github.com/dlip/chordpad/releases/latest)
+and open it on your Android device to install. Allow installation from the app
+you used to download it if Android asks.
+
+To build it yourself, build the debug APK and install it with USB debugging enabled:
 
 ```sh
 cd android
@@ -246,3 +250,50 @@ screen-content retrieval. Imported layouts and mappings remain in private app
 preferences; typed text is neither stored nor logged. The last output indicator
 is held in memory until the app process ends. Debug APKs use the local debug
 signing key and are intended for sideloading, not store distribution.
+
+## Tagged releases
+
+The [Android release workflow](../.github/workflows/android-release.yml) runs on
+every pushed tag. It runs release unit tests and lint, builds and signs
+`chordpad.apk`, and publishes it in a GitHub release with generated notes.
+Rerunning a successful workflow replaces the APK on the existing release, unless
+release immutability is enabled in the repository.
+
+The APK's version name is the tag. Its version code is the workflow run number
+plus one, so each new run produces an increasing version code and reruns keep
+the same code. Keep the workflow file's name when updating it to retain its run
+counter.
+
+Before pushing the first tag, configure these repository secrets under
+**Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded release keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Signing key alias |
+| `ANDROID_KEY_PASSWORD` | Signing key password; use the keystore password for PKCS12 |
+
+Reuse your existing release key if you have one. To create a new key, run this
+outside the repository and keep a backup of the keystore and passwords:
+
+```sh
+keytool -genkeypair -keystore chordpad-release.jks -alias chordpad \
+  -keyalg RSA -keysize 3072 -validity 10000
+base64 < chordpad-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 --repo dlip/chordpad
+gh secret set ANDROID_KEYSTORE_PASSWORD --repo dlip/chordpad
+gh secret set ANDROID_KEY_ALIAS --body chordpad --repo dlip/chordpad
+gh secret set ANDROID_KEY_PASSWORD --repo dlip/chordpad
+```
+
+GitHub CLI prompts for the passwords. Keep the same signing key for future
+releases so users can install updates. A local debug build uses a different key;
+export your layout before uninstalling it to switch to the release APK, then
+configure your mappings and accessibility service again after installation.
+
+After merging the workflow and setting the secrets, publish a tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
