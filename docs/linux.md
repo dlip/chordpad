@@ -111,20 +111,20 @@ shifted symbols share another set. Navigation and function keys have their own
 maps and layer filters.
 
 Shoulder maps show chords with L1/R1, with the shoulder alone in the center.
-The maps use the layout's actual bindings. Open **Text chord reference** for full
-instructions or combinations outside the maps, including opposite face buttons
-and chords with more than two face buttons.
+The maps use the layout's actual bindings. Hover over a cell for its full chord
+instructions. Search also finds combinations outside the maps, including
+opposite face buttons and chords with more than two face buttons, and shows
+their instructions beside the result count.
 
 Search for a literal character to find its exact chord: `m` and `M` select the
 same paired chord, while a literal space selects Space. Action names such as
-`Backspace`, `F11`, and `Ctrl + C` also work. Search opens matching text references;
-select a layer filter to narrow the results. Maps and text references also work
-without JavaScript.
+`Backspace`, `F11`, and `Ctrl + C` also work. Search highlights matching map cells;
+select a layer filter to narrow the results. Maps also work without JavaScript.
 
-Use **Print / Save PDF** to produce reference sheets. Printing includes all
-layers and text references even if the screen is filtered, and starts each layer
-on a new page. The print layout defaults to A4 landscape; browser print settings
-can change paper size or scale.
+Use **Print / Save PDF** to produce compact reference sheets. Printing includes
+all layer maps even if the screen is filtered and omits the text chord
+references. Layers share pages on A4 portrait paper; browser print settings can
+change paper size or scale.
 
 Re-run the command after generating a new layout. The document is derived from
 the validated bindings and records their strategy name. Existing HTML output is

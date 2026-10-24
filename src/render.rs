@@ -221,7 +221,9 @@ fn eight_way_maps(bindings: &[Binding], contexts: &[u8]) -> String {
             };
             write!(
                 out,
-                "<div class=\"stick-cell binding-cell\"><span>{}</span><span>{}</span></div>",
+                "<div class=\"stick-cell binding-cell\" data-chord=\"{}:{:?}\"><span>{}</span><span>{}</span></div>",
+                input.mask,
+                input.dpad,
                 escape(&output),
                 escape(&label)
             )
@@ -389,7 +391,7 @@ fn reference_layers(layout: &Layout) -> Vec<ReferenceLayer> {
     layers
 }
 
-fn text_reference(bindings: &[Binding], map_bindings: &[Binding], contexts: &[u8]) -> String {
+fn search_index(bindings: &[Binding], map_bindings: &[Binding], contexts: &[u8]) -> String {
     let mut groups = BTreeMap::<Input, Vec<&Binding>>::new();
     for binding in bindings {
         groups
@@ -402,9 +404,7 @@ fn text_reference(bindings: &[Binding], map_bindings: &[Binding], contexts: &[u8
         bindings.sort_by_key(|binding| binding.context().unwrap().mask);
     }
     groups.sort_by_key(|bindings| (category(&bindings[0].action), bindings[0].action.clone()));
-    let mut out = String::from(
-        "<details class=\"binding-details\"><summary>Text chord reference</summary><div class=\"chord-grid\">",
-    );
+    let mut out = String::from("<div class=\"binding-index\" hidden><div class=\"chord-grid\">");
     for bindings in groups {
         let outputs: Vec<_> = contexts
             .iter()
@@ -446,9 +446,10 @@ fn text_reference(bindings: &[Binding], map_bindings: &[Binding], contexts: &[u8
             .map(|b| format!("{}: {}", action_name(&b.action), notation(b)))
             .collect::<Vec<_>>()
             .join("; ");
-        write!(out, "<article class=\"chord-card\" data-characters=\"{}\" data-labels=\"{}\" data-search=\"{}\"><strong class=\"action-label\">{}</strong><span class=\"chord-notation\">{}</span></article>", escape(&serde_json::to_string(&characters).unwrap()), escape(&serde_json::to_string(&labels).unwrap()), escape(&search), escape(&output), escape(&instructions)).unwrap();
+        let input = bindings[0].chord.input().unwrap();
+        write!(out, "<article class=\"chord-card\" data-chord=\"{}:{:?}\" data-characters=\"{}\" data-labels=\"{}\" data-search=\"{}\"><strong class=\"action-label\">{}</strong><span class=\"chord-notation\">{}</span></article>", input.mask, input.dpad, escape(&serde_json::to_string(&characters).unwrap()), escape(&serde_json::to_string(&labels).unwrap()), escape(&search), escape(&output), escape(&instructions)).unwrap();
     }
-    out.push_str("</div></details>");
+    out.push_str("</div></div>");
     out
 }
 
@@ -504,7 +505,7 @@ pub fn html(layout: &Layout) -> Result<String> {
             layer.bindings.clone()
         };
         out.push_str(&eight_way_maps(&bindings, &layer.contexts));
-        out.push_str(&text_reference(&layer.bindings, &bindings, &layer.contexts));
+        out.push_str(&search_index(&layer.bindings, &bindings, &layer.contexts));
         if layer.bindings.is_empty() {
             out.push_str("<p class=\"empty-layer\">No bindings in this state.</p>");
         }
@@ -513,7 +514,7 @@ pub fn html(layout: &Layout) -> Result<String> {
     if layout.strategy.independent {
         out.push_str(&thumbstick_reference());
     }
-    out.push_str("<noscript><p>All layers and maps are shown. Open a text chord reference for combinations outside the maps. Enable JavaScript to search.</p></noscript></main><footer class=\"wrap\"><span>chordpad / visual layout reference</span><span>Press together · release to type</span></footer><script>");
+    out.push_str("<noscript><p>All layers and maps are shown. Enable JavaScript to search.</p></noscript></main><footer class=\"wrap\"><span>chordpad / visual layout reference</span><span>Press together · release to type</span></footer><script>");
     out.push_str(include_str!("render/script.js"));
     out.push_str("</script></body></html>\n");
     Ok(out)

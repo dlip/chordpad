@@ -68,6 +68,8 @@ compatibility still need hands-on verification.
 
 ## Learn the chords
 
+Download the [one-page chord reference (PDF)](layout.pdf) for the included layout.
+
 On Android, open **View chord reference**. On Linux, create an offline reference
 for the included layout:
 
