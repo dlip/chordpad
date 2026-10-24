@@ -8,6 +8,7 @@ data class Action(val type: String, val value: String, val modifiers: Int = 0) {
 
     fun systemAction(editorAvailable: Boolean): String? {
         if (type == "system") return value
+        if (type == "key" && value == "print_screen" && modifiers == 0) return "screenshot"
         if ((modifiers == META || modifiers == ALT) &&
             ((type == "key" && value == "tab") || (type == "character" && value == "\t"))) {
             return if (modifiers == ALT) "last_app" else "recents"
@@ -38,6 +39,7 @@ data class Action(val type: String, val value: String, val modifiers: Int = 0) {
             "\t", "tab" -> "Tab"
             "escape" -> "Escape"
             "backspace" -> "Backspace"
+            "print_screen" -> "Print Screen"
             else -> value
         }
         val prefix = listOf("ctrl", "alt", "shift", "meta")

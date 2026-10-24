@@ -11,11 +11,40 @@ import java.nio.file.Path
 class ControllerTest {
     private fun layout() = Files.readAllBytes(Path.of(System.getProperty("chordpad.assets"), "default-layout.json")).toString(Charsets.UTF_8)
 
+    @Test fun printScreenTakesAScreenshotWithOrWithoutAnEditor() {
+        for (editor in listOf(false, true)) {
+            assertEquals("screenshot", Action.key("print_screen").systemAction(editor))
+            for (modifier in intArrayOf(Action.CTRL, Action.ALT, Action.SHIFT, Action.META, 15)) {
+                assertNull(Action.key("print_screen").modified(modifier).systemAction(editor))
+            }
+        }
+        assertEquals(android.view.KeyEvent.KEYCODE_SYSRQ, KeyboardOutput.keyCode("print_screen"))
+        assertFalse(Action.key("print_screen").consumerKey())
+    }
+
+    @Test fun printScreenIsOptionalAndReservesItsFunctionCombo() {
+        val current = ChordLayout(layout())
+        assertEquals(Action.key("print_screen"), current.resolveFunction(B or Y, 0, R2, 0))
+        assertEquals(Action.key("print_screen").modified(Action.CTRL or Action.SHIFT),
+            current.resolveFunction(B or Y, 0, R2 or L2, Action.CTRL))
+        val legacy = JSONObject(layout())
+        legacy.getJSONObject("profile").remove("function_print_screen")
+        assertNull(ChordLayout(legacy.toString()).resolveFunction(B or Y, 0, R2, 0))
+        val conflict = JSONObject(layout())
+        conflict.getJSONObject("profile").getJSONArray("extra_function_chords")
+            .put(0, JSONObject().put("buttons", JSONArray().put("B").put("Y")))
+        assertTrue(assertThrows(JSONException::class.java) { ChordLayout(conflict.toString()) }
+            .message.orEmpty().contains("Print Screen"))
+        val noLayer = JSONObject(layout())
+        noLayer.getJSONObject("profile").put("function_layer", false).put("function_volume", false)
+        assertThrows(JSONException::class.java) { ChordLayout(noLayer.toString()) }
+    }
+
     @Test fun rustRecognitionVectorsMatch() {
         javaClass.getResourceAsStream("/chord-vectors.json").use { stream ->
             assertNotNull(stream)
             val cases = JSONArray(checkNotNull(stream).readBytes().toString(Charsets.UTF_8))
-            assertEquals(361, RecognitionVectors.check(layout(), cases))
+            assertEquals(371, RecognitionVectors.check(layout(), cases))
         }
     }
     @Test fun analogThresholdsHaveHysteresis() {
@@ -82,7 +111,7 @@ class ControllerTest {
     }
     @Test fun functionLayerRequiresDigitsAndDerivesTheirChords() {
         val layout = ChordLayout(layout())
-        assertEquals(15, layout.functionBindings.size)
+        assertEquals(16, layout.functionBindings.size)
         for (digit in 0..9) {
             val source = layout.bindings.first { it.action == Action.text(digit.toString()) }
             val output = layout.functionBindings.first { it.action == Action.key("f${if (digit == 0) 10 else digit}") }
@@ -126,6 +155,7 @@ class ControllerTest {
         var json = JSONObject(layout())
         json.getJSONObject("profile").remove("navigation_media")
         json.getJSONObject("profile").remove("function_volume")
+        json.getJSONObject("profile").remove("function_print_screen")
         val legacy = ChordLayout(json.toString())
         assertFalse(legacy.navigationMedia); assertFalse(legacy.functionVolume)
         assertEquals(12, legacy.functionBindings.size)

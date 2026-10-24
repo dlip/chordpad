@@ -33,7 +33,8 @@
       }
     ],
     "navigation_media": true,
-    "function_volume": true
+    "function_volume": true,
+    "function_print_screen": true
   },
   "strategies": [
     {
@@ -64,6 +65,50 @@
         "buttons": [
           "B"
         ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "l"
+      },
+      "chord": {
+        "dpad": "down-left",
+        "buttons": []
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "u"
+      },
+      "chord": {
+        "buttons": [
+          "Y",
+          "R1"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "d"
+      },
+      "chord": {
+        "dpad": "down",
+        "buttons": [
+          "L1"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "character",
+        "value": "r"
+      },
+      "chord": {
+        "dpad": "right",
+        "buttons": []
       }
     },
     {

@@ -2,7 +2,12 @@
 
 ## Unreleased
 
+## 1.0.2
+
 - Pin `a` to A/Cross and `o` to B/Circle, and regenerate the default layout and chord references.
+- Pin `l` to D-pad ↙, `u` to Y/Triangle + R1, and `d` to D-pad ↓ + L1.
+- Pin `r` to D-pad →.
+- Add Print Screen on function-layer Y + B, with screenshot support on Android.
 
 ## 1.0.1
 

@@ -16,7 +16,7 @@ class LayoutReferenceTest {
         val layers = layers()
         assertEquals(4, layers.size)
         assertEquals(listOf(4, 2, 2, 2), layers.map { it.maps.size })
-        assertEquals(listOf(34, 16, 12, 15), layers.map { it.chords.size })
+        assertEquals(listOf(34, 16, 12, 16), layers.map { it.chords.size })
         val base = layers[0].maps.flatMap { outputs(it) }
         for (output in listOf("m / M", ", / <", "Space", "Backspace")) assertTrue(output, output in base)
         val numbers = layers[1].maps
@@ -27,7 +27,7 @@ class LayoutReferenceTest {
         val layers = layers()
         assertEquals(listOf("·", "↑", "·", "←", "·", "→", "·", "↓", "·"), outputs(layers[2].maps[0]))
         assertEquals(listOf("Previous", "Page Up", "Next", "Home", "·", "End", "Delete", "Page Down", "Play/Pause"), outputs(layers[2].maps[1]))
-        assertEquals(listOf("Volume Up", "F12", "·", "F11", "·", "F10", "Volume Down", "F9", "Mute"), outputs(layers[3].maps[1]))
+        assertEquals(listOf("Volume Up", "F12", "Print Screen", "F11", "·", "F10", "Volume Down", "F9", "Mute"), outputs(layers[3].maps[1]))
     }
     @Test fun importedPositionsAndOptionalLayersComeFromActiveLayout() {
         val json = bundled()
@@ -40,7 +40,7 @@ class LayoutReferenceTest {
             }
         }
         json.getJSONObject("profile").put("navigation_layer", false).put("navigation_media", false)
-            .put("function_layer", false).put("function_volume", false)
+            .put("function_layer", false).put("function_volume", false).put("function_print_screen", false)
         val layers = LayoutReference.layers(ChordLayout(json.toString()))
         assertEquals(2, layers.size)
         assertEquals("= / +", layers[1].maps[1].cells[3].output)

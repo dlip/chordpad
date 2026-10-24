@@ -360,6 +360,7 @@ pub enum Key {
     F10,
     F11,
     F12,
+    PrintScreen,
     MediaPlayPause,
     MediaNext,
     MediaPrevious,
@@ -619,6 +620,8 @@ pub struct Profile {
     pub navigation_media: bool,
     #[serde(default, skip_serializing_if = "is_false")]
     pub function_volume: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub function_print_screen: bool,
     #[serde(skip_serializing_if = "default_function_chords")]
     pub extra_function_chords: [Chord; 2],
     #[serde(default, skip_serializing_if = "is_false")]
@@ -643,6 +646,7 @@ impl Default for Profile {
         Self {
             navigation_media: false,
             function_volume: false,
+            function_print_screen: false,
             exclude_opposite_face_pairs: false,
             function_layer: false,
             extra_function_chords: default_extra_function_chords(),
@@ -700,6 +704,15 @@ impl Profile {
                 ));
             }
         }
+        if self.function_print_screen {
+            extras.push((
+                Chord {
+                    dpad: Dpad::Neutral,
+                    buttons: vec![Button::B, Button::Y],
+                },
+                Key::PrintScreen,
+            ));
+        }
         extras
     }
 
@@ -711,6 +724,9 @@ impl Profile {
         }
         if self.function_volume && !self.function_layer {
             return Err("function_volume requires the function layer".into());
+        }
+        if self.function_print_screen && !self.function_layer {
+            return Err("function_print_screen requires the function layer".into());
         }
         let mut function_chords = BTreeSet::new();
         for (chord, _) in self.function_extras() {
@@ -1251,7 +1267,7 @@ impl Layout {
         }
         if self.profile.function_layer {
             let bindings = self.function_bindings();
-            if bindings.len() != 12 + if self.profile.function_volume { 3 } else { 0 }
+            if bindings.len() != 10 + self.profile.function_extras().len()
                 || bindings.iter().any(|b| {
                     !self
                         .profile

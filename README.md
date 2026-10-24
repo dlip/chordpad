@@ -32,12 +32,17 @@ X/Square west, and Y/Triangle north.
 | --- | --- |
 | A / Cross | `a`; hold L2 for `A` |
 | B / Circle | `o`; hold L2 for `O` |
+| D-pad ↙ | `l`; hold L2 for `L` |
+| D-pad → | `r`; hold L2 for `R` |
+| D-pad ↓ + L1 | `d`; hold L2 for `D` |
+| Y / Triangle + R1 | `u`; hold L2 for `U` |
 | R1 / L1 alone | Space / Backspace |
 | Start (Options) / Select (Share) | Enter / Escape in every layer |
 | Hold L2 | Shift: uppercase letters and shifted punctuation |
 | Hold R2 | Numbers and symbols |
 | Hold R2 + L1 | Navigation: D-pad arrows; Y Page Up, A Page Down, X Home, B End |
 | Hold R2 + R1 | Function keys: number chords 1–9 give F1–F9, 0 gives F10; X gives F11, Y gives F12 |
+| Hold R2 + R1, then Y + B | Print Screen; takes a screenshot on Android |
 | L1 + R1 + L2 + R2 | Pause or resume typing |
 
 With R2 held, numbers run clockwise around the D-pad:

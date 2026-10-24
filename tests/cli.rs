@@ -437,7 +437,7 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
     assert_eq!(layout.profile.base_punctuation, ['\'', ',', '.', ';', '/']);
     assert!(layout.profile.navigation_layer);
     assert!(layout.profile.function_layer);
-    assert_eq!(layout.function_bindings().len(), 15);
+    assert_eq!(layout.function_bindings().len(), 16);
     for (digit, dpad) in ('1'..='8').zip([
         Dpad::Up,
         Dpad::UpRight,
@@ -467,14 +467,38 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
     }
     assert!(layout.bindings.iter().all(|b| !b.held.contains(&Button::R2)
         || (!b.chord.buttons.contains(&Button::L1) && !b.chord.buttons.contains(&Button::R1))));
-    for (plain, shifted, buttons) in [
-        ('a', Some('A'), vec![Button::A]),
-        ('o', Some('O'), vec![Button::B]),
-        ('\'', Some('"'), vec![Button::A, Button::B, Button::R1]),
-        (',', Some('<'), vec![Button::A, Button::X, Button::R1]),
-        ('.', Some('>'), vec![Button::B, Button::Y, Button::R1]),
-        ('/', Some('?'), vec![Button::X, Button::Y, Button::R1]),
-        (';', Some(':'), vec![Button::L1]),
+    for (plain, shifted, dpad, buttons) in [
+        ('a', Some('A'), Dpad::Neutral, vec![Button::A]),
+        ('o', Some('O'), Dpad::Neutral, vec![Button::B]),
+        ('l', Some('L'), Dpad::DownLeft, vec![]),
+        ('d', Some('D'), Dpad::Down, vec![Button::L1]),
+        ('r', Some('R'), Dpad::Right, vec![]),
+        ('u', Some('U'), Dpad::Neutral, vec![Button::Y, Button::R1]),
+        (
+            '\'',
+            Some('"'),
+            Dpad::Neutral,
+            vec![Button::A, Button::B, Button::R1],
+        ),
+        (
+            ',',
+            Some('<'),
+            Dpad::Neutral,
+            vec![Button::A, Button::X, Button::R1],
+        ),
+        (
+            '.',
+            Some('>'),
+            Dpad::Neutral,
+            vec![Button::B, Button::Y, Button::R1],
+        ),
+        (
+            '/',
+            Some('?'),
+            Dpad::Neutral,
+            vec![Button::X, Button::Y, Button::R1],
+        ),
+        (';', Some(':'), Dpad::UpLeft, vec![Button::L1]),
     ] {
         let base = layout
             .bindings
@@ -482,14 +506,7 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
             .find(|b| b.action == Action::Character(plain))
             .unwrap();
         assert_eq!(base.chord.buttons, buttons);
-        assert_eq!(
-            base.chord.dpad,
-            if plain == ';' {
-                Dpad::UpLeft
-            } else {
-                Dpad::Neutral
-            }
-        );
+        assert_eq!(base.chord.dpad, dpad);
         assert!(base.held.is_empty());
         if let Some(shifted) = shifted {
             let upper = layout

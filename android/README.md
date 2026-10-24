@@ -155,7 +155,7 @@ The bundled preset adds these adjacent face-button pairs:
 | Face pair | Navigation (R2 + L1) | Functions (R2 + R1) |
 | --- | --- | --- |
 | Square + Triangle | Previous track | Volume up |
-| Triangle + Circle | Next track | Unassigned |
+| Triangle + Circle | Next track | Print Screen |
 | Cross + Square | Delete | Volume down |
 | Cross + Circle | Play/pause | Mute/unmute |
 
@@ -165,9 +165,15 @@ dispatches media keys to the current media session and changes the music stream
 volume, so these controls also work without a focused text field.
 The app requests the normal `MODIFY_AUDIO_SETTINGS` permission; no runtime
 permission prompt is needed. Playback commands require a media app that handles them.
-The options `profile.navigation_media` and `profile.function_volume` are enabled in
-the bundled preset. Older imports without them keep their original behavior;
-volume combos must not overlap number or F11/F12 bindings.
+
+Unmodified Print Screen takes a screenshot using Android's
+[screenshot action](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#GLOBAL_ACTION_TAKE_SCREENSHOT),
+with or without a focused text field. Modified Print Screen goes to the focused editor.
+
+The options `profile.navigation_media`, `profile.function_volume`, and
+`profile.function_print_screen` are enabled in the bundled preset. Older imports
+without them keep their original behavior.
+Volume and Print Screen combos must not overlap number or F11/F12 bindings.
 
 Triggers engage at 65% and release at 35%; sticks engage at 55% and release at
 35%. D-pad hat axes and analog trigger axes take precedence over their duplicate
@@ -213,7 +219,7 @@ From `android/`, run:
 ./gradlew :app:assembleDebugAndroidTest
 ```
 
-The JVM and Rust tests use the same 361 recognition vectors, covering every
+The JVM and Rust tests use the same 371 recognition vectors, covering every
 bundled binding, overlapping releases, rolled diagonals, held and late modifiers,
 stick directions, menus, resets, forbidden pairs, startup, and queue overflow.
 Run the Rust half from the repository root with `cargo test --test android`.

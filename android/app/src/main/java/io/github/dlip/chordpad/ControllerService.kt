@@ -114,6 +114,7 @@ class ControllerService : AccessibilityService() {
                 "dpad_up" -> GLOBAL_ACTION_DPAD_UP; "dpad_down" -> GLOBAL_ACTION_DPAD_DOWN
                 "dpad_left" -> GLOBAL_ACTION_DPAD_LEFT; "dpad_right" -> GLOBAL_ACTION_DPAD_RIGHT
                 "dpad_center" -> GLOBAL_ACTION_DPAD_CENTER
+                "screenshot" -> GLOBAL_ACTION_TAKE_SCREENSHOT
                 else -> throw IllegalArgumentException("Unknown navigation action")
             })
         }

@@ -11,6 +11,7 @@ object KeyboardOutput {
     fun keyCode(key: String): Int = when (key) {
         "backspace" -> KeyEvent.KEYCODE_DEL
         "delete" -> KeyEvent.KEYCODE_FORWARD_DEL
+        "print_screen" -> KeyEvent.KEYCODE_SYSRQ
         "up" -> KeyEvent.KEYCODE_DPAD_UP
         "down" -> KeyEvent.KEYCODE_DPAD_DOWN
         "left" -> KeyEvent.KEYCODE_DPAD_LEFT

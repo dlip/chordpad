@@ -130,9 +130,11 @@ cargo run --release -- generate \
 cargo run -- render --layout independent.json --output independent.html
 ```
 
-[examples/independent.json](../examples/independent.json) pins `a` to A and `o` to B,
-along with punctuation, numbers, symbols, and Tab. L2 adds uppercase `A` and `O`.
-It also enables finger and thumb comfort costs. Use it with
+[examples/independent.json](../examples/independent.json) pins `a` to A, `o` to B,
+`l` to D-pad Down Left (↙), `u` to Y + R1, `d` to D-pad Down + L1,
+and `r` to D-pad Right (→).
+L2 adds uppercase letters. The preset also pins punctuation, numbers, symbols,
+and Tab, and enables finger and thumb comfort costs. Use it with
 `--config examples/independent.json` and your own corpus.
 
 Regenerate the checked-in default and refresh its reference:
@@ -271,6 +273,12 @@ keyboard modifiers. These optional additions require their parent layers and
 reserve their combos against numbers and F11/F12; incompatible custom bindings
 are rejected. Older layouts without the two options retain their behavior.
 
+With `profile.function_print_screen` enabled (as in the bundled preset),
+Y + B (Triangle + Circle) sends Print Screen from the function layer. It sends
+once on full chord release, supports keyboard modifiers, and reserves its combo
+against numbers and F11/F12. Older layouts without this option keep their
+existing function bindings.
+
 Use `--independent --function-layer` or `profile.function_layer` for new layouts.
 Generation includes all ten digits even with `--alphabet corpus` and derives
 F1–F10 from their final positions. Regenerate layouts with R2 + R1 symbols to
@@ -407,7 +415,7 @@ Shortcut actions use physical keyboard keys, for example:
 
 Modifiers must be nonempty, unique, and ordered `ctrl`, `alt`, `shift`, `meta`.
 Supported keys include letters `a` through `z`, Backspace, Escape, Enter, Tab,
-Space, Delete, Insert, arrows, Home/End, Page Up/Down, and F1 through F12. Multiword
+Space, Delete, Insert, arrows, Home/End, Page Up/Down, F1 through F12, and Print Screen (`print_screen`). Multiword
 key names use snake case (`page_up`). A key action uses the same names, such as
 `{"type":"key","value":"left"}`. Pin shortcuts/navigation actions in the
 generator configuration to include them in a generated layout. Plain text

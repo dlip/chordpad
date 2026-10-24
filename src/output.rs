@@ -62,6 +62,7 @@ pub fn key_code(key: Key) -> KeyCode {
         F10 => KeyCode::KEY_F10,
         F11 => KeyCode::KEY_F11,
         F12 => KeyCode::KEY_F12,
+        PrintScreen => KeyCode::KEY_SYSRQ,
         MediaPlayPause => KeyCode::KEY_PLAYPAUSE,
         MediaNext => KeyCode::KEY_NEXTSONG,
         MediaPrevious => KeyCode::KEY_PREVIOUSSONG,

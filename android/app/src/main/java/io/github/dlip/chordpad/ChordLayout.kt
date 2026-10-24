@@ -20,6 +20,7 @@ class ChordLayout(json: String) {
     val functionLayer: Boolean
     val navigationMedia: Boolean
     val functionVolume: Boolean
+    val functionPrintScreen: Boolean
     val functionBindings = mutableListOf<Binding>()
     private val functionActions = mutableMapOf<Int, Action>()
     private val actions = mutableMapOf<Int, Action>()
@@ -46,8 +47,9 @@ class ChordLayout(json: String) {
         functionLayer = profile.optBoolean("function_layer")
         navigationMedia = profile.optBoolean("navigation_media")
         functionVolume = profile.optBoolean("function_volume")
-        if ((navigationMedia && !navigationLayer) || (functionVolume && !functionLayer)) {
-            throw JSONException("Media/volume controls require their parent layer")
+        functionPrintScreen = profile.optBoolean("function_print_screen")
+        if ((navigationMedia && !navigationLayer) || (functionVolume && !functionLayer) || (functionPrintScreen && !functionLayer)) {
+            throw JSONException("Extra controls require their parent layer")
         }
         val extraButtons = intArrayOf(0, 0)
         val extraDpad = intArrayOf(1, 8)
@@ -73,6 +75,9 @@ class ChordLayout(json: String) {
             if (extraDpad[i] == 0 && extraButtons[i] in setOf(X or Y, A or X, A or B)) {
                 throw JSONException("F11/F12 conflict with volume combos")
             }
+        }
+        if (functionPrintScreen && (0..1).any { extraDpad[it] == 0 && extraButtons[it] == (B or Y) }) {
+            throw JSONException("F11/F12 conflict with Print Screen")
         }
         diagonals = profile.optBoolean("diagonals", true)
         excludeOpposites = profile.optBoolean("exclude_opposite_face_pairs")
@@ -146,8 +151,9 @@ class ChordLayout(json: String) {
                 if (number == null || number.buttons and (L1 or R1) != 0 ||
                     (number.buttons == extraButtons[0] && number.dpad == extraDpad[0]) ||
                     (number.buttons == extraButtons[1] && number.dpad == extraDpad[1]) ||
-                    (functionVolume && number.dpad == 0 && number.buttons in setOf(X or Y, A or X, A or B))) {
-                    throw JSONException("The function layer requires all ten number combos without L1/R1 or F11/F12 conflicts")
+                    (functionVolume && number.dpad == 0 && number.buttons in setOf(X or Y, A or X, A or B)) ||
+                    (functionPrintScreen && number.dpad == 0 && number.buttons == (B or Y))) {
+                    throw JSONException("The function layer requires all ten number combos without L1/R1 or extra function conflicts")
                 }
                 functionBinding(number.buttons, number.dpad, "f${if (digit == 0) 10 else digit}")
             }
@@ -158,6 +164,7 @@ class ChordLayout(json: String) {
                 functionBinding(A or X, 0, "volume_down")
                 functionBinding(A or B, 0, "mute")
             }
+            if (functionPrintScreen) functionBinding(B or Y, 0, "print_screen")
         }
     }
 

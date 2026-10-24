@@ -190,7 +190,7 @@ class MainActivity : Activity() {
                 1 -> {
                     val keys = arrayOf("enter", "escape", "space", "backspace", "delete", "tab", "up", "down", "left", "right", "home", "end", "page_up", "page_down",
                         "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-                        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "media_play_pause", "media_next", "media_previous", "media_stop", "volume_up", "volume_down", "mute")
+                        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "print_screen", "media_play_pause", "media_next", "media_previous", "media_stop", "volume_up", "volume_down", "mute")
                     AlertDialog.Builder(this).setTitle("Output key").setItems(keys) { _, which -> save(control, Action.key(keys[which])) }.show()
                 }
                 2 -> {

@@ -15,6 +15,7 @@ fn layout() -> Layout {
     .unwrap();
     layout.profile.function_layer = false;
     layout.profile.function_volume = false;
+    layout.profile.function_print_screen = false;
     layout
 }
 

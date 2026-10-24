@@ -362,6 +362,7 @@ fn number_overview_includes_face_symbols_and_shifted_outputs() {
     // Symbol-only layouts should still get a layer overview.
     layout.profile.function_layer = false;
     layout.profile.function_volume = false;
+    layout.profile.function_print_screen = false;
     layout.bindings.retain(|b| {
         !matches!(b.action, Action::Character(c) if c.is_ascii_digit() || "!@#$%^&*()".contains(c))
     });
@@ -420,7 +421,7 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     assert!(section(&html, "Navigation layer").contains("<span>·</span><span>→</span>"));
     assert_eq!(
         exported_labels(&html).len(),
-        layout.bindings.len() + 12 + 11
+        layout.bindings.len() + 12 + 12
     );
 }
 

@@ -22,6 +22,7 @@ fn key_name(key: Key) -> String {
     match key {
         Key::PageUp => "Page Up".into(),
         Key::PageDown => "Page Down".into(),
+        Key::PrintScreen => "Print Screen".into(),
         Key::MediaPlayPause => "Play/Pause".into(),
         Key::MediaNext => "Next".into(),
         Key::MediaPrevious => "Previous".into(),
@@ -377,6 +378,11 @@ fn reference_layers(layout: &Layout) -> Vec<ReferenceLayer> {
         });
     }
     if layout.profile.function_layer {
+        let print_note = if layout.profile.function_print_screen {
+            " Y + B sends Print Screen."
+        } else {
+            ""
+        };
         let volume_note = if layout.profile.function_volume {
             " Adjacent face pairs add Volume Up, Volume Down, and Mute, once per chord. Media and volume controls ignore keyboard modifiers."
         } else {
@@ -384,7 +390,7 @@ fn reference_layers(layout: &Layout) -> Vec<ReferenceLayer> {
         };
         layers.push(ReferenceLayer {
             title: "R2 + R1: function keys".into(), label: "Function layer".into(),
-            note: format!("Hold R2 and R1. Number combos 1–9 send F1–F9; 0 sends F10. F11 and F12 use the separate combos shown here. Release the entire ordinary chord to send one key. Keep the prefix held for sequential inputs. Add L2 for Shift or use thumbstick modifiers.{volume_note}"),
+            note: format!("Hold R2 and R1. Number combos 1–9 send F1–F9; 0 sends F10. F11 and F12 use the separate combos shown here.{print_note} Release the entire ordinary chord to send one key. Keep the prefix held for sequential inputs. Add L2 for Shift or use thumbstick modifiers.{volume_note}"),
             contexts: vec![Button::R1.bit() | Button::R2.bit()], bindings: layout.function_bindings(),
         });
     }

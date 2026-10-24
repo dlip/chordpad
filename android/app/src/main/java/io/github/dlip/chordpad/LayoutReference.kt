@@ -41,6 +41,7 @@ object LayoutReference {
         if (layout.functionLayer) {
             var note = "Hold R2 + R1. Use the number combos for F1–F10. Release the ordinary controls to send; keep the layer held for sequential inputs. Add L2 for Shift."
             if (layout.functionVolume) note += " Volume pairs send once and ignore modifiers."
+            if (layout.functionPrintScreen) note += " Y + B sends Print Screen."
             layers.add(layer("R2 + R1: function keys", note, layout.functionBindings, R2 or R1))
         }
         return layers
