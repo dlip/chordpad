@@ -199,7 +199,8 @@ Command/Meta support depend on the receiving app.
 
 Use JDK 21 and Android SDK platform 35 with build-tools 35.0.0. Set
 `ANDROID_HOME` or put `sdk.dir=…` in the ignored `android/local.properties`.
-Gradle is pinned by the wrapper. On NixOS:
+The app, tests, and gamepad check are written in Kotlin; Gradle supplies the
+compiler. Gradle is pinned by the wrapper. On NixOS:
 
 ```sh
 nix-shell android/shell.nix --run 'cd android && ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug'
@@ -255,9 +256,12 @@ signing key and are intended for sideloading, not store distribution.
 
 The [Android release workflow](../.github/workflows/android-release.yml) runs on
 every pushed tag. It runs release unit tests and lint, builds and signs
-`chordpad.apk`, and publishes it in a GitHub release with generated notes.
-Rerunning a successful workflow replaces the APK on the existing release, unless
-release immutability is enabled in the repository.
+`chordpad.apk`, and publishes it in a GitHub release with notes from
+[CHANGELOG.md](../CHANGELOG.md). A tag such as `v1.0.1` uses the changes below
+`## 1.0.1`, up to the next version heading. Missing, empty, or duplicate entries
+stop the workflow before it builds the APK.
+Rerunning a successful workflow replaces the APK and refreshes its release notes,
+unless release immutability is enabled in the repository.
 
 The APK's version name is the tag. Its version code is the workflow run number
 plus one, so each new run produces an increasing version code and reruns keep
@@ -291,9 +295,17 @@ releases so users can install updates. A local debug build uses a different key;
 export your layout before uninstalling it to switch to the release APK, then
 configure your mappings and accessibility service again after installation.
 
-After merging the workflow and setting the secrets, publish a tag:
+Keep pending changes under `## Unreleased`. Before a release, move them under a
+heading for the version you are tagging, and commit that changelog entry with
+the release's code. Preview the notes from the repository root:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+python3 scripts/release_notes.py v1.0.1
+```
+
+After merging the changes and setting the secrets, publish the tag:
+
+```sh
+git tag v1.0.1
+git push origin v1.0.1
 ```

@@ -1,4 +1,7 @@
-plugins { id 'com.android.application' }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
 
 android {
     namespace 'io.github.dlip.chordpad'
@@ -26,6 +29,12 @@ android {
         systemProperty 'chordpad.assets', file('src/main/assets').absolutePath
     }
     lint { abortOnError true }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }
 
 dependencies {

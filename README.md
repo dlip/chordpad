@@ -4,6 +4,8 @@ Type with a game controller on Linux or Android. Press a button combination
 (a chord), then release it to type a letter or key. The included layout is ready
 to use, with letters, numbers, punctuation, navigation, and keyboard shortcuts.
 
+See the [changelog](CHANGELOG.md) for release notes.
+
 ## Learn the chords
 
 Download the [one-page chord reference (PDF)](layout.pdf) for the included layout.

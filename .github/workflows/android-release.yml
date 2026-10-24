@@ -26,6 +26,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Read changelog notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 scripts/release_notes.py "$TAG" > "$RUNNER_TEMP/release-notes.md"
+
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -91,7 +98,8 @@ jobs:
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" dist/chordpad.apk --clobber
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
             gh release create "$TAG" dist/chordpad.apk \
-              --verify-tag --title "$TAG" --generate-notes
+              --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           fi

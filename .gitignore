@@ -4,5 +4,6 @@
 /layout.report.json
 /layout.html
 /android/.gradle/
+/android/.kotlin/
 /android/local.properties
 /android/**/build/

@@ -7,6 +7,7 @@ enter `nix-shell` first.
 cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 See [PLAN.md](../PLAN.md) for chord recognition rules and the remaining milestones.
