@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
-    <application android:name=".PadtypeApplication" android:label="padtype" android:theme="@style/AppTheme" android:icon="@drawable/ic_padtype"
+    <application android:name=".ChordpadApplication" android:label="Chordpad" android:theme="@style/AppTheme" android:icon="@drawable/ic_chordpad"
         android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
         <activity android:name=".ReferenceActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true"
@@ -13,7 +13,7 @@
             </intent-filter>
         </activity>
         <service android:name=".ControllerService" android:exported="true"
-            android:label="padtype controller input"
+            android:label="Chordpad controller input"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

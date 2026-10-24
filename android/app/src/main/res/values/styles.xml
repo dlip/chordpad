@@ -8,8 +8,8 @@
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowBackground">#F6F5F0</item>
     </style>
-    <string name="service_description">Use a game controller as a keyboard. padtype reads controller buttons and joysticks and sends your mapped text or keys to the focused text field. Start and stop remapping in the app. It does not read screen contents, record typing, or use the internet.</string>
-    <string name="mode_chords_label">Padtype chords</string>
+    <string name="service_description">Use a game controller as a keyboard. Chordpad reads controller buttons and joysticks and sends your mapped text or keys to the focused text field. Start and stop remapping in the app. It does not read screen contents, record typing, or use the internet.</string>
+    <string name="mode_chords_label">Chordpad chords</string>
     <string name="mode_direct_label">Direct mapping</string>
     <string name="last_output">Last output: %1$s</string>
     <string name="controller_input_on">Controller input on. Release all controls to start.</string>

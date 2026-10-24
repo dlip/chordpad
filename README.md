@@ -1,4 +1,4 @@
-# padtype
+# Chordpad
 
 Gamepad typing for Linux, with a layout generator that searches for comfortable,
 efficient chords.
@@ -471,7 +471,7 @@ Build the app and start it with your layout and a readable gamepad event path:
 
 ```sh
 cargo build --release
-target/release/padtype type --device /dev/input/event28 --layout layout.json
+target/release/chordpad type --device /dev/input/event28 --layout layout.json
 ```
 
 It starts paused. Press **L1 + R1 + L2 + R2**, then release all controls to enable
@@ -482,7 +482,7 @@ Ctrl-C or SIGTERM stops the process. It does not record normal typing.
 Test the runtime without sending keyboard events:
 
 ```sh
-target/release/padtype type --device /dev/input/event28 \
+target/release/chordpad type --device /dev/input/event28 \
   --layout layout.json --dry-run --start-active --duration 30
 ```
 
@@ -490,7 +490,7 @@ target/release/padtype type --device /dev/input/event28 \
 skips the initial pause, while still requiring neutral controls before typing.
 `--calibration controller.json` uses saved trigger settings. `--grab` requests
 exclusive controller access; the default leaves the gamepad available to other
-applications. On device loss, padtype discards pending strokes, releases keyboard
+applications. On device loss, Chordpad discards pending strokes, releases keyboard
 keys, and waits for the controller to return at the supplied path. Reconnecting
 reloads its mapping, restores `--grab`, and preserves the pause state. Release all
 controls, including triggers and sticks, before typing resumes. Pause/resume

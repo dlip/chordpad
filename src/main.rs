@@ -9,7 +9,7 @@ use std::{
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
-use padtype::{
+use chordpad::{
     Result,
     corpus::{Corpus, CorpusSummary, Stats},
     inspector,
@@ -52,7 +52,7 @@ enum Command {
     /// Replay a recorded controller session without hardware or delays.
     Replay(inspector::ReplayArgs),
     /// Type with a generated layout using a Linux virtual keyboard (starts paused).
-    Type(padtype::typing::TypeArgs),
+    Type(chordpad::typing::TypeArgs),
     /// Export a searchable, printable visual reference for a generated layout.
     Render {
         #[arg(long)]
@@ -188,20 +188,20 @@ fn run(cli: Cli) -> Result<()> {
                 return Err("render output must not overwrite the input layout".into());
             }
             let layout: Layout = read_json(&layout)?;
-            let html = padtype::render::html(&layout)?;
+            let html = chordpad::render::html(&layout)?;
             stage_file(&output, &html)?.persist(&output)
                 .map_err(|e| format!("{}: {e}", output.display()))?;
             println!("Visual layout: {}", output.display());
             Ok(())
         }
         #[cfg(target_os="linux")]
-        Command::Devices{json}=>padtype::linux::devices(json),
+        Command::Devices{json}=>chordpad::linux::devices(json),
         #[cfg(target_os="linux")]
-        Command::Inspect(args)=>padtype::linux::inspect(args),
+        Command::Inspect(args)=>chordpad::linux::inspect(args),
         #[cfg(target_os="linux")]
-        Command::Calibrate(args)=>padtype::linux::calibrate(args),
+        Command::Calibrate(args)=>chordpad::linux::calibrate(args),
         #[cfg(target_os="linux")]
-        Command::Type(args)=>padtype::linux::type_layout(args),
+        Command::Type(args)=>chordpad::linux::type_layout(args),
         #[cfg(not(target_os="linux"))]
         Command::Devices{..}|Command::Inspect(_)|Command::Calibrate(_)|Command::Type(_)=>Err("live controller access and typing require Linux; recorded sessions can be replayed on this platform".into()),
     }
@@ -391,7 +391,7 @@ fn generate(args: Generate) -> Result<()> {
     let report = Report {
         schema_version: SCHEMA_VERSION,
         generator_version: env!("CARGO_PKG_VERSION"),
-        dependency_lock_sha256: padtype::corpus::sha256(include_bytes!("../Cargo.lock")),
+        dependency_lock_sha256: chordpad::corpus::sha256(include_bytes!("../Cargo.lock")),
         cost_model_version: COST_MODEL_VERSION,
         seed: args.seed,
         iterations_per_restart: args.iterations,
@@ -490,7 +490,7 @@ fn stage_file(path: &Path, contents: &str) -> Result<tempfile::NamedTempFile> {
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
     let mut file = tempfile::Builder::new()
-        .prefix(".padtype-")
+        .prefix(".chordpad-")
         .tempfile_in(parent)
         .map_err(|e| format!("{}: {e}", path.display()))?;
     file.write_all(contents.as_bytes())

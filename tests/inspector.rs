@@ -1,4 +1,4 @@
-use padtype::{
+use chordpad::{
     controller::Calibration,
     inspector::{Header, Record, Session},
     model::*,
@@ -11,7 +11,7 @@ use std::{
 };
 
 fn run(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_padtype"))
+    Command::new(env!("CARGO_BIN_EXE_chordpad"))
         .args(args)
         .output()
         .unwrap()
@@ -124,7 +124,7 @@ fn recording_and_calibration_exports_never_replace_existing_files() {
     fs::write(&path, "keep this file").unwrap();
     let header = Header::new(Calibration::default(), None);
     assert!(Session::new(header, Some(&path), true).is_err());
-    assert!(padtype::inspector::write_new_json(&path, &Calibration::default()).is_err());
+    assert!(chordpad::inspector::write_new_json(&path, &Calibration::default()).is_err());
     assert_eq!(fs::read_to_string(path).unwrap(), "keep this file");
 }
 
@@ -172,7 +172,7 @@ fn generated_layout_is_used_to_resolve_recorded_chords() {
     let calibration = Calibration::default();
     let mut press = vec![];
     for (button, code) in &calibration.buttons {
-        press.push(padtype::controller::RawEvent {
+        press.push(chordpad::controller::RawEvent {
             event_type: 1,
             code: *code,
             value: i32::from(down.contains(button)),
@@ -184,7 +184,7 @@ fn generated_layout_is_used_to_resolve_recorded_chords() {
         (2, if down.contains(&Button::L2) { 255 } else { 0 }),
         (5, if down.contains(&Button::R2) { 255 } else { 0 }),
     ] {
-        press.push(padtype::controller::RawEvent {
+        press.push(chordpad::controller::RawEvent {
             event_type: 3,
             code,
             value,
@@ -192,7 +192,7 @@ fn generated_layout_is_used_to_resolve_recorded_chords() {
     }
     let release = press
         .iter()
-        .map(|e| padtype::controller::RawEvent { value: 0, ..*e })
+        .map(|e| chordpad::controller::RawEvent { value: 0, ..*e })
         .collect();
     let records = [
         Record::Header {

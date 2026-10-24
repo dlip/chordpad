@@ -1,4 +1,4 @@
-use padtype::{
+use chordpad::{
     chord::{Event, Recognizer},
     controller::Snapshot,
     model::*,
@@ -292,7 +292,7 @@ fn layouts_without_the_option_keep_r2_r1_symbol_chords() {
 fn generator_includes_all_digits_for_function_layer_with_a_small_corpus() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("corpus.txt"), "aA").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_padtype"))
+    let output = Command::new(env!("CARGO_BIN_EXE_chordpad"))
         .current_dir(dir.path())
         .args([
             "generate",

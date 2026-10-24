@@ -1,4 +1,4 @@
-# padtype for Android
+# Chordpad for Android
 
 A controller keyboard for Android 14 and newer, with a live DualSense preview,
 the desktop independent chord layout, and editable button/stick mappings.
@@ -12,14 +12,20 @@ Build the debug APK, then install it on a tablet with USB debugging enabled:
 cd android
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n io.github.dlip.padtype/.MainActivity
+adb shell am start -n io.github.dlip.chordpad/.MainActivity
 ```
 
+The Android application ID is `io.github.dlip.chordpad`. This installs separately
+from builds using the earlier package. Export your layout from the earlier app
+and import it into Chordpad; direct mappings and controller preferences need to
+be configured again. Stop remapping in the earlier app before enabling
+Chordpad's controller input service in Android accessibility settings.
+
 1. Pair the DualSense in Android's Bluetooth settings.
-2. Open **padtype → Enable controller input…**, select **padtype controller
+2. Open **Chordpad → Enable controller input…**, select **Chordpad controller
    input**, and enable it in Android's accessibility settings. If Android blocks
    a manually installed app, use its App info menu to allow restricted settings.
-3. Choose **Padtype chords** or **Direct mapping**, then **Start remapping**.
+3. Choose **Chordpad chords** or **Direct mapping**, then **Start remapping**.
 4. Focus the test field or a text field in another app. Release all controller
    controls before typing.
 
@@ -37,7 +43,7 @@ joystick capture.
 The selected controller is remembered by descriptor and reattaches automatically.
 App or service restarts leave remapping off.
 
-Assign padtype to Android's accessibility button to start or stop remapping from
+Assign Chordpad to Android's accessibility button to start or stop remapping from
 any app. Each tap confirms whether controller input is on or off. Starting while
 the controller is disconnected waits for it to reconnect. Release all controls
 after starting input.
@@ -56,7 +62,7 @@ without such a connection may not accept them; this app does not provide
 unrestricted system-wide keyboard or touch injection. Explicit Android Back,
 Home, and Recents actions are available in Direct mapping.
 
-## Padtype chords
+## Chordpad chords
 
 The included 97-binding layout matches the checked-in desktop default.
 Import another version 2 **independent** `layout.json` using the
@@ -85,7 +91,7 @@ editing behavior. Plain Tab and other modified Tab combinations go to the
 focused app. This opens the Android app switcher; it does not emulate holding
 Alt or Command while cycling between apps on a desktop.
 
-| DualSense control | Padtype role |
+| DualSense control | Chordpad role |
 | --- | --- |
 | Cross, Circle, Square, Triangle | A, B, X, Y, by physical position |
 | D-pad and L1 | Independent left typing half |
@@ -232,7 +238,7 @@ remapping off. Start with the bundled R1 Space mapping and a connected controlle
 ```sh
 ./gradlew :gamepad-check:assembleDebug
 adb install -r gamepad-check/build/outputs/apk/debug/gamepad-check-debug.apk
-adb shell am instrument -w io.github.dlip.padtype.gamepadcheck/io.github.dlip.padtype.GamepadCheck
+adb shell am instrument -w io.github.dlip.chordpad.gamepadcheck/io.github.dlip.chordpad.GamepadCheck
 ```
 
 The production manifest requests no internet or storage permissions and no

@@ -1,4 +1,4 @@
-use padtype::model::*;
+use chordpad::model::*;
 
 #[test]
 fn shoulders_use_index_alone_and_recruit_middle_for_the_trigger_when_paired() {

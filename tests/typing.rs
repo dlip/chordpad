@@ -1,4 +1,4 @@
-use padtype::{
+use chordpad::{
     Result,
     controller::Snapshot,
     model::*,
@@ -125,7 +125,7 @@ fn characters_modifiers_corrections_and_shortcuts_emit_once_after_release() {
 
 #[test]
 fn menu_buttons_type_once_on_release_and_respect_pause_reset_and_startup() {
-    use padtype::controller::{Calibration, KEY, Normalizer, RawEvent};
+    use chordpad::controller::{Calibration, KEY, Normalizer, RawEvent};
     let sent = Rc::new(RefCell::new(Sent::default()));
     let mut runtime = Runtime::new(layout(), &PAUSE, false, Sink(sent.clone())).unwrap();
     let mut normalizer = Normalizer::new(Calibration::default()).unwrap();
@@ -159,7 +159,7 @@ fn menu_buttons_type_once_on_release_and_respect_pause_reset_and_startup() {
     let events = runtime.reset("input events dropped").unwrap();
     assert!(matches!(
         events.as_slice(),
-        [padtype::chord::Event::Reset {
+        [chordpad::chord::Event::Reset {
             discarded: true,
             ..
         }]
@@ -275,7 +275,7 @@ fn typing_preflight_rejects_unsupported_outputs_and_gesture_conflicts_before_dev
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("layout.json");
     let run = |extra: &[&str]| {
-        std::process::Command::new(env!("CARGO_BIN_EXE_padtype"))
+        std::process::Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["type", "--device", "/does-not-exist", "--layout"])
             .arg(&path)
             .arg("--dry-run")
@@ -305,7 +305,7 @@ fn generator_accepts_shortcut_pins_and_preserves_the_reserved_gesture() {
     let dir = tempfile::tempdir().unwrap();
     let output = dir.path().join("layout.json");
     let config = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/typing.json");
-    let generated = std::process::Command::new(env!("CARGO_BIN_EXE_padtype"))
+    let generated = std::process::Command::new(env!("CARGO_BIN_EXE_chordpad"))
         .args(["generate", "--config"])
         .arg(config)
         .args([
@@ -341,8 +341,8 @@ fn generator_accepts_shortcut_pins_and_preserves_the_reserved_gesture() {
 #[cfg(target_os = "linux")]
 mod keyboard {
     use super::*;
+    use chordpad::output::{KeySink, Keyboard, stroke};
     use evdev::{InputEvent, KeyCode};
-    use padtype::output::{KeySink, Keyboard, stroke};
     use std::{collections::BTreeSet, io};
 
     #[derive(Default)]

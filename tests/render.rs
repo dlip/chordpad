@@ -1,4 +1,4 @@
-use padtype::{model::*, render};
+use chordpad::{model::*, render};
 use std::{fs, process::Command};
 
 fn layout() -> Layout {
@@ -276,7 +276,7 @@ fn cli_renders_and_invalid_inputs_preserve_existing_output() {
     let original = serde_json::to_vec(&layout()).unwrap();
     fs::write(&input, &original).unwrap();
     let run = |output: &std::path::Path| {
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .arg("render")
             .arg("--layout")
             .arg(&input)
@@ -314,7 +314,7 @@ fn output_aliases_cannot_overwrite_the_source_layout() {
         dir.path().join("linked.html"),
         dir.path().join("alias/layout.json"),
     ] {
-        let result = Command::new(env!("CARGO_BIN_EXE_padtype"))
+        let result = Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .arg("render")
             .arg("--layout")
             .arg(&input)

@@ -460,12 +460,12 @@ pub fn html(layout: &Layout) -> Result<String> {
     );
     write!(
         out,
-        "<title>padtype · {}</title><style>",
+        "<title>chordpad · {}</title><style>",
         escape(&layout.strategy.name)
     )
     .unwrap();
     out.push_str(include_str!("render/style.css"));
-    out.push_str("</style></head><body><header class=\"topbar wrap\"><a class=\"brand\" href=\"#top\"><span class=\"brand-icon\" aria-hidden=\"true\">✚</span>padtype<span class=\"brand-note\">layout reference</span></a><button class=\"print-button js-only\" id=\"print\" type=\"button\">Print / Save PDF</button></header><main id=\"top\" class=\"wrap\"><div class=\"intro\"><div><p class=\"eyebrow\">CONTROLLER → KEYBOARD</p><h1>Your typing layout<span>.</span></h1><p class=\"lede\">Find a character and read its chord on the map.</p></div><div class=\"layout-meta\">");
+    out.push_str("</style></head><body><header class=\"topbar wrap\"><a class=\"brand\" href=\"#top\"><span class=\"brand-icon\" aria-hidden=\"true\">✚</span>chordpad<span class=\"brand-note\">layout reference</span></a><button class=\"print-button js-only\" id=\"print\" type=\"button\">Print / Save PDF</button></header><main id=\"top\" class=\"wrap\"><div class=\"intro\"><div><p class=\"eyebrow\">CONTROLLER → KEYBOARD</p><h1>Your typing layout<span>.</span></h1><p class=\"lede\">Find a character and read its chord on the map.</p></div><div class=\"layout-meta\">");
     write!(
         out,
         "<strong>{} bindings</strong><span>{}</span></div></div>",
@@ -513,7 +513,7 @@ pub fn html(layout: &Layout) -> Result<String> {
     if layout.strategy.independent {
         out.push_str(&thumbstick_reference());
     }
-    out.push_str("<noscript><p>All layers and maps are shown. Open a text chord reference for combinations outside the maps. Enable JavaScript to search.</p></noscript></main><footer class=\"wrap\"><span>padtype / visual layout reference</span><span>Press together · release to type</span></footer><script>");
+    out.push_str("<noscript><p>All layers and maps are shown. Open a text chord reference for combinations outside the maps. Enable JavaScript to search.</p></noscript></main><footer class=\"wrap\"><span>chordpad / visual layout reference</span><span>Press together · release to type</span></footer><script>");
     out.push_str(include_str!("render/script.js"));
     out.push_str("</script></body></html>\n");
     Ok(out)

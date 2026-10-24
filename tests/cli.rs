@@ -6,7 +6,7 @@ use std::{
 };
 
 fn run(dir: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_padtype"))
+    Command::new(env!("CARGO_BIN_EXE_chordpad"))
         .current_dir(dir)
         .args(args)
         .output()
@@ -148,21 +148,21 @@ fn validation_errors_do_not_create_output_files() {
 fn default_configuration_round_trips_and_unknown_fields_fail() {
     let dir = tempfile::tempdir().unwrap();
     let defaults = success(run(dir.path(), &["defaults"]));
-    let config: padtype::model::Config = serde_json::from_slice(&defaults.stdout).unwrap();
+    let config: chordpad::model::Config = serde_json::from_slice(&defaults.stdout).unwrap();
     config.validate().unwrap();
     assert_eq!(config.strategies.len(), 7);
     assert_eq!(
         config.profile.modifier_only_buttons,
-        [padtype::model::Button::L2, padtype::model::Button::R2]
+        [chordpad::model::Button::L2, chordpad::model::Button::R2]
     );
-    let partial: padtype::model::Config =
+    let partial: chordpad::model::Config =
         serde_json::from_str(r#"{"profile":{"diagonals":false}}"#).unwrap();
     assert_eq!(
         partial.profile.modifier_only_buttons,
         config.profile.modifier_only_buttons
     );
     assert!(
-        serde_json::from_str::<padtype::model::Config>(r#"{"profile":{"diagonal":false}}"#)
+        serde_json::from_str::<chordpad::model::Config>(r#"{"profile":{"diagonal":false}}"#)
             .is_err()
     );
 }
@@ -342,13 +342,13 @@ fn independent_generation_scores_and_renders_every_binding_reproducibly() {
     ];
     success(run(dir.path(), &args));
     let bytes = fs::read(dir.path().join("layout.json")).unwrap();
-    let layout: padtype::model::Layout = serde_json::from_slice(&bytes).unwrap();
+    let layout: chordpad::model::Layout = serde_json::from_slice(&bytes).unwrap();
     layout.validate().unwrap();
     assert!(layout.strategy.independent);
     assert!(layout.profile.exclude_opposite_face_pairs);
     assert_eq!(layout.profile.costs.same_hand_transition, 1.0);
     assert!(layout.bindings.iter().any(|b| !b.held.is_empty()));
-    use padtype::model::{Action, Button, Dpad, Key};
+    use chordpad::model::{Action, Button, Dpad, Key};
     let find = |action| layout.bindings.iter().find(|b| b.action == action).unwrap();
     assert_eq!(layout.strategy.shift, Some(Button::L2));
     assert_eq!(layout.strategy.layer, Some(Button::R2));
@@ -376,7 +376,7 @@ fn independent_generation_scores_and_renders_every_binding_reproducibly() {
     }
 
     for b in &layout.bindings {
-        padtype::model::validate_independent_input(
+        chordpad::model::validate_independent_input(
             &layout.profile,
             b.chord.input().unwrap(),
             b.context().unwrap(),
@@ -412,7 +412,7 @@ fn independent_generation_scores_and_renders_every_binding_reproducibly() {
 
 #[test]
 fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
-    use padtype::model::{Action, Button, Dpad, Key, Layout};
+    use chordpad::model::{Action, Button, Dpad, Key, Layout};
     let dir = tempfile::tempdir().unwrap();
     fs::write(
         dir.path().join("config.json"),

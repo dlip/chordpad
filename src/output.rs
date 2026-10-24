@@ -202,7 +202,7 @@ pub fn virtual_device() -> Result<VirtualDevice> {
         keys.insert(key_code(key));
     }
     VirtualDevice::builder()
-        .and_then(|builder| builder.name("padtype virtual keyboard").with_keys(&keys))
+        .and_then(|builder| builder.name("chordpad virtual keyboard").with_keys(&keys))
         .and_then(|builder| builder.build())
         .map_err(|e| format!("/dev/uinput: {e}; read/write access is required for keyboard output (use --dry-run to test without it)"))
 }

@@ -6,5 +6,5 @@
     android:accessibilityFlags="flagRequestFilterKeyEvents|flagInputMethodEditor|flagRequestAccessibilityButton"
     android:canRequestFilterKeyEvents="true"
     android:canRetrieveWindowContent="false"
-    android:settingsActivity="io.github.dlip.padtype.MainActivity"
+    android:settingsActivity="io.github.dlip.chordpad.MainActivity"
     android:notificationTimeout="0" />

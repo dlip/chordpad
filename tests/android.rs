@@ -1,4 +1,4 @@
-use padtype::{
+use chordpad::{
     chord::{Event, Recognizer},
     controller::Snapshot,
     model::{Dpad, Layout, Modifier},

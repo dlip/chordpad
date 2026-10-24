@@ -1,12 +1,12 @@
 use super::layout;
-use evdev::{
-    AbsInfo, AbsoluteAxisCode, AttributeSet, InputEvent, KeyCode, UinputAbsSetup,
-    raw_stream::RawDevice, uinput::VirtualDevice,
-};
-use padtype::{
+use chordpad::{
     model::*,
     output::{self, Keyboard},
     typing::Output,
+};
+use evdev::{
+    AbsInfo, AbsoluteAxisCode, AttributeSet, InputEvent, KeyCode, UinputAbsSetup,
+    raw_stream::RawDevice, uinput::VirtualDevice,
 };
 use std::{
     fs::OpenOptions,
@@ -195,7 +195,7 @@ fn gamepad(name: &str, trigger_maximum: i32) -> VirtualDevice {
 #[test]
 #[ignore = "creates exclusively grabbed test gamepads; requires /dev/uinput and input-node access"]
 fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
-    let mut gamepad = gamepad("padtype test gamepad", 255);
+    let mut gamepad = gamepad("chordpad test gamepad", 255);
     let path = event_node(&mut gamepad);
     let dir = tempfile::tempdir().unwrap();
     let controller = dir.path().join("controller");
@@ -203,7 +203,7 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
     let layout_path = dir.path().join("layout.json");
     std::fs::write(&layout_path, serde_json::to_string(&layout()).unwrap()).unwrap();
     let mut process = Process(
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["type", "--device"])
             .arg(&controller)
             .arg("--layout")
@@ -275,7 +275,7 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
     until(&rx, &mut log, "PAUSED");
 
     // A different controller occupying the selected path must not be used.
-    let mut other = self::gamepad("padtype unrelated gamepad", 255);
+    let mut other = self::gamepad("chordpad unrelated gamepad", 255);
     let other_path = event_node(&mut other);
     std::fs::remove_file(&controller).unwrap();
     std::os::unix::fs::symlink(other_path, &controller).unwrap();
@@ -283,14 +283,14 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
     emit(&mut other, &[(1, 304, 1)]);
     emit(&mut other, &[(1, 304, 0)]);
 
-    let mut reattached = self::gamepad("padtype test gamepad", 1023);
+    let mut reattached = self::gamepad("chordpad test gamepad", 1023);
     let reattached_path = event_node(&mut reattached);
     assert_ne!(reattached_path, path);
     // Held controls on reattachment must not complete a pre-disconnect stroke.
     emit(&mut reattached, &[(1, 304, 1)]);
     std::fs::remove_file(&controller).unwrap();
     std::os::unix::fs::symlink(&reattached_path, &controller).unwrap();
-    until(&rx, &mut log, "Reconnected padtype test gamepad. PAUSED");
+    until(&rx, &mut log, "Reconnected chordpad test gamepad. PAUSED");
     let mut capture = RawDevice::open(&reattached_path).unwrap();
     assert_eq!(
         capture.grab().unwrap_err().raw_os_error(),
@@ -331,7 +331,7 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
 #[test]
 #[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
 fn linux_navigation_repeats_without_new_reports_and_stops_on_release() {
-    let mut gamepad = gamepad("padtype navigation test gamepad", 255);
+    let mut gamepad = gamepad("chordpad navigation test gamepad", 255);
     let path = event_node(&mut gamepad);
     let dir = tempfile::tempdir().unwrap();
     let layout_path = dir.path().join("layout.json");
@@ -341,7 +341,7 @@ fn linux_navigation_repeats_without_new_reports_and_stops_on_release() {
     )
     .unwrap();
     let mut process = Process(
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["type", "--device"])
             .arg(path)
             .arg("--layout")
@@ -390,7 +390,7 @@ fn linux_navigation_repeats_without_new_reports_and_stops_on_release() {
 #[test]
 #[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
 fn linux_function_layer_uses_number_combos_without_leaking_space() {
-    let mut gamepad = gamepad("padtype function test gamepad", 255);
+    let mut gamepad = gamepad("chordpad function test gamepad", 255);
     let path = event_node(&mut gamepad);
     let dir = tempfile::tempdir().unwrap();
     let layout_path = dir.path().join("layout.json");
@@ -400,7 +400,7 @@ fn linux_function_layer_uses_number_combos_without_leaking_space() {
     )
     .unwrap();
     let mut process = Process(
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["type", "--device"])
             .arg(path)
             .arg("--layout")
@@ -456,13 +456,13 @@ fn linux_function_layer_uses_number_combos_without_leaking_space() {
 #[test]
 #[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
 fn disconnected_wait_respects_the_session_duration() {
-    let mut gamepad = gamepad("padtype duration test gamepad", 255);
+    let mut gamepad = gamepad("chordpad duration test gamepad", 255);
     let path = event_node(&mut gamepad);
     let dir = tempfile::tempdir().unwrap();
     let layout_path = dir.path().join("layout.json");
     std::fs::write(&layout_path, serde_json::to_string(&layout()).unwrap()).unwrap();
     let mut process = Process(
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["type", "--device"])
             .arg(path)
             .arg("--layout")

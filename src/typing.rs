@@ -23,7 +23,7 @@ pub struct TypeArgs {
     /// Reserved toggle gesture, including any held modifiers. All supersets are reserved.
     #[arg(long, value_delimiter = ',', default_value = "L1,R1,L2,R2", value_parser = parse_button)]
     pub pause_buttons: Vec<Button>,
-    /// Give padtype exclusive access to the controller until exit.
+    /// Give Chordpad exclusive access to the controller until exit.
     #[arg(long)]
     pub grab: bool,
     #[arg(long)]

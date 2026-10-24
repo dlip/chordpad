@@ -1,4 +1,4 @@
-use padtype::{
+use chordpad::{
     chord::{Event, Phase, Recognizer},
     controller::Snapshot,
     model::*,
@@ -507,7 +507,7 @@ fn layout_validation_enforces_fixed_keys_base_letters_symbol_layer_and_shift_pai
 fn raw_report_replay_and_typing_runtime_agree_on_overlaps_held_layers_and_pause() {
     use Button::*;
     use Dpad::*;
-    use padtype::{
+    use chordpad::{
         controller::{Calibration, RawEvent},
         inspector::{Header, Record},
         typing::{Output, Runtime},
@@ -515,13 +515,13 @@ fn raw_report_replay_and_typing_runtime_agree_on_overlaps_held_layers_and_pause(
     use std::{cell::RefCell, fs, process::Command, rc::Rc};
     struct Sink(Rc<RefCell<String>>);
     impl Output for Sink {
-        fn send(&mut self, action: &Action) -> padtype::Result<()> {
+        fn send(&mut self, action: &Action) -> chordpad::Result<()> {
             if let Action::Character(c) = action {
                 self.0.borrow_mut().push(*c);
             }
             Ok(())
         }
-        fn release_all(&mut self) -> padtype::Result<()> {
+        fn release_all(&mut self) -> chordpad::Result<()> {
             Ok(())
         }
     }
@@ -600,7 +600,7 @@ fn raw_report_replay_and_typing_runtime_agree_on_overlaps_held_layers_and_pause(
     )
     .unwrap();
     let replay = || {
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["replay", "--input"])
             .arg(&recording)
             .arg("--json")
@@ -706,11 +706,11 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
     use Button::*;
     use Dpad::*;
     use Modifier::*;
-    use evdev::{InputEvent, KeyCode};
-    use padtype::{
+    use chordpad::{
         output::{KeySink, Keyboard, stroke_with_modifiers},
         typing::Runtime,
     };
+    use evdev::{InputEvent, KeyCode};
     use std::{cell::RefCell, io, rc::Rc};
     type Frames = Rc<RefCell<Vec<Vec<(u16, i32)>>>>;
     #[derive(Clone)]
@@ -799,7 +799,7 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
 
 #[test]
 fn raw_stick_reports_replay_latched_modifiers_with_shift_and_number_layer() {
-    use padtype::{
+    use chordpad::{
         controller::{Calibration, RawEvent, StickAxis, Thumbstick},
         inspector::{Header, Record},
     };
@@ -862,7 +862,7 @@ fn raw_stick_reports_replay_latched_modifiers_with_shift_and_number_layer() {
     )
     .unwrap();
     let replay = || {
-        Command::new(env!("CARGO_BIN_EXE_padtype"))
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
             .args(["replay", "--input"])
             .arg(&path)
             .arg("--json")

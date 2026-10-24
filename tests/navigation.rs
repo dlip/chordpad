@@ -1,4 +1,4 @@
-use padtype::{
+use chordpad::{
     Result,
     chord::{Event, Recognizer},
     controller::Snapshot,
@@ -113,11 +113,11 @@ fn pause_cannot_consume_the_navigation_trigger_in_a_sparse_layout() {
     let mut layout = layout();
     layout.bindings.retain(|b| b.held.is_empty());
     assert!(
-        padtype::typing::validate_pause(&layout, &[Button::R2])
+        chordpad::typing::validate_pause(&layout, &[Button::R2])
             .unwrap_err()
             .contains("navigation")
     );
-    assert!(padtype::typing::validate_pause(&layout, &[Button::L2, Button::R2]).is_err());
+    assert!(chordpad::typing::validate_pause(&layout, &[Button::L2, Button::R2]).is_err());
 }
 
 #[derive(Clone, Default)]

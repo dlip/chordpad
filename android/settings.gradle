@@ -5,6 +5,6 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories { google(); mavenCentral() }
 }
-rootProject.name = 'Padtype'
+rootProject.name = 'Chordpad'
 include ':app'
 include ':gamepad-check'

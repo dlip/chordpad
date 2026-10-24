@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare a reproducible Leipzig English web corpus for padtype."""
+"""Prepare a reproducible Leipzig English web corpus for Chordpad."""
 
 import argparse
 import hashlib
