@@ -389,7 +389,7 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     assert_eq!(base.matches("class=\"binding-map\"").count(), 4);
     for cell in [
         "<span>t / T</span><span>↑</span>",
-        "<span>k / K</span><span>Y + B</span>",
+        "<span>w / W</span><span>Y + B</span>",
         "<span>y / Y</span><span>A + X</span>",
         "<span>; / :</span><span>↖ + L1</span>",
         "<span>&#39; / &quot;</span><span>A + B + R1</span>",

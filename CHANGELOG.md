@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.3
+
+- Move `l` to D-pad ← + L1 in the default layout.
+- Prefer L1 + a cardinal direction over bare D-pad diagonals in the default effort costs, and regenerate the layout and references.
+
 ## 1.0.2
 
 - Pin `a` to A/Cross and `o` to B/Circle, and regenerate the default layout and chord references.

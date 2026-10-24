@@ -11,7 +11,8 @@
         0.25,
         0.125
       ],
-      "awkward_diagonal_extra": 0.6
+      "awkward_diagonal_extra": 0.6,
+      "diagonal_extra": 2.0
     },
     "base_punctuation": [
       "'",
@@ -73,8 +74,10 @@
         "value": "l"
       },
       "chord": {
-        "dpad": "down-left",
-        "buttons": []
+        "dpad": "left",
+        "buttons": [
+          "L1"
+        ]
       }
     },
     {

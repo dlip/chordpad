@@ -131,10 +131,9 @@ cargo run -- render --layout independent.json --output independent.html
 ```
 
 [examples/independent.json](../examples/independent.json) pins `a` to A, `o` to B,
-`l` to D-pad Down Left (↙), `u` to Y + R1, `d` to D-pad Down + L1,
-and `r` to D-pad Right (→).
-L2 adds uppercase letters. The preset also pins punctuation, numbers, symbols,
-and Tab, and enables finger and thumb comfort costs. Use it with
+`l` to D-pad Left + L1, `u` to Y + R1, `d` to D-pad Down + L1, and `r` to
+D-pad Right (→). L2 adds uppercase letters. It also pins punctuation, numbers,
+symbols, and Tab, and enables finger and thumb comfort costs. Use it with
 `--config examples/independent.json` and your own corpus.
 
 Regenerate the checked-in default and refresh its reference:
@@ -175,6 +174,13 @@ D-pad Down adds half the Up-to-Down distance to the movement metric. A same-thum
 input in the middle prevents that longer skipgram from being counted. These costs
 add to adjacent movement; they do not add presses, modifier changes, or hand-reuse
 penalties. Both thumbs are scored separately, including when Shift/layers are held.
+
+The preset sets `profile.costs.diagonal_extra` to `2.0`, making L1 plus a cardinal
+direction cheaper in the per-chord effort model than any bare D-pad diagonal,
+with or without L2 Shift. Base effort is `2.28` for L1 + a cardinal, `3.18` for
+↖/↘, and `3.78` for ↗/↙. With Shift, those costs are `3.73`, `3.93`, and `4.53`.
+Both chord types count as two activations. Movement, finger reuse, and grip
+changes still affect the total score across a sequence.
 
 `profile.costs.awkward_diagonal_extra` adds effort to inner-up and outer-down
 positions. The preset uses `0.6`. On the left these are D-pad ↗/↙; on the right

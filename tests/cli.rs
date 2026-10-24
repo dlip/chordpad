@@ -470,7 +470,7 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
     for (plain, shifted, dpad, buttons) in [
         ('a', Some('A'), Dpad::Neutral, vec![Button::A]),
         ('o', Some('O'), Dpad::Neutral, vec![Button::B]),
-        ('l', Some('L'), Dpad::DownLeft, vec![]),
+        ('l', Some('L'), Dpad::Left, vec![Button::L1]),
         ('d', Some('D'), Dpad::Down, vec![Button::L1]),
         ('r', Some('R'), Dpad::Right, vec![]),
         ('u', Some('U'), Dpad::Neutral, vec![Button::Y, Button::R1]),

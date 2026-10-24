@@ -1,6 +1,32 @@
 use chordpad::model::*;
 
 #[test]
+fn independent_preset_prefers_l1_cardinals_to_bare_diagonals_with_or_without_shift() {
+    let config: Config =
+        serde_json::from_str(include_str!("../examples/independent.json")).unwrap();
+    let costs = config.profile.costs;
+    for held in [0, Button::L2.bit()] {
+        for cardinal in [Dpad::Up, Dpad::Down, Dpad::Left, Dpad::Right] {
+            let shoulder_chord = Input {
+                dpad: cardinal,
+                mask: Button::L1.bit(),
+            };
+            for diagonal in [Dpad::UpLeft, Dpad::UpRight, Dpad::DownLeft, Dpad::DownRight] {
+                let diagonal_chord = Input {
+                    dpad: diagonal,
+                    mask: 0,
+                };
+                assert_eq!(shoulder_chord.controls(), diagonal_chord.controls());
+                assert!(
+                    costs.effort(shoulder_chord, held) < costs.effort(diagonal_chord, held),
+                    "L1 + {cardinal:?} must cost less than {diagonal:?}, held mask {held}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn shoulders_use_index_alone_and_recruit_middle_for_the_trigger_when_paired() {
     for (bumper, trigger, index, middle) in [
         (

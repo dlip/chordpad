@@ -32,7 +32,7 @@ X/Square west, and Y/Triangle north.
 | --- | --- |
 | A / Cross | `a`; hold L2 for `A` |
 | B / Circle | `o`; hold L2 for `O` |
-| D-pad ↙ | `l`; hold L2 for `L` |
+| D-pad ← + L1 | `l`; hold L2 for `L` |
 | D-pad → | `r`; hold L2 for `R` |
 | D-pad ↓ + L1 | `d`; hold L2 for `D` |
 | Y / Triangle + R1 | `u`; hold L2 for `U` |
