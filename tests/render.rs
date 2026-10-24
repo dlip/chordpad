@@ -348,12 +348,12 @@ fn number_overview_includes_face_symbols_and_shifted_outputs() {
     let html = overview(&layout);
     for (output, label) in [
         ("- / _", "X / □"),
-        ("= / +", "A / ×"),
+        ("= / +", "Y / △"),
         ("] / }", "A + X"),
         ("[ / {", "A + B"),
         ("\\ / |", "Y + B"),
         ("` / ~", "X + Y"),
-        ("9 / (", "Y / △"),
+        ("9 / (", "A / ×"),
         ("0 / )", "B / ○"),
         ("7 / &amp;", "←"),
     ] {
@@ -407,7 +407,7 @@ fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     let functions = section(&html, "Function layer");
     assert!(functions.contains("<span>Volume Up</span><span>X + Y</span>"));
     assert!(functions.contains("<span>F2</span><span>↗</span>"));
-    assert!(functions.contains("<span>F11</span><span>A / ×</span>"));
+    assert!(functions.contains("<span>F11</span><span>X / □</span>"));
     // Imported function positions and profile restrictions must reach the maps.
     layout.profile.function_volume = false;
     layout.profile.extra_function_chords[0].buttons = vec![Button::A, Button::X];

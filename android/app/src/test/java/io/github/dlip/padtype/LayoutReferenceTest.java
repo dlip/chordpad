@@ -31,7 +31,7 @@ public class LayoutReferenceTest {
         var layers = layers();
         assertEquals(List.of("·","↑","·","←","·","→","·","↓","·"),outputs(layers.get(2).maps().get(0)));
         assertEquals(List.of("Previous","Page Up","Next","Home","·","End","Delete","Page Down","Play/Pause"),outputs(layers.get(2).maps().get(1)));
-        assertEquals(List.of("Volume Up","F9","·","F12","·","F10","Volume Down","F11","Mute"),outputs(layers.get(3).maps().get(1)));
+        assertEquals(List.of("Volume Up","F12","·","F11","·","F10","Volume Down","F9","Mute"),outputs(layers.get(3).maps().get(1)));
     }
 
     @Test public void importedPositionsAndOptionalLayersComeFromActiveLayout() throws Exception {
@@ -40,8 +40,8 @@ public class LayoutReferenceTest {
         for (int i = 0; i < bindings.length(); i++) {
             var binding = bindings.getJSONObject(i);
             String value = binding.getJSONObject("action").getString("value");
-            if (List.of("-","_","=","+").contains(value)) {
-                binding.getJSONObject("chord").put("buttons",new org.json.JSONArray().put(value.equals("-") || value.equals("_") ? "A" : "X"));
+            if (List.of("-","_","=","+","9","(").contains(value)) {
+                binding.getJSONObject("chord").put("buttons",new org.json.JSONArray().put(value.equals("9") || value.equals("(") ? "Y" : value.equals("-") || value.equals("_") ? "A" : "X"));
             }
         }
         json.getJSONObject("profile").put("navigation_layer",false).put("navigation_media",false)

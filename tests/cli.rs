@@ -456,7 +456,7 @@ fn independent_example_pins_base_punctuation_and_uses_dedicated_menu_keys() {
         assert_eq!(binding.chord.dpad, dpad);
         assert!(binding.chord.buttons.is_empty());
     }
-    for (digit, button) in [('9', Button::Y), ('0', Button::B)] {
+    for (digit, button) in [('9', Button::A), ('0', Button::B), ('=', Button::Y)] {
         let binding = layout
             .bindings
             .iter()

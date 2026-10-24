@@ -107,7 +107,7 @@ public class ControllerTest {
             JSONObject binding = bindings.getJSONObject(i), action = binding.getJSONObject("action");
             String value = action.getString("value");
             if (!action.getString("type").equals("character") || !"0123456789".contains(value) || value.length() != 1) { bindings.remove(i); continue; }
-            if (value.equals("5") || value.equals("7")) binding.put("chord",new JSONObject().put("buttons",new JSONArray().put(value.equals("5") ? "A" : "X")));
+            if (value.equals("5") || value.equals("7") || value.equals("9")) binding.put("chord",new JSONObject().put("buttons",new JSONArray().put(value.equals("5") ? "A" : value.equals("7") ? "X" : "Y")));
         }
         ChordLayout legacy = new ChordLayout(old.toString());
         assertEquals(Action.key("f11"),legacy.resolveFunction(0,1,128,0));

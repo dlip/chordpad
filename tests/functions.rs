@@ -50,7 +50,7 @@ fn function_keys_share_number_chords_and_have_twelve_reference_outputs() {
     assert!(!html.contains("<svg"));
     assert!(html.contains("R2 + R1: function keys"));
     assert!(html.contains("R2: numbers"));
-    for (key, button) in [(Key::F11, Button::A), (Key::F12, Button::X)] {
+    for (key, button) in [(Key::F11, Button::X), (Key::F12, Button::Y)] {
         assert_eq!(
             functions
                 .iter()
@@ -92,7 +92,7 @@ fn bundled_numbers_follow_clockwise_dpad_and_face_positions() {
         );
         assert_eq!(binding.held, [Button::R2]);
     }
-    for (digit, button) in [('9', Button::Y), ('0', Button::B)] {
+    for (digit, button) in [('9', Button::A), ('0', Button::B), ('=', Button::Y)] {
         assert_eq!(
             layout
                 .bindings
@@ -116,7 +116,7 @@ fn older_layouts_keep_default_f11_f12_and_custom_pairs_are_supported() {
     legacy
         .bindings
         .retain(|b| matches!(b.action,Action::Character(c) if c.is_ascii_digit()));
-    for (digit, button) in [('5', Button::A), ('7', Button::X)] {
+    for (digit, button) in [('5', Button::A), ('7', Button::X), ('9', Button::Y)] {
         legacy
             .bindings
             .iter_mut()

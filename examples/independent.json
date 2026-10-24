@@ -23,12 +23,12 @@
     "extra_function_chords": [
       {
         "buttons": [
-          "A"
+          "X"
         ]
       },
       {
         "buttons": [
-          "X"
+          "Y"
         ]
       }
     ],
@@ -218,9 +218,8 @@
         "value": "9"
       },
       "chord": {
-        "dpad": "neutral",
         "buttons": [
-          "Y"
+          "A"
         ]
       },
       "held": [
@@ -262,8 +261,9 @@
         "value": "="
       },
       "chord": {
+        "dpad": "neutral",
         "buttons": [
-          "A"
+          "Y"
         ]
       },
       "held": [

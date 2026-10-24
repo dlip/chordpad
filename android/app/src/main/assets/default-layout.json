@@ -14,13 +14,13 @@
       {
         "dpad": "neutral",
         "buttons": [
-          "A"
+          "X"
         ]
       },
       {
         "dpad": "neutral",
         "buttons": [
-          "X"
+          "Y"
         ]
       }
     ],
@@ -223,7 +223,7 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "Y"
+          "A"
         ]
       },
       "held": [
@@ -269,7 +269,7 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "A"
+          "Y"
         ]
       },
       "held": [
@@ -464,7 +464,7 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "Y"
+          "A"
         ]
       },
       "held": [
@@ -524,7 +524,7 @@
       "chord": {
         "dpad": "neutral",
         "buttons": [
-          "A"
+          "Y"
         ]
       },
       "held": [

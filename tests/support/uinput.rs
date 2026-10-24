@@ -429,8 +429,8 @@ fn linux_function_layer_uses_number_combos_without_leaking_space() {
     until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + F7");
     for (button, key) in [
         (KeyCode::BTN_EAST.0, "F10"),
-        (KeyCode::BTN_SOUTH.0, "F11"),
-        (KeyCode::BTN_WEST.0, "F12"),
+        (KeyCode::BTN_WEST.0, "F11"),
+        (KeyCode::BTN_NORTH.0, "F12"),
     ] {
         emit(&mut gamepad, &[(1, button, 1)]);
         emit(&mut gamepad, &[(1, button, 0)]);
