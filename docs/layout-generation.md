@@ -5,10 +5,16 @@ anything. This guide covers creating and evaluating custom layouts. Run commands
 from the repository root with Rust and Cargo installed; on Nix, enter
 `nix-shell` first.
 
-The bundled layout has 97 bindings and uses the independent-halves preset,
-trained on the Leipzig English web corpus described below. Generating a layout
-writes to `layout.json` by default; use `--output custom-layout.json` to keep
-the bundled layout.
+The default is the [four-bank layout](../experiments/four-bank-alpha/README.md),
+with single thumb buttons, shared L1/R1 banks, and R2 numbers/functions. Its
+[reproduction instructions](../experiments/four-bank-alpha/README.md#reproduce)
+cover the full-text scorer and generator.
+
+The Rust generator described below creates layouts in the legacy schema,
+including the 97-binding independent-halves preset preserved in
+[examples/legacy-layout.json](../examples/legacy-layout.json). Its output
+remains supported by Linux and Android. Generation writes `layout.json` by
+default; use `--output custom-layout.json` to preserve the bundled layout.
 
 ## Generate a layout
 
@@ -136,7 +142,7 @@ D-pad Right (→). L2 adds uppercase letters. It also pins punctuation, numbers,
 symbols, and Tab, and enables finger and thumb comfort costs. Use it with
 `--config examples/independent.json` and your own corpus.
 
-Regenerate the checked-in default and refresh its reference:
+Regenerate a legacy independent layout and refresh its reference:
 
 ```sh
 python3 scripts/prepare_english_corpus.py
@@ -146,8 +152,9 @@ cargo run --release -- generate --config examples/independent.json \
 cargo run -- render --layout layout.json --output layout.html
 ```
 
-Copy `layout.json` to `android/app/src/main/assets/default-layout.json` when
-updating the Android preset.
+The default now uses the [four-bank generator](../experiments/four-bank-alpha/README.md#reproduce).
+Promote its generated JSON to `layout.json` and `android/app/src/main/assets/default-layout.json`,
+then refresh the root HTML/PDF references. Keep legacy output under another name.
 
 The preset uses `profile.costs.same_finger_transition: 1.0` instead of a whole-hand
 reuse penalty. D-pad inputs use the left thumb and face buttons use the right.
@@ -290,7 +297,7 @@ Generation includes all ten digits even with `--alphabet corpus` and derives
 F1–F10 from their final positions. Regenerate layouts with R2 + R1 symbols to
 move the conflicts. Changing between navigation and functions cancels unfinished
 strokes; holding both L1 and R1 with R2 suppresses typing until one is released.
-The normal L1 + R1 + L2 + R2 pause gesture still takes precedence. Navigation and
+The A + B + X + Y pause gesture takes precedence. Navigation and
 function tasks do not add separate frequencies to the text corpus score.
 
 `profile.base_punctuation` permits selected unshifted ASCII punctuation on the
@@ -409,7 +416,7 @@ cargo run --release -- generate --config examples/typing.json --corpus writing.t
 ```
 
 [examples/typing.json](../examples/typing.json) uses
-`"forbidden_combinations": [["L1", "R1", "L2", "R2"]]` to reserve the default
+`"forbidden_combinations": [["A", "B", "X", "Y"]]` to reserve the default Linux
 gesture. Existing layouts work if none of their bindings use that combination.
 Generating with a different pause gesture requires reserving that set instead.
 

@@ -1,0 +1,178 @@
+{
+  "format": "chordpad-alpha-bank-candidate-v1",
+  "runtime_supported": false,
+  "recognition": {
+    "late_bumper_window_ms": 100,
+    "freeze": "First thumb release or window expiry, whichever happens first.",
+    "late_additions": "New bumper presses join all eligible held thumb strokes.",
+    "bumper_release": "Preserve each stroke's captured bank.",
+    "output_order": "Stroke-start order; no extra delay to finish the collection window.",
+    "tap_consumption": "Each bumper used by any thumb stroke consumes its tap.",
+    "same_thumb_rolling": "Each thumb button press starts its own stroke, including overlapping adjacent buttons."
+  },
+  "banks": [
+    {
+      "held": [],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "s"
+        },
+        {
+          "control": "→",
+          "character": "r"
+        },
+        {
+          "control": "↓",
+          "character": "n"
+        },
+        {
+          "control": "←",
+          "character": "t"
+        },
+        {
+          "control": "Y / △",
+          "character": "i"
+        },
+        {
+          "control": "B / ○",
+          "character": "o"
+        },
+        {
+          "control": "A / ×",
+          "character": "a"
+        },
+        {
+          "control": "X / □",
+          "character": "e"
+        }
+      ]
+    },
+    {
+      "held": [
+        "L1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "b"
+        },
+        {
+          "control": "→",
+          "character": "m"
+        },
+        {
+          "control": "↓",
+          "character": "d"
+        },
+        {
+          "control": "←",
+          "character": "l"
+        },
+        {
+          "control": "Y / △",
+          "character": "u"
+        },
+        {
+          "control": "B / ○",
+          "character": "p"
+        },
+        {
+          "control": "A / ×",
+          "character": "y"
+        },
+        {
+          "control": "X / □",
+          "character": "g"
+        }
+      ]
+    },
+    {
+      "held": [
+        "R1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "w"
+        },
+        {
+          "control": "→",
+          "character": "f"
+        },
+        {
+          "control": "↓",
+          "character": "v"
+        },
+        {
+          "control": "←",
+          "character": "c"
+        },
+        {
+          "control": "Y / △",
+          "character": "k"
+        },
+        {
+          "control": "B / ○",
+          "character": "j"
+        },
+        {
+          "control": "A / ×",
+          "character": "x"
+        },
+        {
+          "control": "X / □",
+          "character": "h"
+        }
+      ]
+    },
+    {
+      "held": [
+        "L1",
+        "R1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": ";"
+        },
+        {
+          "control": "→",
+          "character": "\t"
+        },
+        {
+          "control": "↓",
+          "character": "q"
+        },
+        {
+          "control": "←",
+          "character": "z"
+        },
+        {
+          "control": "Y / △",
+          "character": "'"
+        },
+        {
+          "control": "B / ○",
+          "character": "/"
+        },
+        {
+          "control": "A / ×",
+          "character": ","
+        },
+        {
+          "control": "X / □",
+          "character": "."
+        }
+      ]
+    }
+  ],
+  "proposed_controls": {
+    "R1_tap": "Space",
+    "L1_tap": "Backspace",
+    "L2_tap": "one-shot Shift",
+    "L2_double_tap": "Caps Lock",
+    "Start": "Enter",
+    "Select": "Escape"
+  }
+}

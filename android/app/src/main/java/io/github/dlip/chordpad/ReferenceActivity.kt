@@ -38,7 +38,8 @@ class ReferenceActivity : Activity() {
         root.addView(toolbar)
         toolbar.addView(text("Chord reference", 24f, ink).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
         toolbar.addView(button("Done").apply { setOnClickListener { finish() } })
-        val layers = LayoutReference.layers(AppState.get(this).layout)
+        val layout = AppState.get(this).layout
+        val layers = LayoutReference.layers(layout)
         val choices = listOf("All layers") + layers.map { it.title } + "Thumbstick modifiers"
         filter = Spinner(this).apply {
             contentDescription = "Reference layer"
@@ -49,7 +50,9 @@ class ReferenceActivity : Activity() {
         root.addView(filter, LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(16), 0, dp(16), 0) })
         val scroll = ScrollView(this); root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val page = column().apply { setPadding(dp(16), 0, dp(16), dp(24)) }; scroll.addView(page)
-        page.addView(text("A / Cross × · B / Circle ○ · X / Square □ · Y / Triangle △\nOptions: Enter · Share: Escape in every layer. Hold modifiers before starting a chord; release ordinary controls to type.", 14f, muted))
+        val instructions = if (layout.alphaBanks != null) "One cardinal or face button per character. Bank bumpers can join within 100 ms; release the thumb button to type. A+B+X+Y pauses/resumes."
+            else "Hold modifiers before starting a chord; release ordinary controls to type. A+B+X+Y pauses/resumes."
+        page.addView(text("A / Cross × · B / Circle ○ · X / Square □ · Y / Triangle △\nOptions: Enter · Share: Escape in every layer. $instructions", 14f, muted))
         for (layer in layers) {
             val section = section(page, layer.title, layer.note)
             maps(section, layer.maps, false)
@@ -66,7 +69,7 @@ class ReferenceActivity : Activity() {
                 toggle.text = if (show) "Hide text chord reference" else "Show text chord reference"
             }
         }
-        val sticks = section(page, "Thumbstick modifiers", "Hold either stick while typing. Inward points toward the controller center. Command sends Meta / Super. Stick modifiers combine with L2 Shift and R2 layers.")
+        val sticks = section(page, "Thumbstick modifiers", "Tilt either stick while typing; inward points toward the controller center. Command sends Meta / Super. L3 sends Command+D; R3 sends Command+Shift+D, once on release and ignoring held modifiers. You can map these to Dictate and Cancel Dictation on your computer. A+B+X+Y pauses/resumes.")
         maps(sticks, LayoutReference.sticks(), true)
         filter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -110,6 +113,7 @@ class ReferenceActivity : Activity() {
                             gravity = Gravity.CENTER; setPadding(dp(6), dp(10), dp(6), dp(10)); minimumHeight = dp(94)
                             background = GradientDrawable().apply { setColor(0xfff6f5f0.toInt()); cornerRadius = dp(8).toFloat(); setStroke(dp(1), 0xffd7dfdf.toInt()) }
                         }
+                        if (cell.output.isEmpty() && cell.controls.isEmpty()) box.visibility = View.INVISIBLE
                         val output = text(if (sticks) cell.controls else cell.output, if (sticks) 24f else 20f, blue).apply {
                             gravity = Gravity.CENTER; setTypeface(null, Typeface.BOLD)
                         }

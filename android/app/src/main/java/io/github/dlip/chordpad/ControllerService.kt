@@ -16,6 +16,9 @@ import android.widget.Toast
 class ControllerService : AccessibilityService() {
     private var state: AppState? = null
     private var previousKeyboardMode = -1
+    private val shiftSelection = ShiftSelection()
+
+    fun setModifiers(mask: Int) { shiftSelection.setShift(mask and Action.SHIFT != 0) }
     private val buttonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
         override fun onClicked(controller: AccessibilityButtonController) {
             val state = state ?: return
@@ -78,17 +81,32 @@ class ControllerService : AccessibilityService() {
         if (state == null) state = AppState.get(this)
         return object : InputMethod(this) {
             override fun onStartInput(info: EditorInfo, restarting: Boolean) {
-                state?.let { it.editor = true; it.focusChanged() }
+                shiftSelection.start(info.initialSelStart, restarting)
+                state?.let {
+                    val connected = it.editor
+                    it.editor = true
+                    if (!restarting || !connected) it.focusChanged()
+                }
             }
             override fun onFinishInput() {
+                shiftSelection.finish()
                 state?.let { it.editor = false; it.focusChanged() }
+            }
+            override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int,
+                newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
+                val range = shiftSelection.update(oldSelStart, newSelStart, newSelEnd)
+                range?.let { (start, end) ->
+                    currentInputConnection?.setSelection(start, end)
+                }
             }
         }
     }
 
     override fun onKeyEvent(event: KeyEvent) = state?.key(event) == true
     override fun onMotionEvent(event: MotionEvent) { state?.motion(event) }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) { state?.focusChanged() }
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) state?.focusChanged()
+    }
     override fun onInterrupt() { state?.setEnabled(false) }
 
     override fun onDestroy() {
@@ -120,6 +138,7 @@ class ControllerService : AccessibilityService() {
         }
         if (action.consumerKey()) return ConsumerOutput.send(this, action)
         if (!editorAvailable) return false
+        shiftSelection.output()
         KeyboardOutput.send(connection, action)
         return true
     }

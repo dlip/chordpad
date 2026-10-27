@@ -331,7 +331,7 @@ fn output_aliases_cannot_overwrite_the_source_layout() {
 #[test]
 fn number_overview_includes_face_symbols_and_shifted_outputs() {
     let mut layout: Layout = serde_json::from_str(include_str!(
-        "../android/app/src/main/assets/default-layout.json"
+        "../android/app/src/main/assets/legacy-layout.json"
     ))
     .unwrap();
     let overview = |layout: &Layout| {
@@ -372,7 +372,7 @@ fn number_overview_includes_face_symbols_and_shifted_outputs() {
 #[test]
 fn eight_way_maps_cover_base_shift_shoulders_and_derived_layers() {
     let mut layout: Layout = serde_json::from_str(include_str!(
-        "../android/app/src/main/assets/default-layout.json"
+        "../android/app/src/main/assets/legacy-layout.json"
     ))
     .unwrap();
     let section = |html: &str, label: &str| {

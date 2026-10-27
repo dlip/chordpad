@@ -90,20 +90,34 @@ impl Button {
 pub enum MenuButton {
     Start,
     Select,
+    L3,
+    R3,
 }
 
 impl MenuButton {
-    pub const ALL: [Self; 2] = [Self::Start, Self::Select];
+    pub const ALL: [Self; 4] = [Self::Start, Self::Select, Self::L3, Self::R3];
 
     pub fn index(self) -> usize {
         self as usize
     }
 
     pub fn action(self) -> Action {
-        Action::Key(match self {
-            Self::Start => Key::Enter,
-            Self::Select => Key::Escape,
-        })
+        match self {
+            Self::Start => Action::Key(Key::Enter),
+            Self::Select => Action::Key(Key::Escape),
+            Self::L3 => Action::Shortcut(Shortcut {
+                modifiers: vec![Modifier::Meta],
+                key: Key::D,
+            }),
+            Self::R3 => Action::Shortcut(Shortcut {
+                modifiers: vec![Modifier::Shift, Modifier::Meta],
+                key: Key::D,
+            }),
+        }
+    }
+
+    pub fn uses_keyboard_modifiers(self) -> bool {
+        matches!(self, Self::Start | Self::Select)
     }
 }
 

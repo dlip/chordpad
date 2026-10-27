@@ -10,10 +10,10 @@ class GamepadKeys {
 
     fun update(code: Int, action: Int, repeat: Int, consume: Boolean): Result {
         val layer = when (code) {
-            KeyEvent.KEYCODE_BUTTON_L1 -> 1
-            KeyEvent.KEYCODE_BUTTON_R1 -> 2
-            KeyEvent.KEYCODE_BUTTON_L2 -> 4
-            KeyEvent.KEYCODE_BUTTON_R2 -> 8
+            KeyEvent.KEYCODE_BUTTON_A -> 1
+            KeyEvent.KEYCODE_BUTTON_B -> 2
+            KeyEvent.KEYCODE_BUTTON_X -> 4
+            KeyEvent.KEYCODE_BUTTON_Y -> 8
             else -> 0
         }
         var gesture = false

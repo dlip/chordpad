@@ -49,7 +49,7 @@ pub enum Event {
 
 #[derive(Default)]
 pub(crate) struct MenuKeys {
-    pending: [Option<Event>; 2],
+    pending: [Option<Event>; MenuButton::ALL.len()],
     previous_modifiers: Vec<Modifier>,
 }
 
@@ -79,7 +79,7 @@ impl MenuKeys {
             .into_iter()
             .map(|button| {
                 let pending = &mut self.pending[button.index()];
-                if pending.is_some() && added_modifier {
+                if pending.is_some() && added_modifier && button.uses_keyboard_modifiers() {
                     *pending = Some(Event::Cancelled {
                         reason: "modifier pressed during a menu button stroke".into(),
                     });
@@ -90,7 +90,11 @@ impl MenuKeys {
                     *pending = Some(Event::Menu {
                         button,
                         action: button.action(),
-                        keyboard_modifiers: modifiers.clone(),
+                        keyboard_modifiers: if button.uses_keyboard_modifiers() {
+                            modifiers.clone()
+                        } else {
+                            vec![]
+                        },
                     });
                 }
                 MenuChange {

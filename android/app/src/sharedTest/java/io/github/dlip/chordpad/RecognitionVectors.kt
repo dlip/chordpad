@@ -26,7 +26,7 @@ object RecognitionVectors {
                 val modifiers = ControllerInput.modifiers(left[0], left[1], true) or ControllerInput.modifiers(right[0], right[1], false)
                 var menu = 0
                 val buttons = frame.optJSONArray("menu_buttons")
-                if (buttons != null) for (k in 0 until buttons.length()) menu = menu or if (buttons.getString(k) == "Start") 1 else 2
+                if (buttons != null) for (k in 0 until buttons.length()) menu = menu or when (buttons.getString(k)) { "Start" -> 1; "Select" -> 2; "L3" -> 4; "R3" -> 8; else -> error("Unknown menu button") }
                 actual.addAll(engine.update(Frame(ChordLayout.buttons(frame.getJSONArray("buttons")),
                     if (frame.isNull("dpad")) 3 else ChordLayout.direction(frame.getString("dpad")),
                     modifiers, menu, left[0], left[1], right[0], right[1]), now))

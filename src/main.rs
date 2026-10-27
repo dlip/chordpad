@@ -187,8 +187,10 @@ fn run(cli: Cli) -> Result<()> {
             if resolved_path(&layout)? == resolved_path(&output)? {
                 return Err("render output must not overwrite the input layout".into());
             }
-            let layout: Layout = read_json(&layout)?;
-            let html = chordpad::render::html(&layout)?;
+            let html = match chordpad::typing::TypingLayout::parse(read_json(&layout)?)? {
+                chordpad::typing::TypingLayout::Standard(layout) => chordpad::render::html(&layout)?,
+                chordpad::typing::TypingLayout::Alpha(layout) => layout.reference_html()?,
+            };
             stage_file(&output, &html)?.persist(&output)
                 .map_err(|e| format!("{}: {e}", output.display()))?;
             println!("Visual layout: {}", output.display());

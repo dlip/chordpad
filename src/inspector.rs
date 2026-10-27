@@ -60,6 +60,8 @@ pub struct Header {
     pub strategy: Strategy,
     pub profile: Profile,
     pub layout: Option<Layout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alpha_layout: Option<crate::alpha_banks::Layout>,
 }
 
 impl Header {
@@ -84,6 +86,23 @@ impl Header {
             strategy,
             profile,
             layout,
+            alpha_layout: None,
+        }
+    }
+    pub fn with_layout(
+        calibration: Calibration,
+        layout: Option<crate::typing::TypingLayout>,
+    ) -> Self {
+        match layout {
+            Some(crate::typing::TypingLayout::Standard(layout)) => {
+                Self::new(calibration, Some(*layout))
+            }
+            Some(crate::typing::TypingLayout::Alpha(layout)) => {
+                let mut header = Self::new(calibration, None);
+                header.alpha_layout = Some(layout);
+                header
+            }
+            None => Self::new(calibration, None),
         }
     }
 }
@@ -107,7 +126,7 @@ pub struct View {
 
 struct Run {
     normalizer: Normalizer,
-    engine: Recognizer,
+    engine: crate::typing::Engine,
     last: Option<Snapshot>,
     at_us: u64,
     ended: bool,
@@ -120,7 +139,19 @@ impl Run {
         }
         Ok(Self {
             normalizer: Normalizer::new(header.calibration)?,
-            engine: Recognizer::new(header.strategy, header.profile, header.layout)?,
+            engine: match header.alpha_layout {
+                Some(layout) => {
+                    if header.layout.is_some() {
+                        return Err("recording has two layouts".into());
+                    }
+                    crate::typing::Engine::Alpha(Box::new(crate::alpha_banks::Engine::new(layout)?))
+                }
+                None => crate::typing::Engine::Standard(Recognizer::new(
+                    header.strategy,
+                    header.profile,
+                    header.layout,
+                )?),
+            },
             last: None,
             at_us: 0,
             ended: false,
@@ -145,7 +176,7 @@ impl Run {
         match record {
             Record::Frame { events, .. } => {
                 let snapshot = self.normalizer.apply(&events)?;
-                let events = self.engine.update(&snapshot);
+                let events = self.engine.update_at(&snapshot, at_us / 1000);
                 if self.last.as_ref() == Some(&snapshot) && events.is_empty() {
                     return Ok(None);
                 }

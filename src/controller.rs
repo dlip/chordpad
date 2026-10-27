@@ -284,7 +284,13 @@ impl Default for Calibration {
                 (Button::R1, 311),
             ]
             .into(),
-            menu_buttons: [(MenuButton::Start, 315), (MenuButton::Select, 314)].into(),
+            menu_buttons: [
+                (MenuButton::Start, 315),
+                (MenuButton::Select, 314),
+                (MenuButton::L3, 317),
+                (MenuButton::R3, 318),
+            ]
+            .into(),
             dpad: DpadSource::Hat { x: 16, y: 17 },
             triggers: [
                 (Button::L2, Trigger::axis(2, 0, 255)),

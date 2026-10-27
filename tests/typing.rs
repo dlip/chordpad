@@ -90,6 +90,22 @@ impl Output for Sink {
 const PAUSE: [Button; 4] = [Button::L1, Button::R1, Button::L2, Button::R2];
 
 #[test]
+fn default_pause_uses_all_four_face_buttons() {
+    use clap::Parser;
+    #[derive(Parser)]
+    struct Cli {
+        #[command(flatten)]
+        args: chordpad::typing::TypeArgs,
+    }
+    let cli =
+        Cli::try_parse_from(["chordpad", "--device", "unused", "--layout", "unused"]).unwrap();
+    assert_eq!(
+        cli.args.pause_buttons,
+        [Button::A, Button::B, Button::X, Button::Y]
+    );
+}
+
+#[test]
 fn characters_modifiers_corrections_and_shortcuts_emit_once_after_release() {
     use Button::*;
     let sent = Rc::new(RefCell::new(Sent::default()));
@@ -327,7 +343,8 @@ fn generator_accepts_shortcut_pins_and_preserves_the_reserved_gesture() {
     );
     let l: Layout = serde_json::from_str(&std::fs::read_to_string(output).unwrap()).unwrap();
     l.validate().unwrap();
-    validate_pause(&l, &PAUSE).unwrap();
+    let pause = [Button::A, Button::B, Button::X, Button::Y];
+    validate_pause(&l, &pause).unwrap();
     assert_eq!(
         l.bindings
             .iter()
@@ -335,7 +352,7 @@ fn generator_accepts_shortcut_pins_and_preserves_the_reserved_gesture() {
             .count(),
         2
     );
-    assert_eq!(l.profile.forbidden_combinations, [PAUSE.to_vec()]);
+    assert_eq!(l.profile.forbidden_combinations, [pause.to_vec()]);
 }
 
 #[cfg(target_os = "linux")]
@@ -432,6 +449,159 @@ mod keyboard {
         let before = frames.borrow().calls;
         drop(keyboard);
         assert_eq!(frames.borrow().calls, before);
+    }
+
+    fn down_keys(frames: &Frames) -> BTreeSet<u16> {
+        let mut down = BTreeSet::new();
+        for frame in &frames.values {
+            for &(code, value) in frame {
+                if value == 1 {
+                    assert!(down.insert(code), "Duplicate press: {code}");
+                } else {
+                    assert!(down.remove(&code), "Unmatched release: {code}");
+                }
+            }
+        }
+        down
+    }
+
+    #[test]
+    fn modifiers_are_held_immediately_and_unchanged_keys_do_not_bounce() {
+        for json in [
+            include_str!("../layout.json"),
+            include_str!("../experiments/four-bank-alpha/layout.json"),
+        ] {
+            let frames = Rc::new(RefCell::new(Frames::default()));
+            let source =
+                chordpad::typing::TypingLayout::parse(serde_json::from_str(json).unwrap()).unwrap();
+            let mut runtime = Runtime::with_layout(
+                source,
+                &[Button::A, Button::B, Button::X, Button::Y],
+                false,
+                Keyboard::new(Device(frames.clone())),
+            )
+            .unwrap();
+            runtime.update(&state(&[Button::L2])).unwrap();
+            assert!(frames.borrow().values.is_empty());
+            runtime.update(&state(&[])).unwrap();
+            let mut input = state(&[Button::L2]);
+            runtime.update(&input).unwrap();
+            assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([42]));
+            runtime.update(&input).unwrap();
+            assert_eq!(frames.borrow().calls, 1);
+            input.left_stick = Dpad::Left;
+            input.right_stick = Dpad::Right;
+            runtime.update(&input).unwrap();
+            assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([29, 42]));
+            input.left_stick = Dpad::Neutral;
+            runtime.update(&input).unwrap();
+            assert_eq!(frames.borrow().calls, 2);
+            input.buttons.clear();
+            runtime.update(&input).unwrap();
+            assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([29]));
+            input.right_stick = Dpad::Neutral;
+            runtime.update(&input).unwrap();
+            assert!(down_keys(&frames.borrow()).is_empty());
+        }
+    }
+
+    #[test]
+    fn held_modifiers_survive_typing_and_exact_shortcuts_restore_the_hold() {
+        let frames = Rc::new(RefCell::new(Frames::default()));
+        let mut keyboard = Keyboard::new(Device(frames.clone()));
+        keyboard.set_modifiers(&[Modifier::Shift]).unwrap();
+        keyboard
+            .send_modified(&Action::Character('a'), &[Modifier::Shift])
+            .unwrap();
+        assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([42]));
+        assert_eq!(
+            frames.borrow().values,
+            [vec![(42, 1)], vec![(30, 1)], vec![(30, 0)]]
+        );
+        keyboard
+            .send(&Action::Shortcut(Shortcut {
+                modifiers: vec![Modifier::Meta],
+                key: Key::D,
+            }))
+            .unwrap();
+        assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([42]));
+        keyboard.send(&Action::Key(Key::VolumeUp)).unwrap();
+        assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([42]));
+        keyboard.set_modifiers(&[]).unwrap();
+        assert!(down_keys(&frames.borrow()).is_empty());
+        assert_eq!(
+            &frames.borrow().values[3..],
+            [
+                vec![(42, 0)],
+                vec![(125, 1), (32, 1)],
+                vec![(32, 0), (125, 0)],
+                vec![(42, 1)],
+                vec![(42, 0)],
+                vec![(115, 1)],
+                vec![(115, 0)],
+                vec![(42, 1)],
+                vec![(42, 0)],
+            ]
+        );
+    }
+
+    #[test]
+    fn modifier_holds_are_released_on_pause_invalid_input_reset_and_drop() {
+        let frames = Rc::new(RefCell::new(Frames::default()));
+        let source = chordpad::typing::TypingLayout::parse(
+            serde_json::from_str(include_str!("../experiments/four-bank-alpha/layout.json"))
+                .unwrap(),
+        )
+        .unwrap();
+        let mut runtime = Runtime::with_layout(
+            source,
+            &[Button::A, Button::B, Button::X, Button::Y],
+            false,
+            Keyboard::new(Device(frames.clone())),
+        )
+        .unwrap();
+        runtime.update(&state(&[])).unwrap();
+        runtime.update(&state(&[Button::L2])).unwrap();
+        runtime.set_paused(true).unwrap();
+        assert!(down_keys(&frames.borrow()).is_empty());
+        runtime.set_paused(false).unwrap();
+        runtime.update(&state(&[Button::L2])).unwrap();
+        assert!(down_keys(&frames.borrow()).is_empty());
+        runtime.update(&state(&[])).unwrap();
+        runtime.update(&state(&[Button::L2])).unwrap();
+        assert_eq!(down_keys(&frames.borrow()), BTreeSet::from([42]));
+        let mut invalid = state(&[Button::L2]);
+        invalid.dpad = None;
+        runtime.update(&invalid).unwrap();
+        assert!(down_keys(&frames.borrow()).is_empty());
+        runtime.update(&state(&[])).unwrap();
+        runtime.update(&state(&[Button::L2])).unwrap();
+        runtime.reset("disconnected").unwrap();
+        assert!(down_keys(&frames.borrow()).is_empty());
+        runtime.update(&state(&[Button::L2])).unwrap();
+        assert!(down_keys(&frames.borrow()).is_empty());
+        runtime.update(&state(&[])).unwrap();
+        runtime.update(&state(&[Button::L2])).unwrap();
+        drop(runtime);
+        assert!(down_keys(&frames.borrow()).is_empty());
+    }
+
+    #[test]
+    fn failed_modifier_transitions_release_every_attempted_key() {
+        for failures in [vec![2], vec![3], vec![3, 4]] {
+            let frames = Rc::new(RefCell::new(Frames {
+                fail_on: failures.into_iter().collect(),
+                ..Frames::default()
+            }));
+            let mut keyboard = Keyboard::new(Device(frames.clone()));
+            keyboard.set_modifiers(&[Modifier::Shift]).unwrap();
+            assert!(keyboard.set_modifiers(&[Modifier::Ctrl]).is_err());
+            drop(keyboard);
+            let f = frames.borrow();
+            assert!(!f.fail_on.contains(&f.calls));
+            let attempted = if f.calls == 3 { 42 } else { 29 };
+            assert_eq!(f.values.last().unwrap(), &vec![(attempted, 0)]);
+        }
     }
 
     #[test]

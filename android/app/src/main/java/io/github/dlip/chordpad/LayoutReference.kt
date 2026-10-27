@@ -12,6 +12,7 @@ object LayoutReference {
     private val arrows = arrayOf("↖", "↑", "↗", "←", "●", "→", "↙", "↓", "↘")
 
     fun layers(layout: ChordLayout): List<Layer> {
+        layout.alphaBanks?.let { return alphaLayers(it) }
         val layers = mutableListOf<Layer>()
         val typing = layout.bindings.toMutableList()
         for (binding in layout.bindings) {
@@ -45,6 +46,36 @@ object LayoutReference {
             layers.add(layer("R2 + R1: function keys", note, layout.functionBindings, R2 or R1))
         }
         return layers
+    }
+
+    private fun alphaLayers(layout: AlphaBankLayout): List<Layer> {
+        val titles = listOf("Base: letters and punctuation", "L1: alpha", "R1: alpha", "L1 + R1: alpha",
+            "R2: numbers 1–4", "R2 + L1: numbers 5–8", "R1 + R2: navigation", "Add L1: editing / media",
+            "Tap R2 twice: function keys", "Add L1: function keys")
+        return (layout.banks + layout.navigation + layout.functions).mapIndexed { index, bank ->
+            val bindings = bank.actions.map { (control, action) -> Binding(
+                if (control < 4) 0 else AlphaBankLayout.FACES[control - 4],
+                if (control < 4) AlphaBankLayout.DIRECTIONS[control] else 0, bank.held, action) }
+            val note = when {
+                index < 4 -> "Use one cardinal or face button. Hold the bank bumpers or add them within ${layout.lateWindow} ms, before release. Hold any output for 300 ms to repeat every 80 ms; L1/R1 must start alone to repeat Backspace/Space. Hold L2 for Shift, or tap ≤${layout.tapMax} ms for one-shot Shift; tap again to cancel."
+                index < 6 -> "Hold or tap R2 for numbers; add L1 for 5–8. R2 taps cycle numbers → functions → off for the next key. Small outputs use L2 Shift."
+                index < 8 -> "Hold R1+R2; add L1 for editing/media. All outputs repeat after 300 ms, every 80 ms. L2 adds Shift."
+                else -> "Tap and release unused R2 twice for one-shot functions; a third unused tap cancels. Each tap lasts at most ${layout.tapMax} ms; gaps have no limit. Add L1 for F5–F8."
+            }
+            val result = if (index >= 6) layer(titles[index], note, bindings, bank.held)
+            else {
+                val lower = "abcdefghijklmnopqrstuvwxyz`1234567890-=[]\\;',./"
+                val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#\$%^&*()_+{}|:\"<>?"
+                val shifted = bindings.map { binding ->
+                    val position = lower.indexOf(binding.action.value)
+                    binding.copy(held = binding.held or L2, action = if (position >= 0) Action.text(upper[position].toString()) else binding.action)
+                }
+                layer(titles[index], note, bindings + shifted, bank.held, bank.held or L2)
+            }
+            result.copy(maps = result.maps.map { map ->
+                map.copy(cells = map.cells.mapIndexed { i, cell -> if (i in listOf(0, 2, 4, 6, 8)) Cell("", "") else cell })
+            })
+        }
     }
 
     private fun layer(title: String, note: String, bindings: List<Binding>, vararg contexts: Int): Layer {
@@ -86,7 +117,8 @@ object LayoutReference {
             val x = if (d and 1 != 0) -1 else if (d and 2 != 0) 1 else 0
             val y = if (d and 4 != 0) -1 else if (d and 8 != 0) 1 else 0
             val modifiers = ControllerInput.modifiers(x, y, left)
-            Cell(if (modifiers == 0) "Neutral" else modifiers(modifiers), arrows[i])
+            if (i == 4) Cell(if (left) "Command + D" else "Command + Shift + D", if (left) "Click L3" else "Click R3")
+            else Cell(modifiers(modifiers), arrows[i])
         }
         Map(if (left) "Left stick" else "Right stick", cells)
     }

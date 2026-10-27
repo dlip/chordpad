@@ -7,6 +7,7 @@ class DirectMapper {
     private var previous = mutableSetOf<String>()
     private val repeatAt = linkedMapOf<String, Long>()
     private var modifiers = 0
+    val heldModifiers get() = modifiers
 
     fun reset() { previous.clear(); repeatAt.clear(); modifiers = 0 }
 

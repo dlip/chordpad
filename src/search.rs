@@ -93,7 +93,7 @@ impl Problem {
             }
         }
         if strategy.independent {
-            for button in MenuButton::ALL {
+            for button in [MenuButton::Start, MenuButton::Select] {
                 slots.push(Slot {
                     input: Input::default(),
                     layer: false,
@@ -223,8 +223,8 @@ impl Problem {
     fn hands(&self, action: usize, assignment: &[usize]) -> u8 {
         let slot = self.slots[assignment[self.outputs[action].group]];
         match slot.menu {
-            Some(MenuButton::Start) => 2,
-            Some(MenuButton::Select) => 1,
+            Some(MenuButton::Start | MenuButton::R3) => 2,
+            Some(MenuButton::Select | MenuButton::L3) => 1,
             None => {
                 let (input, held) = self.physical(action, assignment);
                 input.with_context(held).hands()
@@ -235,8 +235,8 @@ impl Problem {
     fn fingers(&self, action: usize, assignment: &[usize]) -> u8 {
         let slot = self.slots[assignment[self.outputs[action].group]];
         match slot.menu {
-            Some(MenuButton::Start) => Finger::RightThumb.bit(),
-            Some(MenuButton::Select) => Finger::LeftThumb.bit(),
+            Some(MenuButton::Start | MenuButton::R3) => Finger::RightThumb.bit(),
+            Some(MenuButton::Select | MenuButton::L3) => Finger::LeftThumb.bit(),
             None => {
                 let (input, held) = self.physical(action, assignment);
                 input.fingers(held)

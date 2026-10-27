@@ -735,6 +735,10 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
     let mut state = snapshot(input(Neutral, &[L2]));
     state.left_stick = Right;
     runtime.update(&state).unwrap();
+    assert_eq!(
+        frames.borrow().as_slice(),
+        [vec![(29, 1), (56, 1), (42, 1), (125, 1)]]
+    );
     for (dpad, button, expected) in [
         (Up, None, 30),
         (Neutral, Some(R1), 57),
@@ -747,14 +751,8 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
         state.buttons = vec![L2];
         runtime.update(&state).unwrap();
         let records = frames.borrow();
-        assert_eq!(
-            records[records.len() - 2],
-            [(29, 1), (56, 1), (42, 1), (125, 1), (expected, 1)]
-        );
-        assert_eq!(
-            records[records.len() - 1],
-            [(expected, 0), (125, 0), (42, 0), (56, 0), (29, 0)]
-        );
+        assert_eq!(records[records.len() - 2], [(expected, 1)]);
+        assert_eq!(records[records.len() - 1], [(expected, 0)]);
     }
     state = snapshot(input(Neutral, &[R2]));
     state.right_stick = Right;
@@ -763,23 +761,24 @@ fn thumbsticks_shift_layers_and_editing_keys_reach_keyboard_with_balanced_modifi
     runtime.update(&state).unwrap();
     state.dpad = Some(Neutral);
     runtime.update(&state).unwrap();
-    assert_eq!(frames.borrow()[6], [(29, 1), (2, 1)]);
+    assert_eq!(frames.borrow().last().unwrap(), &vec![(2, 0)]);
     state.buttons.push(L2);
     runtime.update(&state).unwrap();
     state.dpad = Some(Up);
     runtime.update(&state).unwrap();
     state.dpad = Some(Neutral);
     runtime.update(&state).unwrap();
-    assert_eq!(frames.borrow()[8], [(29, 1), (42, 1), (2, 1)]);
-    assert_eq!(frames.borrow()[9], [(2, 0), (42, 0), (29, 0)]);
+    let count = frames.borrow().len();
+    assert_eq!(frames.borrow()[count - 2], [(2, 1)]);
+    assert_eq!(frames.borrow()[count - 1], [(2, 0)]);
     for (button, code) in [(MenuButton::Start, 28), (MenuButton::Select, 1)] {
         state.menu_buttons = vec![button];
         runtime.update(&state).unwrap();
         state.menu_buttons.clear();
         runtime.update(&state).unwrap();
         let frames = frames.borrow();
-        assert_eq!(frames[frames.len() - 2], [(29, 1), (42, 1), (code, 1)]);
-        assert_eq!(frames[frames.len() - 1], [(code, 0), (42, 0), (29, 0)]);
+        assert_eq!(frames[frames.len() - 2], [(code, 1)]);
+        assert_eq!(frames[frames.len() - 1], [(code, 0)]);
     }
     let shortcut = Action::Shortcut(Shortcut {
         modifiers: vec![Ctrl, Shift],

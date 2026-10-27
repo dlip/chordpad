@@ -81,6 +81,7 @@ jobs:
           umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
           mkdir -p dist
+          cp layout.json layout.html layout.pdf android/start-modifiers.sh dist/
           build_tools="$ANDROID_HOME/build-tools/35.0.0"
           "$build_tools/zipalign" -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk \
             "$RUNNER_TEMP/chordpad-aligned.apk"
@@ -97,9 +98,9 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" dist/chordpad.apk --clobber
+            gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
-            gh release create "$TAG" dist/chordpad.apk \
+            gh release create "$TAG" dist/* \
               --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           fi

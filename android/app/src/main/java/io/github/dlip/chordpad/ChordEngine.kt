@@ -3,6 +3,7 @@ package io.github.dlip.chordpad
 import java.util.ArrayDeque
 
 class ChordEngine(private val layout: ChordLayout) {
+    private val alpha = layout.alphaBanks?.let { AlphaBankEngine(it) }
     private enum class Phase { IDLE, COLLECTING, RELEASING, CANCELLED }
     private class Pending(var done: Boolean = false, var action: Action? = null)
     private class Half {
@@ -18,24 +19,26 @@ class ChordEngine(private val layout: ChordLayout) {
     }
     private val queue = ArrayDeque<Pending>()
     private var halves = arrayOf(Half(), Half())
-    private var menu = arrayOfNulls<Pending>(2)
-    private var cancelledMenu = BooleanArray(2)
+    private var menu = arrayOfNulls<Pending>(4)
+    private var cancelledMenu = BooleanArray(4)
     private var previousHeld = 0
     private var previousModifiers = 0
     private var previousMenuModifiers = 0
     private var waiting = true
     private var layers = HeldLayers()
     var status = "Release all controls"
+        get() = alpha?.status ?: field
         private set
 
-    fun ready() = !waiting
+    fun ready() = alpha?.ready() ?: !waiting
 
     fun reset() {
+        alpha?.reset()
         queue.clear()
         layers = HeldLayers()
         halves = arrayOf(Half(), Half())
-        menu = arrayOfNulls(2)
-        cancelledMenu = BooleanArray(2)
+        menu = arrayOfNulls(4)
+        cancelledMenu = BooleanArray(4)
         previousHeld = 0
         previousModifiers = 0
         previousMenuModifiers = 0
@@ -43,9 +46,10 @@ class ChordEngine(private val layout: ChordLayout) {
         status = "Release all controls"
     }
 
-    fun repeat(now: Long = now()): List<Action> = if (waiting || queue.isNotEmpty()) emptyList() else layers.repeat(now)
+    fun repeat(now: Long = now()): List<Action> = alpha?.repeat(now) ?: if (waiting || queue.isNotEmpty()) emptyList() else layers.repeat(now)
 
     fun update(input: Frame, now: Long = now()): List<Action> {
+        alpha?.let { return it.update(input, now) }
         if (!input.valid()) { reset(); status = "Invalid D-pad position"; return emptyList() }
         if (waiting) {
             if (input.neutral()) { waiting = false; status = "Ready" }
@@ -117,13 +121,13 @@ class ChordEngine(private val layout: ChordLayout) {
         val menuModifiers = frame.modifiers or if (held and L2 != 0) Action.SHIFT else 0
         val addedMenuModifier = menuModifiers and previousMenuModifiers.inv() != 0
         previousMenuModifiers = menuModifiers
-        for (i in 0..1) {
+        for (i in 0..3) {
             val down = frame.menu and (1 shl i) != 0
             val pending = menu[i]
-            if (pending != null && addedMenuModifier) cancelledMenu[i] = true
+            if (pending != null && addedMenuModifier && i < 2) cancelledMenu[i] = true
             if (down && pending == null) {
                 if (queue.size == 64) return overflow()
-                val next = Pending(action = Action.key(if (i == 0) "enter" else "escape").modified(menuModifiers))
+                val next = Pending(action = AlphaBankEngine.menuAction(i).modified(if (i < 2) menuModifiers else 0))
                 menu[i] = next
                 queue.add(next)
             } else if (!down && pending != null) {

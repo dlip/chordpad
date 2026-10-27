@@ -9,7 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class ControllerTest {
-    private fun layout() = Files.readAllBytes(Path.of(System.getProperty("chordpad.assets"), "default-layout.json")).toString(Charsets.UTF_8)
+    private fun layout() = Files.readAllBytes(Path.of(System.getProperty("chordpad.assets"), "legacy-layout.json")).toString(Charsets.UTF_8)
 
     @Test fun printScreenTakesAScreenshotWithOrWithoutAnEditor() {
         for (editor in listOf(false, true)) {

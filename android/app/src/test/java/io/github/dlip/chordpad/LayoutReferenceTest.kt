@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class LayoutReferenceTest {
-    private fun bundled() = JSONObject(Files.readAllBytes(Path.of(System.getProperty("chordpad.assets"), "default-layout.json")).toString(Charsets.UTF_8))
+    private fun bundled() = JSONObject(Files.readAllBytes(Path.of(System.getProperty("chordpad.assets"), "legacy-layout.json")).toString(Charsets.UTF_8))
     private fun layers() = LayoutReference.layers(ChordLayout(bundled().toString()))
     private fun outputs(map: LayoutReference.Map) = map.cells.map { it.output }
 

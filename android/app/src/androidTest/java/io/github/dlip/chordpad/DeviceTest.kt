@@ -34,9 +34,10 @@ class DeviceTest : InstrumentationTestCase() {
     }
 
     fun testRecognitionVectorsOnAndroid() {
-        val layout = instrumentation.targetContext.assets.open("default-layout.json").use { it.readBytes().toString(Charsets.UTF_8) }
+        val layout = instrumentation.targetContext.assets.open("legacy-layout.json").use { it.readBytes().toString(Charsets.UTF_8) }
         instrumentation.context.assets.open("chord-vectors.json").use {
-            assertEquals(361, RecognitionVectors.check(layout, JSONArray(it.readBytes().toString(Charsets.UTF_8))))
+            val cases = JSONArray(it.readBytes().toString(Charsets.UTF_8))
+            assertEquals(cases.length(), RecognitionVectors.check(layout, cases))
         }
     }
 
@@ -134,16 +135,16 @@ class DeviceTest : InstrumentationTestCase() {
             fun inject(event: MotionEvent) { automation.injectInputEvent(event, true); event.recycle() }
             inject(motion(0f, 0f, 0f))
             press(automation, KeyEvent.KEYCODE_BUTTON_A)
-            waitFor({ editorText(automation) == "i" }, "Cross did not type i; editor=${editorText(automation)}")
+            waitFor({ editorText(automation) == "a" }, "Cross did not type a; editor=${editorText(automation)}")
             inject(motion(1f, 0f, 0f)); press(automation, KeyEvent.KEYCODE_BUTTON_A); inject(motion(0f, 0f, 0f))
-            waitFor({ editorText(automation) == "iI" }, "L2+Cross did not type uppercase I")
+            waitFor({ editorText(automation) == "aA" }, "L2+Cross did not type uppercase A")
             press(automation, KeyEvent.KEYCODE_BUTTON_L1)
             press(automation, KeyEvent.KEYCODE_BUTTON_R1)
             press(automation, KeyEvent.KEYCODE_BUTTON_START)
-            waitFor({ editorText(automation) == "i \n" }, "Backspace/Space/Options did not reach the other app")
+            waitFor({ editorText(automation) == "a \n" }, "Backspace/Space/Options did not reach the other app")
             instrumentation.runOnMainSync { state.setMode("direct"); state.map("Right stick Right", Action.text("z")) }
             inject(motion(0f, 0f, 1f)); inject(motion(0f, 0f, 0f))
-            waitFor({ editorText(automation) == "i \nz" }, "Remapped right stick did not type z")
+            waitFor({ editorText(automation) == "a \nz" }, "Remapped right stick did not type z")
         } finally {
             instrumentation.runOnMainSync { state.setEnabled(false); state.setMode(oldMode); state.map("Right stick Right", oldMapping) }
         }

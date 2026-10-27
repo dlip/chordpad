@@ -1,6 +1,6 @@
 {
   "profile": {
-    "forbidden_combinations": [["L1", "R1", "L2", "R2"]]
+    "forbidden_combinations": [["A", "B", "X", "Y"]]
   },
   "pinned_bindings": [
     {

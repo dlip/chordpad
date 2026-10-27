@@ -1,0 +1,475 @@
+{
+  "format": "chordpad-alpha-bank-candidate-v2",
+  "runtime_supported": true,
+  "runtime_platforms": [
+    "linux",
+    "android"
+  ],
+  "recognition": {
+    "late_bumper_window_ms": 100,
+    "freeze": "Next thumb press, first release, or window expiry, whichever happens first.",
+    "late_additions": "New bumper presses join only the newest eligible held thumb stroke.",
+    "bumper_release": "Preserve each stroke's captured bank.",
+    "output_order": "First outputs retain stroke-start order; held repeats can interleave with later typing. No extra delay to finish the collection window.",
+    "tap_consumption": "Each bumper used by any thumb stroke consumes its tap.",
+    "hold_repeat": "Every mapped output repeats after a 300 ms hold, then every 80 ms, including characters, function/navigation/media keys and menu/click shortcuts. Capture the bank, mode and modifiers; releasing the output control, pausing, or resetting stops repetition without an extra release action. Modifier and layer selectors do not repeat as actions.",
+    "bumper_repeat": "A standalone L1/Backspace or R1/Space hold repeats after 300 ms without another control press, then every 80 ms. A control joining before 300 ms cancels repetition for that hold. Once repeating, that bumper acts only as its key until released. Preheld keyboard modifiers are supported. Release, pause, reset, and disconnect stop repetition.",
+    "same_thumb_rolling": "Each thumb button press starts its own stroke, including overlapping adjacent buttons.",
+    "number_layer": "Hold R2 for momentary numbers or tap it once for the next key. R2 has no late-join window. Navigation requires physically held R1+R2.",
+    "trigger_tap_max_ms": 250,
+    "function_layer": "Unused R2 taps cycle numbers, functions, off on release, with no inter-tap deadline. Each tap must last at most 250 ms. The next key consumes the selected layer and returns to alpha. Used holds do not advance the cycle. L1 selects the second bank.",
+    "one_shot_shift": "An unused L2 tap of at most 250 ms arms Shift for the next key; a second unused tap cancels it. A used or longer hold does not rearm it. Keyboard modifiers are captured at stroke start.",
+    "held_shift": "L2 also works as momentary Shift. Linux sends held modifiers to the OS immediately. Android supports Shift-click/tap in focused editors and global mouse modifiers through the optional ADB helper. Fixed L3/R3 shortcuts ignore held and one-shot modifiers.",
+    "navigation_layer": "Physically hold R1+R2; L1 selects editing/media. Navigation overrides and consumes either one-shot R2 layer on the next key and consumes R1's Space tap and R2's layer tap. All mapped outputs repeat while held.",
+    "reset": "Pause, focus change, disconnect, or reset clears both one-shot selections and requires neutral controls."
+  },
+  "banks": [
+    {
+      "held": [],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "s",
+          "shifted_character": "S"
+        },
+        {
+          "control": "→",
+          "character": "r",
+          "shifted_character": "R"
+        },
+        {
+          "control": "↓",
+          "character": "n",
+          "shifted_character": "N"
+        },
+        {
+          "control": "←",
+          "character": "t",
+          "shifted_character": "T"
+        },
+        {
+          "control": "Y / △",
+          "character": "i",
+          "shifted_character": "I"
+        },
+        {
+          "control": "B / ○",
+          "character": "o",
+          "shifted_character": "O"
+        },
+        {
+          "control": "A / ×",
+          "character": "a",
+          "shifted_character": "A"
+        },
+        {
+          "control": "X / □",
+          "character": "e",
+          "shifted_character": "E"
+        }
+      ]
+    },
+    {
+      "held": [
+        "L1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "b",
+          "shifted_character": "B"
+        },
+        {
+          "control": "→",
+          "character": "m",
+          "shifted_character": "M"
+        },
+        {
+          "control": "↓",
+          "character": "d",
+          "shifted_character": "D"
+        },
+        {
+          "control": "←",
+          "character": "l",
+          "shifted_character": "L"
+        },
+        {
+          "control": "Y / △",
+          "character": "u",
+          "shifted_character": "U"
+        },
+        {
+          "control": "B / ○",
+          "character": "p",
+          "shifted_character": "P"
+        },
+        {
+          "control": "A / ×",
+          "character": "y",
+          "shifted_character": "Y"
+        },
+        {
+          "control": "X / □",
+          "character": "g",
+          "shifted_character": "G"
+        }
+      ]
+    },
+    {
+      "held": [
+        "R1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "w",
+          "shifted_character": "W"
+        },
+        {
+          "control": "→",
+          "character": "f",
+          "shifted_character": "F"
+        },
+        {
+          "control": "↓",
+          "character": "v",
+          "shifted_character": "V"
+        },
+        {
+          "control": "←",
+          "character": "c",
+          "shifted_character": "C"
+        },
+        {
+          "control": "Y / △",
+          "character": "x",
+          "shifted_character": "X"
+        },
+        {
+          "control": "B / ○",
+          "character": "j",
+          "shifted_character": "J"
+        },
+        {
+          "control": "A / ×",
+          "character": "k",
+          "shifted_character": "K"
+        },
+        {
+          "control": "X / □",
+          "character": "h",
+          "shifted_character": "H"
+        }
+      ]
+    },
+    {
+      "held": [
+        "L1",
+        "R1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "/",
+          "shifted_character": "?"
+        },
+        {
+          "control": "→",
+          "character": "q",
+          "shifted_character": "Q"
+        },
+        {
+          "control": "↓",
+          "character": "z",
+          "shifted_character": "Z"
+        },
+        {
+          "control": "←",
+          "character": "\t"
+        },
+        {
+          "control": "Y / △",
+          "character": "'",
+          "shifted_character": "\""
+        },
+        {
+          "control": "B / ○",
+          "character": ";",
+          "shifted_character": ":"
+        },
+        {
+          "control": "A / ×",
+          "character": ",",
+          "shifted_character": "<"
+        },
+        {
+          "control": "X / □",
+          "character": ".",
+          "shifted_character": ">"
+        }
+      ]
+    },
+    {
+      "held": [
+        "R2"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "1",
+          "shifted_character": "!"
+        },
+        {
+          "control": "→",
+          "character": "2",
+          "shifted_character": "@"
+        },
+        {
+          "control": "↓",
+          "character": "3",
+          "shifted_character": "#"
+        },
+        {
+          "control": "←",
+          "character": "4",
+          "shifted_character": "$"
+        },
+        {
+          "control": "Y / △",
+          "character": "=",
+          "shifted_character": "+"
+        },
+        {
+          "control": "B / ○",
+          "character": "0",
+          "shifted_character": ")"
+        },
+        {
+          "control": "A / ×",
+          "character": "9",
+          "shifted_character": "("
+        },
+        {
+          "control": "X / □",
+          "character": "-",
+          "shifted_character": "_"
+        }
+      ]
+    },
+    {
+      "held": [
+        "R2",
+        "L1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "character": "5",
+          "shifted_character": "%"
+        },
+        {
+          "control": "→",
+          "character": "6",
+          "shifted_character": "^"
+        },
+        {
+          "control": "↓",
+          "character": "7",
+          "shifted_character": "&"
+        },
+        {
+          "control": "←",
+          "character": "8",
+          "shifted_character": "*"
+        },
+        {
+          "control": "Y / △",
+          "character": "[",
+          "shifted_character": "{"
+        },
+        {
+          "control": "B / ○",
+          "character": "]",
+          "shifted_character": "}"
+        },
+        {
+          "control": "A / ×",
+          "character": "\\",
+          "shifted_character": "|"
+        },
+        {
+          "control": "X / □",
+          "character": "`",
+          "shifted_character": "~"
+        }
+      ]
+    }
+  ],
+  "function_banks": [
+    {
+      "held": [
+        "R2"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "key": "f1"
+        },
+        {
+          "control": "→",
+          "key": "f2"
+        },
+        {
+          "control": "↓",
+          "key": "f3"
+        },
+        {
+          "control": "←",
+          "key": "f4"
+        },
+        {
+          "control": "Y / △",
+          "key": "f12"
+        },
+        {
+          "control": "B / ○",
+          "key": "f10"
+        },
+        {
+          "control": "A / ×",
+          "key": "f9"
+        },
+        {
+          "control": "X / □",
+          "key": "f11"
+        }
+      ]
+    },
+    {
+      "held": [
+        "R2",
+        "L1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "key": "f5"
+        },
+        {
+          "control": "→",
+          "key": "f6"
+        },
+        {
+          "control": "↓",
+          "key": "f7"
+        },
+        {
+          "control": "←",
+          "key": "f8"
+        }
+      ]
+    }
+  ],
+  "navigation_banks": [
+    {
+      "held": [
+        "R1",
+        "R2"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "key": "up"
+        },
+        {
+          "control": "→",
+          "key": "right"
+        },
+        {
+          "control": "↓",
+          "key": "down"
+        },
+        {
+          "control": "←",
+          "key": "left"
+        },
+        {
+          "control": "Y / △",
+          "key": "page_up"
+        },
+        {
+          "control": "B / ○",
+          "key": "end"
+        },
+        {
+          "control": "A / ×",
+          "key": "page_down"
+        },
+        {
+          "control": "X / □",
+          "key": "home"
+        }
+      ]
+    },
+    {
+      "held": [
+        "R1",
+        "R2",
+        "L1"
+      ],
+      "bindings": [
+        {
+          "control": "↑",
+          "key": "volume_up"
+        },
+        {
+          "control": "→",
+          "key": "media_next"
+        },
+        {
+          "control": "↓",
+          "key": "volume_down"
+        },
+        {
+          "control": "←",
+          "key": "media_previous"
+        },
+        {
+          "control": "Y / △",
+          "key": "print_screen"
+        },
+        {
+          "control": "B / ○",
+          "key": "media_stop"
+        },
+        {
+          "control": "A / ×",
+          "key": "media_play_pause"
+        },
+        {
+          "control": "X / □",
+          "key": "delete"
+        }
+      ]
+    }
+  ],
+  "held_shift_buttons": [
+    "L2"
+  ],
+  "proposed_controls": {
+    "R1_tap": "Space",
+    "L1_tap": "Backspace",
+    "L1_R1_unused_hold": "Backspace / Space repeat after 300 ms, every 80 ms",
+    "L2_tap": "Shift next key; tap again to cancel",
+    "L2_hold": "Shift",
+    "R2_tap": "Numbers → functions → off; next key clears selection",
+    "R2_hold": "Momentary numbers",
+    "R1_R2_hold": "Navigation",
+    "Start": "Enter",
+    "Select": "Escape",
+    "L3": "Command+D",
+    "R3": "Command+Shift+D",
+    "A_B_X_Y": "Pause/resume"
+  }
+}

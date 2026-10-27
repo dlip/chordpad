@@ -221,6 +221,7 @@ impl KeySink for VirtualDevice {
 pub struct Keyboard<S: KeySink> {
     sink: S,
     pressed: Vec<KeyCode>,
+    held_modifiers: Vec<KeyCode>,
 }
 
 impl<S: KeySink> Keyboard<S> {
@@ -228,7 +229,50 @@ impl<S: KeySink> Keyboard<S> {
         Self {
             sink,
             pressed: vec![],
+            held_modifiers: vec![],
         }
+    }
+
+    fn transition(&mut self, keys: &[KeyCode]) -> Result<()> {
+        let up: Vec<_> = self
+            .pressed
+            .iter()
+            .rev()
+            .filter(|k| !keys.contains(k))
+            .map(|k| InputEvent::new(1, k.0, 0))
+            .collect();
+        if !up.is_empty() {
+            self.sink
+                .emit(&up)
+                .map_err(|e| format!("keyboard release failed: {e}"))?;
+            self.pressed.retain(|k| keys.contains(k));
+        }
+        let down: Vec<_> = keys
+            .iter()
+            .filter(|k| !self.pressed.contains(k))
+            .map(|k| InputEvent::new(1, k.0, 1))
+            .collect();
+        // A failed write can still deliver some presses; keep them for cleanup.
+        let added: Vec<_> = keys
+            .iter()
+            .filter(|k| !self.pressed.contains(k))
+            .copied()
+            .collect();
+        self.pressed.extend(added);
+        if !down.is_empty() {
+            self.sink
+                .emit(&down)
+                .map_err(|e| format!("keyboard press failed: {e}"))?;
+        }
+        Ok(())
+    }
+
+    fn transition_or_release(&mut self, keys: &[KeyCode]) -> Result<()> {
+        if let Err(error) = self.transition(keys) {
+            let _ = self.release_all();
+            return Err(error);
+        }
+        Ok(())
     }
 }
 
@@ -239,22 +283,28 @@ impl<S: KeySink> Output for Keyboard<S> {
 
     fn send_modified(&mut self, action: &Action, modifiers: &[Modifier]) -> Result<()> {
         let keys = stroke_with_modifiers(action, modifiers)?;
-        self.release_all()?;
-        // Track attempted presses too: an error may follow a partial write.
-        self.pressed = keys;
-        let down: Vec<_> = self
-            .pressed
-            .iter()
-            .map(|k| InputEvent::new(1, k.0, 1))
-            .collect();
-        if let Err(error) = self.sink.emit(&down) {
-            let _ = self.release_all();
-            return Err(format!("keyboard press failed: {error}"));
-        }
-        self.release_all()
+        self.transition_or_release(&keys)?;
+        self.transition_or_release(&self.held_modifiers.clone())
+    }
+
+    fn set_modifiers(&mut self, modifiers: &[Modifier]) -> Result<()> {
+        let keys: Vec<_> = [
+            (Modifier::Ctrl, KeyCode::KEY_LEFTCTRL),
+            (Modifier::Alt, KeyCode::KEY_LEFTALT),
+            (Modifier::Shift, KeyCode::KEY_LEFTSHIFT),
+            (Modifier::Meta, KeyCode::KEY_LEFTMETA),
+        ]
+        .into_iter()
+        .filter(|(m, _)| modifiers.contains(m))
+        .map(|(_, k)| k)
+        .collect();
+        self.transition_or_release(&keys)?;
+        self.held_modifiers = keys;
+        Ok(())
     }
 
     fn release_all(&mut self) -> Result<()> {
+        self.held_modifiers.clear();
         if self.pressed.is_empty() {
             return Ok(());
         }

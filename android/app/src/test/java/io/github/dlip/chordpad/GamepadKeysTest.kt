@@ -5,7 +5,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class GamepadKeysTest {
-    private val layers = intArrayOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2)
+    private val layers = intArrayOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y)
     private val keys = GamepadKeys()
     private fun down(code: Int, typing: Boolean) = keys.update(code, KeyEvent.ACTION_DOWN, 0, typing)
     private fun up(code: Int, typing: Boolean) = keys.update(code, KeyEvent.ACTION_UP, 0, typing)
@@ -65,13 +65,13 @@ class GamepadKeysTest {
         for (i in layers.indices) assertEquals(i == 3, down(layers[i], false).layerGesture)
     }
     @Test fun resumeWaitsForOtherButtonsTheGameAlreadyReceived() {
-        down(KeyEvent.KEYCODE_BUTTON_A, false)
+        down(KeyEvent.KEYCODE_BUTTON_L1, false)
         for (code in layers) down(code, false)
         for (code in layers) up(code, true)
         assertTrue(keys.hasHeldPresses()); assertFalse(keys.hasConsumedPresses())
-        assertFalse(up(KeyEvent.KEYCODE_BUTTON_A, true).consumed)
+        assertFalse(up(KeyEvent.KEYCODE_BUTTON_L1, true).consumed)
         assertFalse(keys.hasHeldPresses())
-        assertTrue(down(KeyEvent.KEYCODE_BUTTON_A, true).consumed)
-        assertTrue(up(KeyEvent.KEYCODE_BUTTON_A, true).consumed)
+        assertTrue(down(KeyEvent.KEYCODE_BUTTON_L1, true).consumed)
+        assertTrue(up(KeyEvent.KEYCODE_BUTTON_L1, true).consumed)
     }
 }

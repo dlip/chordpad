@@ -12,6 +12,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <provider android:name=".ModifierProvider" android:authorities="io.github.dlip.chordpad.modifiers"
+            android:exported="true" android:permission="android.permission.DUMP" />
         <service android:name=".ControllerService" android:exported="true"
             android:label="Chordpad controller input"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">

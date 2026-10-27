@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
-- Rename the base chord reference section to `Base: letters and punctuation`.
+- Make the four-bank layout the default on Linux and Android, with matching JSON, offline HTML, and a one-page portrait PDF. Keep legacy layout imports supported.
+- Type each character with one D-pad direction or face button. Use L1/R1 for alpha banks, a 100 ms late-bumper window, and overlapping thumb strokes. Keep mnemonic U/D/L/R/O positions and modest rolling preferences in layout generation.
+- Tap L2 for Shift on the next key; tap again to cancel. R2 taps cycle numbers, function keys, and off for one key. Hold L2 or R2 for momentary Shift or numbers. Group numbers 1–4 and 5–8 on their D-pad banks.
+- Use R1+R2 for navigation and add L1 for editing/media. Put volume and track controls on the D-pad, A Play/Pause, B Stop, Y Print Screen, and X Delete. Keep the function banks separate in the reference.
+- Repeat every mapped output after a 300 ms hold, then every 80 ms. Repeat standalone Backspace/Space holds if no other control joins within 300 ms. Keep captured banks and modifiers, and allow later input while earlier keys repeat.
+- Pause/resume with A+B+X+Y. Map L3 to Command+D and R3 to Command+Shift+D for optional Dictate/Cancel Dictation shortcuts.
+- Apply held Linux modifiers to mouse actions. On Android, extend text selections with held Shift and a click or tap, including DualSense touchpad taps in browser editors. Preserve holds across same-editor input restarts. Add an optional ADB helper for global mouse modifiers, with disconnect and heartbeat cleanup.
+- Allow stopping Android remapping after the controller disconnects. Support the default layout in Linux inspection, recording/replay, and reference rendering.
 
 ## 1.0.3
 

@@ -1,10 +1,90 @@
 use crate::{
     Result,
-    chord::{Event, Recognizer},
+    chord::{Event, Phase, Recognizer},
     controller::Snapshot,
     model::{Action, Button, Layout, Modifier, button_mask},
 };
 use std::path::PathBuf;
+
+pub enum TypingLayout {
+    Standard(Box<Layout>),
+    Alpha(crate::alpha_banks::Layout),
+}
+
+impl TypingLayout {
+    pub fn parse(value: serde_json::Value) -> Result<Self> {
+        let layout = if value.get("format").is_some() {
+            Self::Alpha(serde_json::from_value(value).map_err(|e| e.to_string())?)
+        } else {
+            Self::Standard(serde_json::from_value(value).map_err(|e| e.to_string())?)
+        };
+        match &layout {
+            Self::Standard(layout) => layout.validate()?,
+            Self::Alpha(layout) => layout.validate()?,
+        }
+        Ok(layout)
+    }
+
+    pub fn actions(&self) -> Result<Vec<Action>> {
+        match self {
+            Self::Standard(layout) => {
+                Ok(layout.bindings.iter().map(|b| b.action.clone()).collect())
+            }
+            Self::Alpha(layout) => layout.actions(),
+        }
+    }
+
+    pub fn validate_pause(&self, buttons: &[Button]) -> Result<u8> {
+        match self {
+            Self::Standard(layout) => validate_pause(layout, buttons),
+            Self::Alpha(layout) => layout.validate_pause(buttons),
+        }
+    }
+}
+
+pub(crate) enum Engine {
+    Standard(Recognizer),
+    Alpha(Box<crate::alpha_banks::Engine>),
+}
+
+impl Engine {
+    pub(crate) fn phase(&self) -> Phase {
+        match self {
+            Self::Standard(e) => e.phase(),
+            Self::Alpha(e) => e.phase(),
+        }
+    }
+    pub(crate) fn update_at(&mut self, snapshot: &Snapshot, now: u64) -> Vec<Event> {
+        match self {
+            Self::Standard(e) => e.update_at(snapshot, now),
+            Self::Alpha(e) => e.update_at(snapshot, now),
+        }
+    }
+    fn ready(&self) -> bool {
+        match self {
+            Self::Standard(engine) => engine.phase() != Phase::Waiting,
+            Self::Alpha(engine) => engine.phase() != Phase::Waiting,
+        }
+    }
+    fn update(&mut self, snapshot: &Snapshot) -> Vec<Event> {
+        match self {
+            Self::Standard(engine) => engine.update(snapshot),
+            Self::Alpha(engine) => engine.update(snapshot),
+        }
+    }
+    fn repeat(&mut self) -> Vec<Event> {
+        match self {
+            Self::Standard(engine) => engine.repeat(),
+            Self::Alpha(engine) => engine.repeat(),
+        }
+    }
+    pub(crate) fn reset(&mut self, reason: &str) -> Event {
+        match self {
+            Self::Standard(engine) => engine.reset(reason),
+            Self::Alpha(engine) => engine.reset(reason),
+        }
+    }
+}
 
 #[derive(clap::Args)]
 pub struct TypeArgs {
@@ -21,7 +101,7 @@ pub struct TypeArgs {
     #[arg(long)]
     pub start_active: bool,
     /// Reserved toggle gesture, including any held modifiers. All supersets are reserved.
-    #[arg(long, value_delimiter = ',', default_value = "L1,R1,L2,R2", value_parser = parse_button)]
+    #[arg(long, value_delimiter = ',', default_value = "A,B,X,Y", value_parser = parse_button)]
     pub pause_buttons: Vec<Button>,
     /// Give Chordpad exclusive access to the controller until exit.
     #[arg(long)]
@@ -45,6 +125,9 @@ pub trait Output {
         } else {
             Err("output does not support keyboard modifiers".into())
         }
+    }
+    fn set_modifiers(&mut self, _modifiers: &[Modifier]) -> Result<()> {
+        Ok(())
     }
     fn release_all(&mut self) -> Result<()>;
 }
@@ -71,6 +154,10 @@ impl Output for DryRun {
         )
         .map_err(|e| e.to_string())
     }
+    fn set_modifiers(&mut self, modifiers: &[Modifier]) -> Result<()> {
+        use std::io::Write;
+        writeln!(std::io::stdout().lock(), "WOULD HOLD {modifiers:?}").map_err(|e| e.to_string())
+    }
     fn release_all(&mut self) -> Result<()> {
         Ok(())
     }
@@ -82,6 +169,9 @@ impl Output for Box<dyn Output> {
     }
     fn send_modified(&mut self, action: &Action, modifiers: &[Modifier]) -> Result<()> {
         (**self).send_modified(action, modifiers)
+    }
+    fn set_modifiers(&mut self, modifiers: &[Modifier]) -> Result<()> {
+        (**self).set_modifiers(modifiers)
     }
     fn release_all(&mut self) -> Result<()> {
         (**self).release_all()
@@ -126,27 +216,55 @@ pub fn validate_pause(layout: &Layout, buttons: &[Button]) -> Result<u8> {
 }
 
 pub struct Runtime<O: Output> {
-    engine: Recognizer,
+    engine: Engine,
     output: O,
     pause_mask: u8,
     gesture_latched: bool,
     paused: bool,
+    shift_button: Option<Button>,
+    held_modifiers: Vec<Modifier>,
 }
 
 impl<O: Output> Runtime<O> {
     pub fn new(layout: Layout, buttons: &[Button], paused: bool, output: O) -> Result<Self> {
         layout.validate()?;
-        let pause_mask = validate_pause(&layout, buttons)?;
-        Ok(Self {
-            engine: Recognizer::new(
+        Self::with_layout(
+            TypingLayout::Standard(Box::new(layout)),
+            buttons,
+            paused,
+            output,
+        )
+    }
+
+    pub fn with_layout(
+        layout: TypingLayout,
+        buttons: &[Button],
+        paused: bool,
+        output: O,
+    ) -> Result<Self> {
+        let pause_mask = layout.validate_pause(buttons)?;
+        let shift_button = match &layout {
+            TypingLayout::Standard(layout) => layout.strategy.shift,
+            TypingLayout::Alpha(_) => Some(Button::L2),
+        };
+        let engine = match layout {
+            TypingLayout::Standard(layout) => Engine::Standard(Recognizer::new(
                 layout.strategy.clone(),
                 layout.profile.clone(),
-                Some(layout),
-            )?,
+                Some(*layout),
+            )?),
+            TypingLayout::Alpha(layout) => {
+                Engine::Alpha(Box::new(crate::alpha_banks::Engine::new(layout)?))
+            }
+        };
+        Ok(Self {
+            engine,
             output,
             pause_mask,
             gesture_latched: true,
             paused,
+            shift_button,
+            held_modifiers: vec![],
         })
     }
 
@@ -160,6 +278,7 @@ impl<O: Output> Runtime<O> {
         }
         self.paused = paused;
         let events = vec![self.engine.reset(if paused { "paused" } else { "resumed" })];
+        self.held_modifiers.clear();
         self.output.release_all()?;
         Ok(events)
     }
@@ -168,6 +287,7 @@ impl<O: Output> Runtime<O> {
         // A resync cannot safely tell whether an interrupted gesture already toggled.
         self.gesture_latched = true;
         let event = self.engine.reset(reason);
+        self.held_modifiers.clear();
         self.output.release_all()?;
         Ok(vec![event])
     }
@@ -191,6 +311,24 @@ impl<O: Output> Runtime<O> {
             return Ok(vec![]);
         }
         let events = self.engine.update(snapshot);
+        let mut modifiers = if self.engine.ready() {
+            snapshot.modifiers()
+        } else {
+            vec![]
+        };
+        if self.engine.ready()
+            && self
+                .shift_button
+                .is_some_and(|b| snapshot.buttons.contains(&b))
+        {
+            modifiers.push(Modifier::Shift);
+        }
+        modifiers.sort();
+        modifiers.dedup();
+        if modifiers != self.held_modifiers {
+            self.output.set_modifiers(&modifiers)?;
+            self.held_modifiers = modifiers;
+        }
         self.emit(&events)?;
         Ok(events)
     }

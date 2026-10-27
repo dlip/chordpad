@@ -34,6 +34,7 @@ class MainActivity : Activity() {
     private lateinit var connection: TextView
     private lateinit var status: TextView
     private lateinit var serviceStatus: TextView
+    private lateinit var modifierStatus: TextView
     private lateinit var profile: TextView
     private lateinit var action: TextView
     private lateinit var start: Button
@@ -71,6 +72,7 @@ class MainActivity : Activity() {
         val buttons = row(); controls.addView(buttons)
         start = button("Start remapping") {
             when {
+                state.enabled -> state.setEnabled(false)
                 state.service == null -> accessibility()
                 state.device == null -> toast("Connect a game controller first")
                 else -> state.setEnabled(!state.enabled)
@@ -86,6 +88,8 @@ class MainActivity : Activity() {
         setup.addView(text("Controller input", 20f, ink))
         serviceStatus = text("", 14f, muted); setup.addView(serviceStatus)
         setup.addView(button("Enable controller input…") { accessibility() })
+        modifierStatus = text("", 14f, muted); setup.addView(modifierStatus)
+        setup.addView(text("Hold Shift to extend a selection with a mouse click or tap in focused text editors. Global modifiers for other mouse actions need the optional ADB helper; see the Android guide.", 14f, muted))
         setup.addView(text("Sends text and keys to a focused text field in this or another app. Games and apps without a text input connection may not accept mapped keys.", 14f, muted))
         hideSoftKeyboard = Switch(this).apply {
             id = R.id.hide_soft_keyboard
@@ -106,7 +110,7 @@ class MainActivity : Activity() {
 
         chordCard = card(page); chordCard.addView(text("Typing layout", 20f, ink))
         profile = text("", 14f, muted); chordCard.addView(profile)
-        chordCard.addView(text("Cross = A · Circle = B · Square = X · Triangle = Y\nL2: Shift · R2: numbers and symbols\nBundled numbers: clockwise D-pad 1–8; Triangle 9, Circle 0; Square -, Cross =. Add L2 for _ and +.\nBundled layout: hold R2 + L1 for navigation. D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End. Add L2 to select text.\nHold R2 + R1: function keys using number combos (0 = F10); Cross/Square = F11/F12.\nAdjacent face pairs add media in navigation and volume in functions.\nOptions: Enter · Share: Escape\nSticks: up Alt, down Command, outward Ctrl, inward Ctrl + Alt + Command.\nInward-up: Command + Ctrl + Alt + Shift; inward-down: Alt + Command.", 15f, ink))
+        chordCard.addView(text("Four-bank layout: one D-pad cardinal or face button per letter. L1/R1 select alpha banks; add a bumper within 100 ms if needed. Hold any mapped output for 300 ms to repeat; Space/Backspace holds must start alone.\nL2: hold Shift, or tap for the next key; tap again to cancel. R2: hold for numbers, or tap to cycle numbers → F keys → off for the next key. Numbers: D-pad 1–4; L1 for 5–8. A is 9 and B is 0.\nHold R1+R2: navigation; add L1 for editing/media. R2 taps last at most 250 ms, with no gap limit. F keys use number positions.\nOptions: Enter · Share: Escape · A+B+X+Y: pause/resume.\nTilt sticks for modifiers. Click L3: Command+D; R3: Command+Shift+D. These can be assigned to Dictate and Cancel Dictation on your computer.\nView the reference for your active layout, including legacy imports.", 15f, ink))
         chordCard.addView(button("View chord reference") { startActivity(Intent(this, ReferenceActivity::class.java)) })
         val files = row(); chordCard.addView(files)
         files.addView(button("Import layout…") {
@@ -117,7 +121,7 @@ class MainActivity : Activity() {
         })
         chordCard.addView(button("Restore bundled layout") {
             AlertDialog.Builder(this).setTitle("Restore bundled layout?")
-                .setMessage("Replace the imported layout with the included 97-binding Chordpad layout.")
+                .setMessage("Replace the imported layout with the included four-bank Chordpad layout.")
                 .setNegativeButton("Cancel", null).setPositiveButton("Restore") { _, _ ->
                     try { state.importLayout(state.defaultLayout()) } catch (error: Exception) { failure(error) }
                 }.show()
@@ -132,7 +136,7 @@ class MainActivity : Activity() {
         }
 
         val test = card(page); test.addView(text("Try typing", 20f, ink))
-        test.addView(text("Start remapping, tap the field, and release all controls. L1 + R1 + L2 + R2 pauses or resumes.", 14f, muted))
+        test.addView(text("Start remapping, tap the field, and release all controls. A+B+X+Y pauses or resumes.", 14f, muted))
         val field = EditText(this).apply {
             id = R.id.test_field; hint = "Type here with the DualSense…"
             minLines = 4; gravity = Gravity.TOP; textSize = 18f
@@ -157,7 +161,9 @@ class MainActivity : Activity() {
         action.text = getString(R.string.last_output, state.lastAction)
         serviceStatus.text = if (state.service == null) "Enable Chordpad in Android accessibility settings to type across apps."
             else "Controller service connected" + if (state.editor) " · Text field connected" else " · Focus a text field to type"
-        profile.text = resources.getQuantityString(R.plurals.binding_count, state.layout.bindings.size, state.layout.bindings.size)
+        modifierStatus.text = if (state.globalModifiers.connected) "Global mouse modifiers connected" else "Global mouse modifiers: helper not connected"
+        profile.text = if (state.layout.alphaBanks != null) "${state.layout.bindings.size} bindings · Single-button strokes with shared banks"
+            else resources.getQuantityString(R.plurals.binding_count, state.layout.bindings.size, state.layout.bindings.size)
         chordCard.visibility = if (state.mode == "chords") View.VISIBLE else View.GONE
         directCard.visibility = if (state.mode == "direct") View.VISIBLE else View.GONE
         for ((control, button) in mappingButtons) {

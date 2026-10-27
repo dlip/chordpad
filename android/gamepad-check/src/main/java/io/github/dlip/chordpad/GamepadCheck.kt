@@ -20,7 +20,7 @@ class GamepadCheck : Instrumentation() {
     private lateinit var automation: UiAutomation
     private var pad: VirtualGamepad? = null
     private var game: GamepadTestActivity? = null
-    private val layers = intArrayOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2)
+    private val layers = intArrayOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y)
 
     override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); start() }
     override fun onStart() {
@@ -87,10 +87,9 @@ class GamepadCheck : Instrumentation() {
                 val device = InputDevice.getDevice(id) ?: continue
                 if (device.supportsSource(InputDevice.SOURCE_GAMEPAD) && device.name != VirtualGamepad.NAME) original = device.name
             }
-            require(original != null, "Connect and select a controller before running this check")
-            chooseController(checkNotNull(original))
+            original?.let { chooseController(it) }
         }
-        val originalController = checkNotNull(original)
+        val originalController = original
         var failure: Throwable? = null
         try {
             if (startButton()?.text?.toString() == "Stop remapping") { startButton()?.performAction(AccessibilityNodeInfo.ACTION_CLICK); idle() }
@@ -121,14 +120,14 @@ class GamepadCheck : Instrumentation() {
                     abs(game.rx - .75f) < .01f && abs(game.ry + .75f) < .01f &&
                     abs(game.l2 - .4f) < .01f && abs(game.r2 - .8f) < .01f && game.hat == 1f
             }
-            require(axesReceived, "Paused game did not receive sticks, analog triggers, and D-pad axes")
+            require(axesReceived, "Paused axes: motions=${game?.motions}, left=${game?.x}/${game?.y}, right=${game?.rx}/${game?.ry}, triggers=${game?.l2}/${game?.r2}, hat=${game?.hat}")
             motion(0f, 0f, 0f, 0f, 0f); idle()
-            key(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.ACTION_DOWN); expected.add("${KeyEvent.KEYCODE_BUTTON_A}:${KeyEvent.ACTION_DOWN}")
+            key(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.ACTION_DOWN); expected.add("${KeyEvent.KEYCODE_BUTTON_L1}:${KeyEvent.ACTION_DOWN}")
             for (code in layers) { key(code, KeyEvent.ACTION_DOWN); expected.add("$code:${KeyEvent.ACTION_DOWN}") }
             motion(0f, 0f, 1f, 1f, 0f); idle()
             for (code in layers) { key(code, KeyEvent.ACTION_UP); expected.add("$code:${KeyEvent.ACTION_UP}") }
             motion(0f, 0f, 0f, 0f, 0f)
-            key(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.ACTION_UP); expected.add("${KeyEvent.KEYCODE_BUTTON_A}:${KeyEvent.ACTION_UP}")
+            key(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.ACTION_UP); expected.add("${KeyEvent.KEYCODE_BUTTON_L1}:${KeyEvent.ACTION_UP}")
             idle(); require(expected == keys(), "Resuming left gamepad buttons unbalanced: ${keys()}")
             tap(KeyEvent.KEYCODE_BUTTON_B); idle()
             require(expected == keys(), "Four-button shortcut did not resume typing")
@@ -136,10 +135,30 @@ class GamepadCheck : Instrumentation() {
             val field = automation.rootInActiveWindow.findAccessibilityNodeInfosByViewId("io.github.dlip.chordpad:id/test_field")[0]
             field.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             require(field.performAction(AccessibilityNodeInfo.ACTION_FOCUS), "Could not focus the typing field"); idle()
-            tap(KeyEvent.KEYCODE_BUTTON_R1)
-            waitFor({
-                automation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId("io.github.dlip.chordpad:id/test_field")?.firstOrNull()?.text?.toString() == " "
-            }, "Typing did not work after resuming from gamepad mode")
+            fun fieldText() = automation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId("io.github.dlip.chordpad:id/test_field")?.firstOrNull()?.text?.toString()
+            fun expect(value: String) { waitFor({ fieldText() == value }, "Expected '$value', received '${fieldText()}'") }
+            tap(KeyEvent.KEYCODE_BUTTON_A); expect("a")
+            motion(0f, 0f, 1f, 0f, 0f); tap(KeyEvent.KEYCODE_BUTTON_B); motion(0f, 0f, 0f, 0f, 0f); expect("aO")
+            key(KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.ACTION_DOWN)
+            key(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.ACTION_DOWN)
+            key(KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.ACTION_UP)
+            key(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.ACTION_UP); expect("aOu")
+            motion(0f, 0f, 0f, 1f, 0f); tap(KeyEvent.KEYCODE_BUTTON_A); expect("aOu9")
+            motion(0f, 0f, 0f, 0f, 0f)
+            tap(KeyEvent.KEYCODE_BUTTON_R1); expect("aOu9 ")
+            // L2 shifts one key; R2 selects one number or function key.
+            motion(0f, 0f, 1f, 0f, 0f); motion(0f, 0f, 0f, 0f, 0f)
+            tap(KeyEvent.KEYCODE_BUTTON_A); expect("aOu9 A")
+            tap(KeyEvent.KEYCODE_BUTTON_B); expect("aOu9 Ao")
+            motion(0f, 0f, 0f, 1f, 0f); motion(0f, 0f, 0f, 0f, 0f)
+            tap(KeyEvent.KEYCODE_BUTTON_A); expect("aOu9 Ao9")
+            tap(KeyEvent.KEYCODE_BUTTON_B); expect("aOu9 Ao9o")
+            repeat(2) { motion(0f, 0f, 0f, 1f, 0f); motion(0f, 0f, 0f, 0f, 0f) }
+            tap(KeyEvent.KEYCODE_BUTTON_A)
+            waitFor({ automation.rootInActiveWindow?.findAccessibilityNodeInfosByText("f9")?.isNotEmpty() == true }, "One-shot R2 did not send F9")
+            expect("aOu9 Ao9o")
+            tap(KeyEvent.KEYCODE_BUTTON_A); expect("aOu9 Ao9oa")
+
         } catch (error: Throwable) { failure = error; throw error }
         finally {
             try {
@@ -149,7 +168,7 @@ class GamepadCheck : Instrumentation() {
                 }
                 openChordpad()
                 if (startButton()?.text?.toString() == "Stop remapping") startButton()?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                chooseController(originalController)
+                originalController?.let { chooseController(it) }
             } catch (error: Throwable) {
                 val previous = failure
                 if (previous != null) previous.addSuppressed(error) else throw error

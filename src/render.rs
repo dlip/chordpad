@@ -483,7 +483,7 @@ pub fn html(layout: &Layout) -> Result<String> {
         escape(&layout.strategy.name)
     )
     .unwrap();
-    out.push_str("<p class=\"mode-note\">A / Cross is south, B / Circle east, X / Square west, and Y / Triangle north. Diagonal cells mean press both adjacent controls. Hold modifiers before starting a chord; release ordinary controls to type. Start sends Enter and Select sends Escape in every layer.</p>");
+    out.push_str("<p class=\"mode-note\">A / Cross is south, B / Circle east, X / Square west, and Y / Triangle north. Diagonal cells mean press both adjacent controls. Hold modifiers before starting a chord; release ordinary controls to type. Start sends Enter and Select sends Escape in every layer. On Linux, A+B+X+Y pauses/resumes, L3 sends Command+D, and R3 sends Command+Shift+D (Command = Meta / Super).</p>");
     if layout.strategy.independent {
         let editing = match (
             layout.profile.navigation_layer,

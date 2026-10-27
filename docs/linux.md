@@ -13,7 +13,7 @@ cargo build --release
 target/release/chordpad type --device /dev/input/event28 --layout layout.json
 ```
 
-It starts paused. Press **L1 + R1 + L2 + R2**, then release all controls to enable
+It starts paused. Press **A + B + X + Y**, then release all controls to enable
 typing. Repeat that gesture to pause. Each action commits when its ordinary
 controls are released; triggers assigned to Shift or layer can stay held.
 Ctrl-C or SIGTERM stops the process. It does not record normal typing.
@@ -45,8 +45,11 @@ The keyboard backend uses [uinput](https://docs.kernel.org/input/uinput.html),
 needs read/write access to `/dev/uinput`, and assumes the
 desktop uses a **US keyboard layout**, with Caps Lock off and no other keyboard
 modifiers held. It emits complete press/release sequences for every action,
-including temporary keyboard modifiers. General Unicode, other keyboard layouts,
-automatic key repeat, and persistent/one-shot modes are not implemented.
+including temporary keyboard modifiers. General Unicode and other keyboard
+layouts are not implemented. The default four-bank layout
+supports hold-to-repeat and one-shot L2 Shift; unused R2 taps cycle numbers →
+functions → off. Selections clear after the next key. Used holds stay momentary.
+Pause and disconnect clear them.
 
 The PID printed at startup supports pause/resume from another terminal:
 
@@ -63,6 +66,47 @@ D-pad position. Layouts with conflicting bindings or disabled gesture buttons
 are rejected before device access.
 
 For custom layouts, see [pause gestures and shortcut bindings](layout-generation.md#pause-gestures-and-shortcut-bindings).
+
+## Default four-bank layout
+
+The default [four-bank layout](../layout.json)
+uses single thumb buttons, a 100 ms late-bumper window, R1+R2 navigation,
+and one-shot L2 Shift. R2 taps cycle numbers → function keys → off. Build this checkout, then run:
+
+```sh
+target/release/chordpad type --device /dev/input/eventN \
+  --layout layout.json
+```
+
+Use the controller path from `chordpad devices`. It starts paused; press all four
+face buttons, then release everything to start or pause. This leaves all four
+shoulders available for Shift plus the second navigation bank. Add
+`--dry-run --start-active` to print recognized actions without typing.
+Every mapped output in the four-bank layout repeats after a 300 ms hold,
+then every 80 ms. This includes letters, numbers, navigation/function/media
+keys, menus, and stick-click shortcuts. Layer and modifier selectors stay
+selectors. Release stops the held output without an extra tap. First outputs
+retain press order; repeating keys do not block later completed input.
+
+Hold L1/Backspace or R1/Space alone for 300 ms to start repeating every 80 ms.
+Another control pressed before the deadline prevents repeat for that hold.
+Once repeating, that bumper acts as its key until release and does not select a
+bank. Release stops it without an extra tap.
+See the [portrait reference](../layout.pdf).
+
+## Thumbstick click shortcuts
+
+On Linux, **L3 sends Command+D** and **R3 sends Command+Shift+D**. Command uses
+Meta / Super. Short clicks fire once on release in every layer and ignore held keyboard
+modifiers and stick directions. In the four-bank layout, holding a click repeats
+its shortcut after 300 ms, every 80 ms. Pause, disconnect, or reset
+cancels pending clicks and requires all controls to return to neutral.
+You can assign L3's Command+D to **Dictate** and R3's Command+Shift+D to
+**Cancel Dictation** in your computer's shortcut settings.
+
+Automatic mappings detect L3/R3 at Linux button codes 317/318 when advertised.
+For an older calibration file, add `"L3": 317, "R3": 318` under `menu_buttons`,
+or export a fresh calibration.
 
 ## Thumbstick keyboard modifiers
 
@@ -83,9 +127,18 @@ Inward is right on the left stick and left on the right stick. Stick modifiers
 combine with each other, L2 Shift, and the R2 numbers/symbols layer. They apply to
 characters, editing keys, and explicit shortcuts on either half. The modifier
 set is captured at stroke start; releasing it early preserves that stroke.
-Keyboard events press and release the modifiers around each committed action,
-so holding a stick alone does not hold an OS modifier down between keystrokes.
-Pause, disconnect, and dropped-input resets discard pending actions and require
+Held Shift and stick modifiers press real OS modifier keys immediately and
+release them when the controls return to neutral. Hold L2 while clicking the
+mouse for Shift-click, or hold a Ctrl stick direction for Ctrl-click. This works
+without typing a controller key. Ordinary typing keeps shared modifiers down;
+fixed shortcuts and media keys temporarily use their own modifier set, then
+restore the held selection. Releasing a modifier before a captured stroke
+finishes still preserves that stroke's modifiers.
+
+One-shot Shift remains a next-key selection; it does not hold an OS modifier
+between keys. In the four-bank layout, an unused L2 tap must last at most 250 ms;
+a longer hold does not arm one-shot Shift on release. Pause, disconnect, invalid
+input, dropped-input resets, and exit release held modifiers. Reset requires
 full neutral before rearming.
 
 Automatic Linux mappings detect the left stick at ABS_X/ABS_Y (0/1) and the right
@@ -103,33 +156,18 @@ captured keyboard modifiers. Visual references include both directional maps.
 cargo run -- render --layout layout.json --output layout.html
 ```
 
-Open `layout.html` in a browser. It is a self-contained document with 8-way
-D-pad and face-button maps, so it works offline without a server, external fonts,
-or images. Base and Shift share one set of maps: pairs such as `m / M` and
-`, / <` show the normal output followed by its shifted output. Numbers and
-shifted symbols share another set. Navigation and function keys have their own
-maps and layer filters.
+Open `layout.html` in a browser. The offline reference shows each alpha, number,
+navigation, editing/media, and function bank, with mirrored thumbstick maps.
+Use your browser's Print / Save PDF command for a one-page A4 portrait reference.
+The checked-in [PDF](../layout.pdf) has the same layout.
 
-Shoulder maps show chords with L1/R1, with the shoulder alone in the center.
-The maps use the layout's actual bindings. Hover over a cell for its full chord
-instructions. Search also finds combinations outside the maps, including
-opposite face buttons and chords with more than two face buttons, and shows
-their instructions beside the result count.
+Legacy independent layouts render as searchable eight-way maps, with layer
+filters and a Print / Save PDF button. Their search highlights exact characters,
+action names, and shortcuts.
 
-Search for a literal character to find its exact chord: `m` and `M` select the
-same paired chord, while a literal space selects Space. Action names such as
-`Backspace`, `F11`, and `Ctrl + C` also work. Search highlights matching map cells;
-select a layer filter to narrow the results. Maps also work without JavaScript.
-
-Use **Print / Save PDF** to produce compact reference sheets. Printing includes
-all layer maps even if the screen is filtered and omits the text chord
-references. Layers share pages on A4 portrait paper; browser print settings can
-change paper size or scale.
-
-Re-run the command after generating a new layout. The document is derived from
-the validated bindings and records their strategy name. Existing HTML output is
-updated atomically; invalid layouts leave it intact. The output path cannot
-resolve to the input layout, including through symlinks.
+The document uses the validated bindings. Existing HTML output is updated
+atomically; invalid layouts leave it intact. Output cannot resolve to the input
+layout, including through symlinks.
 
 ## Inspect and test a controller
 
@@ -148,10 +186,10 @@ recognized actions. It does not create a virtual keyboard or type into apps.
 
 The display includes the D-pad, buttons, trigger travel, and recognition state.
 Release all controls to arm it. Form a chord, then release its ordinary controls
-to commit it once. L2/R2 may remain held between characters. New modifier presses
-during a stroke or new ordinary presses during release cancel that stroke.
-Diagonals freeze when either direction releases, so Up+Left → Up → neutral
-still commits Up+Left.
+to commit it once. L2/R2 may remain held between characters. The default layout
+allows a bumper to join the newest held letter within 100 ms. Each thumb press
+starts its own stroke. Legacy independent layouts retain their diagonal and
+chord-cancellation rules.
 
 `--layout` uses the generated layout's roles, physical constraints, and action
 bindings. Without a layout, L2 is Shift and R2 is a held layer, and chords are
@@ -167,8 +205,8 @@ driver. Explicit calibration files keep their supplied button codes.
 Start/Select are detected when the controller advertises their standard Linux
 codes (315/314). To enable them in an older saved calibration, add
 `"menu_buttons": {"Start": 315, "Select": 314}` or export a fresh calibration.
-This optional map also accepts custom event codes or an empty object to disable
-both buttons; recordings without it retain their original behavior.
+This optional map also accepts L3/R3, custom event codes, or an empty object to disable
+these buttons; recordings without it retain their original behavior.
 Hat-axis D-pad reports take precedence over duplicate button reports. Digital D-pads and trigger buttons are also supported. Controllers must
 expose the standard face, shoulder, and D-pad capabilities. Keyboard devices
 advertising gamepad button codes are excluded from discovery. A calibration file

@@ -121,6 +121,70 @@ fn uinput_round_trip_has_balanced_keys_and_report_boundaries() {
     );
 }
 
+#[test]
+#[ignore = "creates and exclusively captures a virtual keyboard; requires /dev/uinput and input-node access"]
+fn held_modifiers_reach_uinput_before_any_typing_stroke() {
+    use chordpad::{
+        controller::Snapshot,
+        typing::{Runtime, TypingLayout},
+    };
+    let mut device = output::virtual_device().unwrap();
+    let path = event_node(&mut device);
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(path)
+        .unwrap();
+    let mut capture = RawDevice::from_fd(file.into()).unwrap();
+    capture.grab().unwrap();
+    let source = TypingLayout::parse(
+        serde_json::from_str(include_str!(
+            "../../experiments/four-bank-alpha/layout.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::with_layout(
+        source,
+        &[Button::A, Button::B, Button::X, Button::Y],
+        false,
+        Keyboard::new(device),
+    )
+    .unwrap();
+    let mut frame = Snapshot {
+        buttons: vec![],
+        menu_buttons: vec![],
+        dpad: Some(Dpad::Neutral),
+        l2: 0.0,
+        r2: 0.0,
+        left_stick: Dpad::Neutral,
+        right_stick: Dpad::Neutral,
+    };
+    runtime.update(&frame).unwrap();
+    frame.buttons = vec![Button::L2];
+    runtime.update(&frame).unwrap();
+    assert_eq!(
+        capture.get_key_state().unwrap().iter().collect::<Vec<_>>(),
+        [KeyCode::KEY_LEFTSHIFT]
+    );
+    frame.left_stick = Dpad::Left;
+    runtime.update(&frame).unwrap();
+    assert_eq!(
+        capture.get_key_state().unwrap().iter().collect::<Vec<_>>(),
+        [KeyCode::KEY_LEFTCTRL, KeyCode::KEY_LEFTSHIFT]
+    );
+    frame.buttons.push(Button::A);
+    runtime.update(&frame).unwrap();
+    frame.buttons.pop();
+    runtime.update(&frame).unwrap();
+    assert_eq!(
+        capture.get_key_state().unwrap().iter().collect::<Vec<_>>(),
+        [KeyCode::KEY_LEFTCTRL, KeyCode::KEY_LEFTSHIFT]
+    );
+    runtime.set_paused(true).unwrap();
+    assert!(capture.get_key_state().unwrap().iter().next().is_none());
+}
+
 struct Process(Child);
 impl Drop for Process {
     fn drop(&mut self) {
@@ -168,7 +232,7 @@ fn emit(device: &mut VirtualDevice, values: &[(u16, u16, i32)]) {
 
 fn gamepad(name: &str, trigger_maximum: i32) -> VirtualDevice {
     let mut keys = AttributeSet::<KeyCode>::new();
-    for code in [304, 305, 307, 308, 310, 311, 314, 315] {
+    for code in [304, 305, 307, 308, 310, 311, 314, 315, 317, 318] {
         keys.insert(KeyCode(code));
     }
     let mut builder = VirtualDevice::builder()
@@ -246,12 +310,14 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
     emit(&mut gamepad, &[(3, 5, 0)]);
     until(&rx, &mut log, "OUT: WOULD TYPE 'T'");
     for status in ["PAUSED", "ACTIVE:"] {
-        emit(&mut gamepad, &[(1, 310, 1), (1, 311, 1)]);
-        emit(&mut gamepad, &[(3, 2, 255), (3, 5, 255)]);
+        emit(
+            &mut gamepad,
+            &[(1, 304, 1), (1, 305, 1), (1, 307, 1), (1, 308, 1)],
+        );
         until(&rx, &mut log, status);
         emit(
             &mut gamepad,
-            &[(1, 310, 0), (1, 311, 0), (3, 2, 0), (3, 5, 0)],
+            &[(1, 304, 0), (1, 305, 0), (1, 307, 0), (1, 308, 0)],
         );
     }
     until(&rx, &mut log, "READY");
@@ -319,7 +385,9 @@ fn linux_typing_loop_handles_signals_gestures_and_reconnect() {
     assert!(process.0.wait().unwrap().success());
     log.extend(rx.try_iter());
     assert_eq!(
-        log.iter().filter(|s| s.starts_with("OUT:")).count(),
+        log.iter()
+            .filter(|s| s.starts_with("OUT: WOULD TYPE "))
+            .count(),
         7,
         "{log:?}"
     );
@@ -337,7 +405,7 @@ fn linux_navigation_repeats_without_new_reports_and_stops_on_release() {
     let layout_path = dir.path().join("layout.json");
     std::fs::write(
         &layout_path,
-        include_str!("../../android/app/src/main/assets/default-layout.json"),
+        include_str!("../../android/app/src/main/assets/legacy-layout.json"),
     )
     .unwrap();
     let mut process = Process(
@@ -396,7 +464,7 @@ fn linux_function_layer_uses_number_combos_without_leaking_space() {
     let layout_path = dir.path().join("layout.json");
     std::fs::write(
         &layout_path,
-        include_str!("../../android/app/src/main/assets/default-layout.json"),
+        include_str!("../../android/app/src/main/assets/legacy-layout.json"),
     )
     .unwrap();
     let mut process = Process(
@@ -447,7 +515,9 @@ fn linux_function_layer_uses_number_combos_without_leaking_space() {
     assert!(process.0.wait().unwrap().success());
     log.extend(rx.try_iter());
     assert_eq!(
-        log.iter().filter(|s| s.starts_with("OUT:")).count(),
+        log.iter()
+            .filter(|s| s.starts_with("OUT: WOULD TYPE "))
+            .count(),
         6,
         "{log:?}"
     );
@@ -483,4 +553,91 @@ fn disconnected_wait_respects_the_session_duration() {
     until(&rx, &mut log, "duration elapsed;");
     assert!(process.0.wait().unwrap().success());
     println!("Session duration includes time waiting for reconnection");
+}
+
+#[test]
+#[ignore = "creates an exclusively grabbed test gamepad; requires /dev/uinput and input-node access"]
+fn linux_alpha_banks_type_one_shot_shift_navigate_and_functions() {
+    let mut gamepad = gamepad("chordpad alpha-bank test gamepad", 255);
+    let path = event_node(&mut gamepad);
+    let mut process = Process(
+        Command::new(env!("CARGO_BIN_EXE_chordpad"))
+            .args(["type", "--device"])
+            .arg(path)
+            .args([
+                "--layout",
+                concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/experiments/four-bank-alpha/layout.json"
+                ),
+            ])
+            .args(["--dry-run", "--grab", "--start-active", "--duration", "8"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let (tx, rx) = mpsc::channel();
+    pump(process.0.stdout.take().unwrap(), "OUT: ", tx.clone());
+    pump(process.0.stderr.take().unwrap(), "ERR: ", tx);
+    let mut log = vec![];
+    until(&rx, &mut log, "READY");
+    for (code, key) in [(311, "Space"), (310, "Backspace")] {
+        let pressed = Instant::now();
+        emit(&mut gamepad, &[(1, code, 1)]);
+        until(&rx, &mut log, &format!("OUT: WOULD TYPE {key}"));
+        assert!(pressed.elapsed() >= Duration::from_millis(280));
+        until(&rx, &mut log, &format!("OUT: WOULD TYPE {key}"));
+        emit(&mut gamepad, &[(1, code, 0)]);
+    }
+    log.clear();
+    emit(&mut gamepad, &[(1, 304, 1)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE 'a'");
+    until(&rx, &mut log, "OUT: WOULD TYPE 'a'");
+    emit(&mut gamepad, &[(1, 304, 0)]);
+    emit(&mut gamepad, &[(3, 2, 255)]);
+    emit(&mut gamepad, &[(3, 2, 0)]);
+    emit(&mut gamepad, &[(1, 304, 1)]);
+    emit(&mut gamepad, &[(1, 304, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE [Shift] + 'a'");
+    emit(&mut gamepad, &[(1, 304, 1)]);
+    emit(&mut gamepad, &[(1, 304, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE 'a'");
+    emit(&mut gamepad, &[(1, 311, 1), (3, 5, 255), (3, 16, 1)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE Right");
+    until(&rx, &mut log, "OUT: WOULD TYPE Right");
+    emit(&mut gamepad, &[(1, 311, 0), (3, 5, 0), (3, 16, 0)]);
+    emit(&mut gamepad, &[(3, 5, 255)]);
+    emit(&mut gamepad, &[(3, 5, 0)]);
+    emit(&mut gamepad, &[(3, 5, 255)]);
+    emit(&mut gamepad, &[(3, 5, 0)]);
+    emit(&mut gamepad, &[(3, 17, -1)]);
+    emit(&mut gamepad, &[(3, 17, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE F1");
+    emit(&mut gamepad, &[(1, 304, 1)]);
+    emit(&mut gamepad, &[(1, 304, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE 'a'");
+    emit(&mut gamepad, &[(1, 310, 1), (1, 311, 1), (3, 5, 255)]);
+    emit(&mut gamepad, &[(3, 17, -1)]);
+    emit(&mut gamepad, &[(3, 17, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE VolumeUp");
+    emit(&mut gamepad, &[(1, 310, 0), (1, 311, 0), (3, 5, 0)]);
+    emit(&mut gamepad, &[(1, 317, 1)]);
+    emit(&mut gamepad, &[(1, 317, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE Meta+D");
+    emit(&mut gamepad, &[(3, 2, 255), (1, 318, 1)]);
+    emit(&mut gamepad, &[(1, 318, 0)]);
+    until(&rx, &mut log, "OUT: WOULD TYPE Shift+Meta+D");
+    emit(&mut gamepad, &[(3, 2, 0)]);
+    assert_eq!(
+        unsafe { libc::kill(process.0.id() as i32, libc::SIGTERM) },
+        0
+    );
+    assert!(process.0.wait().unwrap().success());
+    log.extend(rx.try_iter());
+    assert!(
+        !log.iter()
+            .any(|s| s.contains("WOULD TYPE Space") || s.contains("WOULD TYPE Backspace")),
+        "{log:?}"
+    );
 }

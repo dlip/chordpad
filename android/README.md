@@ -1,7 +1,7 @@
 # Chordpad for Android
 
 A controller keyboard for Android 14 and newer, with a live DualSense preview,
-the desktop independent chord layout, and editable button/stick mappings.
+the four-bank typing layout, and editable button/stick mappings.
 The app does not need root, network access, or a replacement on-screen keyboard.
 
 ## Install and use
@@ -35,11 +35,11 @@ Chordpad's controller input service in Android accessibility settings.
 
 Pausing or stopping remapping releases joystick capture so games receive normal
 controller buttons, sticks, D-pad, and analog triggers. **Pause/Resume**, or
-L1 + R1 + L2 + R2, discards pending strokes. Release all four buttons between
+A + B + X + Y, discards pending strokes. Release all four buttons between
 toggles. While paused, the service observes button events without consuming new
 presses, allowing the four-button shortcut to resume typing from a game.
-Resuming this way requires a controller that reports L2/R2 button presses, as the
-DualSense does; the app's **Resume** button also works. Buttons already held when
+The face-button gesture works without trigger button reports; the app's
+**Resume** button also works. Buttons already held when
 toggling keep their original routing through release so games receive matched
 presses and releases. Release all controls after resuming typing.
 The handoff waits for buttons held during the toggle to release before changing
@@ -64,121 +64,122 @@ and [accessibility input connection](https://developer.android.com/reference/and
 Text and keys go through the focused editor's input connection. Games and apps
 without such a connection may not accept them; this app does not provide
 unrestricted system-wide keyboard or touch injection. Explicit Android Back,
-Home, and Recents actions are available in Direct mapping.
+Home, and Recents actions are available in Direct mapping. Modifier keys apply to Chordpad's typed keys. Held Shift also extends a
+selection when you click or tap elsewhere in the same focused text editor.
+Native and browser editors must support Android's editor selection updates and
+selection commands. Chordpad uses cursor positions supplied by the editor;
+it does not record the text or send it anywhere.
+
+## Global mouse modifiers
+
+For Ctrl-click, Alt-click, Meta-click, and native Shift mouse behavior in other
+apps, download `start-modifiers.sh` from the [latest release](https://github.com/dlip/chordpad/releases/latest).
+Connect the tablet to a computer with ADB and USB debugging enabled, then run:
+
+```sh
+bash start-modifiers.sh
+# With more than one device: bash start-modifiers.sh -s SERIAL
+```
+
+From a source checkout, use `./android/start-modifiers.sh` instead.
+
+The app shows **Global mouse modifiers connected**. Disconnect USB and use
+held L2, stick modifiers, or Direct mapping modifiers with your mouse. The
+helper needs restarting after a tablet reboot, force-stopping Chordpad, or
+updating the app. Ordinary typing and editor Shift range selection work
+without it. Unused L2 taps remain one-shot modifiers for the next typed key;
+hold L2 for a mouse or touch selection.
+
+The helper runs with ADB privileges and creates a virtual modifier keyboard.
+It accepts only modifier state from Chordpad's UID, releases keys on pause,
+stop, reset, or controller disconnect, and clears them if the app stops sending
+heartbeats for 1.5 seconds (checked every 500 ms). App termination closes the helper and its keyboard.
+It requires the device's `uinput` command and Android shell access to virtual
+input devices; vendor restrictions may prevent startup. Apps still decide how
+to interpret modifiers outside focused text editors, including list and file
+range selection.
 
 ## Chordpad chords
 
-The included 97-binding layout matches the checked-in desktop default.
-Import another version 2 **independent** `layout.json` using the
-document picker. Validation happens before replacing the saved layout, and the
-previous layout is kept if import fails. Export writes the current JSON to a
-location you choose. Legacy unified recognition strategies are not supported on
-Android yet.
+The included [four-bank layout](../layout.json) uses
+one D-pad cardinal or one face button per character. Open **View chord reference**
+for the active banks, shifted symbols, navigation, functions, and mirrored
+thumbstick maps. The [one-page PDF](../layout.pdf)
+shows the same layout.
 
-**View chord reference** opens eight-way maps for the active layout, including
-imported layouts. Base letters and numbers share cells with their L2 Shift
-outputs (for example, `m / M` and `, / <`). Navigation, function, media, volume,
-and mirrored thumbstick maps use the same format. Use the layer selector to
-focus on one layer, or expand its text chord reference to see every combo.
-Maps sit side by side on tablets and stack on narrower screens.
-
-Alt + Tab switches directly to the previous app using Android's double-Recents
-quick switch. Tap it again to return. Pending switches cancel when remapping
-stops, pauses, or the controller disconnects.
-
-Command + Tab opens Android's Recent Apps view, including when no text field is
-focused. Release the controls, then hold R2 + L1 and use the D-pad
-arrows to choose an app. Options (Enter) selects it; Share (Escape) closes the
-switcher. When no editor is connected, unmodified arrows, Enter, and Escape use
-Android's global navigation actions. In a text field they keep their normal
-editing behavior. Plain Tab and other modified Tab combinations go to the
-focused app. This opens the Android app switcher; it does not emulate holding
-Alt or Command while cycling between apps on a desktop.
-
-| DualSense control | Chordpad role |
+| Control | Action |
 | --- | --- |
-| Cross, Circle, Square, Triangle | A, B, X, Y, by physical position |
-| D-pad and L1 | Independent left typing half |
-| Face buttons and R1 | Independent right typing half |
-| L1 alone / R1 alone | Backspace / Space; with R2, navigation / functions |
-| L2 / R2 | Held Shift / numbers and symbols |
-| R2 + L1 | Held navigation layer: D-pad arrows; Triangle/Cross Page Up/Down; Square/Circle Home/End |
-| R2 + R1 | Held function layer: number combos 1–9 → F1–F9, 0 → F10; Square/Triangle → F11/F12 |
+| L1 / R1 held | Select alpha banks; both select the fourth bank |
+| L1 / R1 alone | Backspace / Space; hold alone 300 ms to repeat |
+| L2 held / tapped | Shift / one-shot Shift; tap again to cancel |
+| R2 held or tapped once | Numbers and symbols; D-pad ↑ → ↓ ← gives 1–4 |
+| R2 + L1 | D-pad 5–8; R2 A is 9 and B is 0 |
+| R1 + R2 | Navigation: D-pad arrows; Y Page Up, A Page Down, X Home, B End |
+| R1 + R2 + L1 | Editing/media: ↑/↓ volume, ←/→ previous/next track, A Play/Pause, B Stop, Y Print Screen, X Delete |
+| Tap R2 twice; third tap turns off | Next key uses function positions; add L1 for F5–F8 |
 | Options / Share | Enter / Escape in every layer |
-| Sticks | Up Alt, down Command/Meta, outward Ctrl, inward Ctrl + Alt + Command |
+| L3 / R3 click | Command+D / Command+Shift+D |
+| A + B + X + Y | Pause / resume |
 
-Outward diagonals combine adjacent directions. Inward-up sends Command + Ctrl + Alt +
-Shift; inward-down sends Alt + Command. Straight inward sends Ctrl + Alt +
-Command. The layout's opposite-face-pair and forbidden-chord constraints
-are enforced. Stroke output follows start order, including overlapping halves
-and Options/Share. The queue is bounded at 64 pending strokes. Focus changes,
-disconnects, and pauses discard pending output and require neutral controls.
+Hold bank bumpers before a thumb button, or add them within **100 ms** while that
+button stays down. Only the newest stroke accepts late bumpers. Starting another
+thumb button freezes earlier strokes; early bumper releases preserve captured
+banks. Adjacent buttons can overlap to roll letters. Each press is a separate
+stroke, and output follows press order even if releases arrive in reverse.
 
-With `profile.navigation_layer` enabled (as in the bundled layout), hold R2 + L1
-before pressing navigation inputs. D-pad cardinal directions send arrows;
-Triangle sends Page Up, Cross Page Down, Square Home, and Circle End. D-pad
-arrows fire on press and repeat after 400 ms, every 80 ms. With the bundled
-`profile.navigation_media` option, face-button taps send on full chord release;
-holding one face button starts repeating after 400 ms. Adding a second face
-button forms a media chord without leaking a page key. Media chords never
-repeat. Add L2 for Shift selection; stick
-modifiers also apply. D-pad diagonals produce no arrows. Releasing either R2 or
-L1 stops repeat, and held navigation inputs must release before typing again.
-Entering navigation discards unfinished typing strokes. L1 does not send
-Backspace as a layer modifier.
+Unused R2 taps cycle numbers → functions → off. Each tap lasts at most 250 ms,
+with no limit between taps. The next key clears the selection. Holding R1+R2
+selects navigation. Unused L2 taps of at most 250 ms arm Shift for the next key;
+a second tap cancels it. Used holds do not rearm either selection. Pause, disconnect, and
+focus resets clear both.
 
-R2 alone still provides numbers and symbols, including on the D-pad. Generation
-reserves R2 + L1 and relocates conflicting symbol bindings. Base letters and
-punctuation remain unchanged. Imported older layouts keep their original
-behavior until regenerated with the navigation option enabled.
+Held Shift combines with navigation for selection and is captured at stroke
+start. An unused L2 tap shifts the next key only. Standard US shifted
+symbols and uppercase letters are supported. Caps Lock is not implemented.
 
-The bundled number layer uses a clockwise D-pad ring: Up is 1, Up Right is 2,
-Right is 3, Down Right is 4, Down is 5, Down Left is 6, Left is 7, and Up Left
-is 8. Cross is 9; Circle is 0. L2 adds the usual shifted number symbols.
-Square is `-`; Triangle is `=`. Add L2 for `_` and `+`. Cross+Square is `]`
-(L2 adds `}`). Number, minus, and equals positions are pinned in the example
-generator configuration.
+Tilt either stick for mirrored keyboard modifiers: up Alt, down Command/Meta,
+outward Ctrl, inward Ctrl+Alt+Command, inward-up Ctrl+Alt+Shift+Command, and
+inward-down Alt+Command. Click shortcuts ignore held modifiers. Short taps send once on release; holding
+the click repeats its shortcut. On your computer you can assign L3's Command+D to Dictate and R3's
+Command+Shift+D to Cancel Dictation; these are keyboard shortcuts, not Android
+speech-recognition actions.
 
-With `profile.function_layer` enabled, hold R2 + R1 and press the same ordinary
-combos as numbers 1–9 for F1–F9, or 0 for F10. Square is F11 and Triangle is F12 in
-the bundled preset. Function keys fire once on full chord release, with L2 Shift and stick
-modifiers supported. The prefix can stay held across sequential inputs. Early
-prefix release preserves a function stroke already started, without sending
-Space. Imported layouts use their own `profile.extra_function_chords` for F11/F12;
-older layouts without the field retain D-pad Left/Down. Entering either extra
-layer cancels unfinished typing; switching between
-the extra layers cancels unfinished strokes and consumes held controls. Holding
-R2 + L1 + R1 suppresses typing; adding L2 uses the normal pause gesture.
+A standalone L1/Backspace or R1/Space hold starts repeating after **300 ms**,
+every **80 ms**. Another control pressed before that deadline prevents repeat
+for that hold. Once repeating, the bumper acts as its key until release and no
+longer selects a bank. Preheld Shift/stick modifiers still apply. Release stops
+repeat without an extra tap; pause, disconnect, and focus reset stop it too.
 
-The bundled preset adds these adjacent face-button pairs:
+Every mapped output in the four-bank layout repeats after a **300 ms** hold,
+then every **80 ms**: letters, numbers, function/navigation keys, media,
+Enter/Escape, and stick-click shortcuts. Layer and modifier selectors remain
+held selectors. First outputs keep press order; a repeating key does not block
+later completed strokes. Release stops that key without an extra tap. Captured
+banks, modes, and modifiers stay fixed throughout the hold.
 
-| Face pair | Navigation (R2 + L1) | Functions (R2 + R1) |
-| --- | --- | --- |
-| Square + Triangle | Previous track | Volume up |
-| Triangle + Circle | Next track | Print Screen |
-| Cross + Square | Delete | Volume down |
-| Cross + Circle | Play/pause | Mute/unmute |
+Media controls ignore keyboard modifiers. Android dispatches media keys to
+the current media session and changes music volume without needing an editor.
+Unmodified Print Screen takes a screenshot; modified Print Screen goes to the
+focused editor.
 
-Face pairs send once on full chord release. Delete supports L2 Shift and
-thumbstick modifiers. Media and volume actions ignore keyboard modifiers. Android
-dispatches media keys to the current media session and changes the music stream
-volume, so these controls also work without a focused text field.
-The app requests the normal `MODIFY_AUDIO_SETTINGS` permission; no runtime
-permission prompt is needed. Playback commands require a media app that handles them.
+Alt+Tab switches to the previous app. Command+Tab opens Recent Apps; navigate with
+R1+R2 arrows, then Options to select or Share to close. Plain Tab and other
+modified Tab combinations go to the focused app. Without an editor, unmodified
+arrows, Enter, and Escape use Android's global navigation actions.
 
-Unmodified Print Screen takes a screenshot using Android's
-[screenshot action](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#GLOBAL_ACTION_TAKE_SCREENSHOT),
-with or without a focused text field. Modified Print Screen goes to the focused editor.
+Import four-bank JSON or a version 2 independent legacy layout
+using **Import layout…**. Validation completes before replacing the saved layout;
+failed imports leave it intact. Legacy layouts keep their original chord,
+navigation, and function mappings. **Restore bundled layout** selects the new
+four-bank layout. Export saves the active JSON. Reference maps always follow the
+active layout, with a layer selector and optional text instructions.
 
-The options `profile.navigation_media`, `profile.function_volume`, and
-`profile.function_print_screen` are enabled in the bundled preset. Older imports
-without them keep their original behavior.
-Volume and Print Screen combos must not overlap number or F11/F12 bindings.
-
+Focus changes, pause, disconnect, and resynchronization discard pending strokes
+and require all controls to return to neutral. The queue is bounded at 64 strokes.
 Triggers engage at 65% and release at 35%; sticks engage at 55% and release at
-35%. D-pad hat axes and analog trigger axes take precedence over their duplicate
-button reports. DualSense right-stick input uses Android's Z/RZ axes, with RX/RY
-as a fallback for other controllers. The PS button retains its Android behavior.
+35%. Hat and analog trigger axes take precedence over duplicate button reports.
+DualSense uses Z/RZ for its right stick, with RX/RY as a fallback. The PS button
+retains Android behavior.
 
 ## Direct mappings
 
@@ -315,3 +316,29 @@ After merging the changes and setting the secrets, publish the tag:
 git tag v1.0.1
 git push origin v1.0.1
 ```
+
+
+To check held modifiers and pointer selection, unlock the tablet and run from
+the repository root:
+
+```sh
+nix-shell android/shell.nix --run 'cd android && ./gradlew :app:assembleDebug :gamepad-check:assembleDebug'
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb install -r android/gamepad-check/build/outputs/apk/debug/gamepad-check-debug.apk
+./android/start-modifiers.sh
+adb shell am instrument -w io.github.dlip.chordpad.gamepadcheck/io.github.dlip.chordpad.ModifierCheck
+adb uninstall io.github.dlip.chordpad.gamepadcheck
+```
+
+This uses a virtual gamepad and mouse in a dedicated test editor. It checks the
+real Android modifier state, Shift-click and Shift-tap range selection, and
+release on controller disconnect. It restores any connected original controller and leaves
+remapping off.
+
+Pass `-e helper false` to `ModifierCheck` with the helper stopped to check
+Shift-click and Shift-tap selection without global input privileges.
+
+Use `-e web true -e pointer touchpad_click` or `-e web true -e pointer touchpad_tap`
+to check physical-click and surface-tap event sequences in a browser editor.
+The pointer events use the gamepad device ID, mouse source, and finger tool type
+reported by the DualSense touchpad.

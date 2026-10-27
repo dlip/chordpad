@@ -22,6 +22,7 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
     var layout: ChordLayout; private set
     var engine: ChordEngine; private set
     val direct = DirectMapper()
+    val globalModifiers = GlobalModifiers { changed() }
     private var remappingEnabled = false
     val enabled get() = remappingEnabled
     private var remappingPaused = false
@@ -118,6 +119,7 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
     fun changed() { listeners.toList().forEach { it.run() } }
 
     fun reset(reason: String) {
+        setModifiers(0)
         captureChanged()
         service?.updateSoftKeyboard()
         if (!enabled || paused || device == null) service?.cancelLastAppSwitch()
@@ -131,7 +133,7 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
         resumePending = enabled && keys.hasHeldPresses()
         if (enabled && !resumePending && device != null) freshInput()
         reset(if (enabled) "Release all controls" else "Remapping is off")
-        if (enabled) { process(); handler.removeCallbacks(repeater); handler.postDelayed(repeater, 80) }
+        if (enabled) { process(); handler.removeCallbacks(repeater); handler.postDelayed(repeater, if (mode == "chords" && layout.alphaBanks != null) 20L else 80L) }
         else handler.removeCallbacks(repeater)
         changed()
     }
@@ -221,7 +223,7 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
         if (!enabled || device == null || resumePending) return
         if (gesture && latest.neutral()) gesture = false
         if (paused) return
-        if (!gesture && latest.buttons and 0xf0 == 0xf0) { setPaused(true); return }
+        if (!gesture && latest.buttons and 0x0f == 0x0f) { setPaused(true); return }
         if (!ready) {
             if (!latest.neutral()) return
             ready = true; engine.update(latest); status = "Ready"
@@ -229,14 +231,22 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
         }
         val actions = if (mode == "chords") engine.update(latest) else direct.update(latest, SystemClock.uptimeMillis())
         if (mode == "chords") { status = engine.status; ready = engine.ready() }
+        setModifiers(if (ready) {
+            if (mode == "direct") direct.heldModifiers else latest.modifiers or if (latest.buttons and L2 != 0) Action.SHIFT else 0
+        } else 0)
         emit(actions)
+    }
+
+    private fun setModifiers(mask: Int) {
+        globalModifiers.set(mask)
+        service?.setModifiers(mask)
     }
 
     private fun emit(actions: List<Action>) {
         for (action in actions) {
             try {
                 if (service?.send(action) != true) {
-                    status = "Focus a text field to type"; direct.reset(); break
+                    status = "Focus a text field to type"; direct.reset(); setModifiers(0); break
                 }
                 lastAction = action.label()
             } catch (error: RuntimeException) { reset("Output stopped: ${error.message}"); break }
@@ -247,8 +257,11 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
         override fun run() {
             if (!enabled) return
             if (!paused && ready && mode == "direct") emit(direct.repeat(SystemClock.uptimeMillis()))
-            if (!paused && ready && mode == "chords") emit(engine.repeat())
-            handler.postDelayed(this, 80)
+            if (!paused && ready && mode == "chords") {
+                val actions = engine.repeat()
+                if (actions.isNotEmpty()) { status = engine.status; emit(actions); changed() }
+            }
+            handler.postDelayed(this, if (mode == "chords" && layout.alphaBanks != null) 20L else 80L)
         }
     }
 

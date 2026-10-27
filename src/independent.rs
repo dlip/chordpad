@@ -40,7 +40,7 @@ pub struct Engine {
     waiting: bool,
     next_id: u64,
     menu: MenuKeys,
-    menu_pending: [Option<u64>; 2],
+    menu_pending: [Option<u64>; MenuButton::ALL.len()],
     layers: HeldLayers,
     started: Instant,
 }
@@ -58,7 +58,7 @@ impl Engine {
             waiting: true,
             next_id: 0,
             menu: MenuKeys::default(),
-            menu_pending: [None; 2],
+            menu_pending: [None; MenuButton::ALL.len()],
             layers: HeldLayers::default(),
             started: Instant::now(),
         })
@@ -82,7 +82,7 @@ impl Engine {
         let discarded = !self.queue.is_empty();
         self.queue.clear();
         self.menu = MenuKeys::default();
-        self.menu_pending = [None; 2];
+        self.menu_pending = [None; MenuButton::ALL.len()];
         self.layers = HeldLayers::default();
         self.waiting = true;
         for half in &mut self.halves {

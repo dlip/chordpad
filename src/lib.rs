@@ -1,3 +1,4 @@
+pub mod alpha_banks;
 pub mod chord;
 pub mod controller;
 pub mod corpus;

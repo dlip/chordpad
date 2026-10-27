@@ -2,7 +2,7 @@ use crate::{
     Result,
     controller::{Packet, *},
     inspector::{self, CalibrateArgs, Header, InspectArgs, Record, Session},
-    model::{Button, Layout, Side},
+    model::{Button, Side},
 };
 use evdev::{KeyCode, raw_stream::RawDevice};
 use serde::Serialize;
@@ -449,14 +449,14 @@ pub fn inspect(args: InspectArgs) -> Result<()> {
     let mut device = open(&args.device)?;
     let info = info(&device, &args.device)?;
     let calibration = load_mapping(args.calibration.as_deref(), &info)?;
-    let layout: Option<Layout> = args
+    let layout = args
         .layout
         .as_deref()
-        .map(inspector::read_json)
+        .map(|path| crate::typing::TypingLayout::parse(inspector::read_json(path)?))
         .transpose()?;
     let stop = stopped()?;
     let mut session = Session::new(
-        Header::new(calibration.clone(), layout),
+        Header::with_layout(calibration.clone(), layout),
         args.record.as_deref(),
         args.json,
     )?;
@@ -565,14 +565,16 @@ fn reopen(
 pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
     use crate::{
         output,
-        typing::{DryRun, Output, Runtime, validate_pause},
+        typing::{DryRun, Output, Runtime, TypingLayout},
     };
     if args.duration == Some(0) {
         return Err("duration must be positive".into());
     }
-    let layout: Layout = inspector::read_json(&args.layout)?;
-    output::validate_layout(&layout)?;
-    validate_pause(&layout, &args.pause_buttons)?;
+    let layout = TypingLayout::parse(inspector::read_json(&args.layout)?)?;
+    for action in layout.actions()? {
+        output::stroke(&action)?;
+    }
+    layout.validate_pause(&args.pause_buttons)?;
     let mut device = open(&args.device)?;
     let info = info(&device, &args.device)?;
     let mut calibration = load_mapping(args.calibration.as_deref(), &info)?;
@@ -596,7 +598,8 @@ pub fn type_layout(args: crate::typing::TypeArgs) -> Result<()> {
             .grab()
             .map_err(|e| format!("cannot grab controller: {e}"))?;
     }
-    let mut runtime = Runtime::new(layout, &args.pause_buttons, !args.start_active, output)?;
+    let mut runtime =
+        Runtime::with_layout(layout, &args.pause_buttons, !args.start_active, output)?;
     eprintln!(
         "{} {} (PID {}). {}. Toggle with {:?}; release all controls after toggling.",
         if args.dry_run {
@@ -973,7 +976,9 @@ mod tests {
             serde_json::to_string(&Calibration::default()).unwrap(),
         )
         .unwrap();
-        let custom = load_mapping(Some(&path), &test_device(Some("xpad"))).unwrap();
+        let mut custom_device = test_device(Some("xpad"));
+        custom_device.keys.extend([317, 318]);
+        let custom = load_mapping(Some(&path), &custom_device).unwrap();
         assert_eq!(custom.buttons[&Button::X], 308);
         assert_eq!(custom.buttons[&Button::Y], 307);
     }

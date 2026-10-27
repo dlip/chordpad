@@ -10,7 +10,7 @@ use std::{cell::RefCell, rc::Rc};
 
 fn layout() -> Layout {
     let mut layout: Layout = serde_json::from_str(include_str!(
-        "../android/app/src/main/assets/default-layout.json"
+        "../android/app/src/main/assets/legacy-layout.json"
     ))
     .unwrap();
     layout.profile.function_layer = false;

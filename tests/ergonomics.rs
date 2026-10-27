@@ -131,7 +131,7 @@ fn diagonal_comfort_is_mirrored_and_applies_with_shoulders_and_held_context() {
 #[test]
 fn new_costs_are_optional_validated_and_survive_layout_roundtrips() {
     let mut legacy: serde_json::Value =
-        serde_json::from_str(include_str!("../layout.json")).unwrap();
+        serde_json::from_str(include_str!("../examples/legacy-layout.json")).unwrap();
     for field in [
         "skipgram_weights",
         "awkward_diagonal_extra",

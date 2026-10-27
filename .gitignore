@@ -2,7 +2,6 @@
 /corpora/
 /scripts/__pycache__/
 /layout.report.json
-/layout.html
 /android/.gradle/
 /android/.kotlin/
 /android/local.properties

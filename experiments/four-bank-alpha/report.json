@@ -1,0 +1,570 @@
+{
+  "model": "four-bank-alpha-v3",
+  "search_space": "24 letters may move between base and single-bumper banks; Q/Z and punctuation use both bumpers.",
+  "weights": {
+    "same_thumb": 1.0,
+    "thumb_travel": 0.4,
+    "roll_bonus": 0.6,
+    "awkward_roll_fraction": 0.5,
+    "bumper_press": 1.1,
+    "trigger_press": 1.4,
+    "bumper_change": 0.35,
+    "bumper_hold_per_character": 0.165,
+    "trigger_hold_per_character": 0.21,
+    "space_rearm": 0.35,
+    "thumb_imbalance_squared": 2.0,
+    "index_imbalance_squared": 0.5
+  },
+  "late_bumper_window_ms": 100,
+  "timing_scored": false,
+  "skipgram_weights": [
+    0.5,
+    0.25,
+    0.125
+  ],
+  "text": "Case preserved; full printable ASCII, Tab and Enter; unsupported characters fail.",
+  "caps_lock_scored": false,
+  "rolling": "Same-bank adjacent moves on one thumb get a bounded rebate; awkward diagonals get half credit. Alternation remains cheaper.",
+  "pins": {
+    "u": 12,
+    "d": 10,
+    "l": 11,
+    "r": 1,
+    "o": 5
+  },
+  "selection": "Lowest training objective; held-out text is evaluation only.",
+  "iterations_per_seed": 20000,
+  "selected_seed": 42,
+  "runs": [
+    {
+      "seed": 42,
+      "training_objective": 2.15644631801923
+    },
+    {
+      "seed": 43,
+      "training_objective": 2.1575124264460044
+    },
+    {
+      "seed": 44,
+      "training_objective": 2.1575124264460044
+    },
+    {
+      "seed": 45,
+      "training_objective": 2.15644631801923
+    },
+    {
+      "seed": 46,
+      "training_objective": 2.1575124264460044
+    }
+  ],
+  "corpus_sha256": {
+    "training": "147e89708e4922ca719ec038e31af0f17867d62c1a0bc41737fa72c0016b8d76",
+    "held_out": "d73b7a5b508465cb95322289ae0c68057c5f4a81b96834d6185e3561fe18439e"
+  },
+  "training": {
+    "objective": 2.15644631801923,
+    "load_objective": 2.176920796205594,
+    "skipgram_travel_cost": 0.10253117980184258,
+    "letter_count": 854833,
+    "letter_bank_percent": {
+      "Base": 65.15845785083168,
+      "Hold L1": 20.72194218051947,
+      "Hold R1": 13.902364555416087,
+      "Hold L1 + R1": 0.21723541323276008
+    },
+    "letter_thumb_percent": {
+      "left": 50.116923422469654,
+      "right": 49.883076577530346
+    },
+    "adjacent_letter_alternation_percent": 70.74390231345073,
+    "adjacent_letter_roll_opportunity_percent": 6.683220384609161,
+    "adjacent_letter_comfortable_roll_percent": 3.884190659996146,
+    "space_rearms_per_100_characters": 2.3462651347023624,
+    "one_shot_shift_count": 40131,
+    "uppercase_count": 34958,
+    "shifted_symbol_count": 5173,
+    "thumb_button_presses_per_letter": 1.0,
+    "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+    "modeled_characters": 1067910,
+    "unsupported_characters": 0
+  },
+  "held_out": {
+    "objective": 2.148162723265096,
+    "load_objective": 2.1691069640593925,
+    "skipgram_travel_cost": 0.1028022119298699,
+    "letter_count": 87060,
+    "letter_bank_percent": {
+      "Base": 65.19756489777166,
+      "Hold L1": 20.745462899150013,
+      "Hold R1": 13.844475074661153,
+      "Hold L1 + R1": 0.21249712841718355
+    },
+    "letter_thumb_percent": {
+      "left": 50.175740868366645,
+      "right": 49.824259131633355
+    },
+    "adjacent_letter_alternation_percent": 70.822798526331,
+    "adjacent_letter_roll_opportunity_percent": 6.851116087553277,
+    "adjacent_letter_comfortable_roll_percent": 3.9976883623492023,
+    "space_rearms_per_100_characters": 2.39007497190856,
+    "one_shot_shift_count": 3871,
+    "uppercase_count": 3371,
+    "shifted_symbol_count": 500,
+    "thumb_button_presses_per_letter": 1.0,
+    "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+    "modeled_characters": 108574,
+    "unsupported_characters": 0
+  },
+  "unpinned_comparison": {
+    "optimized_metric": "objective",
+    "selected_seed": 46,
+    "runs": [
+      {
+        "seed": 42,
+        "training_objective": 2.155486419026857
+      },
+      {
+        "seed": 43,
+        "training_objective": 2.1547716937741574
+      },
+      {
+        "seed": 44,
+        "training_objective": 2.16033280770289
+      },
+      {
+        "seed": 45,
+        "training_objective": 2.154787292941556
+      },
+      {
+        "seed": 46,
+        "training_objective": 2.153241533027001
+      }
+    ],
+    "assignment": [
+      6,
+      10,
+      19,
+      8,
+      7,
+      17,
+      13,
+      23,
+      5,
+      20,
+      21,
+      11,
+      9,
+      0,
+      4,
+      15,
+      25,
+      1,
+      2,
+      3,
+      12,
+      16,
+      18,
+      22,
+      14,
+      24,
+      28,
+      30,
+      31,
+      29,
+      27,
+      26,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50
+    ],
+    "training": {
+      "objective": 2.153241533027001,
+      "load_objective": 2.173774443103693,
+      "skipgram_travel_cost": 0.10121913722424276,
+      "letter_count": 854833,
+      "letter_bank_percent": {
+        "Base": 65.15845785083168,
+        "Hold L1": 20.72194218051947,
+        "Hold R1": 13.902364555416087,
+        "Hold L1 + R1": 0.21723541323276008
+      },
+      "letter_thumb_percent": {
+        "left": 50.116923422469654,
+        "right": 49.883076577530346
+      },
+      "adjacent_letter_alternation_percent": 70.74390231345073,
+      "adjacent_letter_roll_opportunity_percent": 6.7491214418209875,
+      "adjacent_letter_comfortable_roll_percent": 3.8488865222040967,
+      "space_rearms_per_100_characters": 2.3462651347023624,
+      "one_shot_shift_count": 40131,
+      "uppercase_count": 34958,
+      "shifted_symbol_count": 5173,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 1067910,
+      "unsupported_characters": 0
+    },
+    "held_out": {
+      "objective": 2.1451284987138632,
+      "load_objective": 2.166009188381739,
+      "skipgram_travel_cost": 0.10145752258447925,
+      "letter_count": 87060,
+      "letter_bank_percent": {
+        "Base": 65.19756489777166,
+        "Hold L1": 20.745462899150013,
+        "Hold R1": 13.844475074661153,
+        "Hold L1 + R1": 0.21249712841718355
+      },
+      "letter_thumb_percent": {
+        "left": 50.175740868366645,
+        "right": 49.824259131633355
+      },
+      "adjacent_letter_alternation_percent": 70.822798526331,
+      "adjacent_letter_roll_opportunity_percent": 6.836668352235787,
+      "adjacent_letter_comfortable_roll_percent": 3.9789063064364667,
+      "space_rearms_per_100_characters": 2.39007497190856,
+      "one_shot_shift_count": 3871,
+      "uppercase_count": 3371,
+      "shifted_symbol_count": 500,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 108574,
+      "unsupported_characters": 0
+    }
+  },
+  "without_roll_preference_comparison": {
+    "optimized_metric": "load_objective",
+    "selected_seed": 42,
+    "runs": [
+      {
+        "seed": 42,
+        "training_objective": 2.176837915823936
+      },
+      {
+        "seed": 43,
+        "training_objective": 2.178448939366692
+      },
+      {
+        "seed": 44,
+        "training_objective": 2.180069474106949
+      },
+      {
+        "seed": 45,
+        "training_objective": 2.177921153175398
+      },
+      {
+        "seed": 46,
+        "training_objective": 2.177921153175398
+      }
+    ],
+    "assignment": [
+      7,
+      8,
+      19,
+      10,
+      4,
+      17,
+      14,
+      20,
+      6,
+      22,
+      23,
+      11,
+      9,
+      2,
+      5,
+      13,
+      25,
+      1,
+      0,
+      3,
+      12,
+      18,
+      16,
+      21,
+      15,
+      26,
+      30,
+      31,
+      28,
+      29,
+      24,
+      27,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50
+    ],
+    "training": {
+      "objective": 2.158506033923776,
+      "load_objective": 2.176837915823936,
+      "skipgram_travel_cost": 0.10032915920586906,
+      "letter_count": 854833,
+      "letter_bank_percent": {
+        "Base": 65.15845785083168,
+        "Hold L1": 20.72194218051947,
+        "Hold R1": 13.902364555416087,
+        "Hold L1 + R1": 0.21723541323276008
+      },
+      "letter_thumb_percent": {
+        "left": 50.116923422469654,
+        "right": 49.883076577530346
+      },
+      "adjacent_letter_alternation_percent": 70.74390231345073,
+      "adjacent_letter_roll_opportunity_percent": 6.545828448368435,
+      "adjacent_letter_comfortable_roll_percent": 2.904942137989165,
+      "space_rearms_per_100_characters": 2.3462651347023624,
+      "one_shot_shift_count": 40131,
+      "uppercase_count": 34958,
+      "shifted_symbol_count": 5173,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 1067910,
+      "unsupported_characters": 0
+    },
+    "held_out": {
+      "objective": 2.15105018927109,
+      "load_objective": 2.1693529136802487,
+      "skipgram_travel_cost": 0.10073883745575783,
+      "letter_count": 87060,
+      "letter_bank_percent": {
+        "Base": 65.19756489777166,
+        "Hold L1": 20.745462899150013,
+        "Hold R1": 13.844475074661153,
+        "Hold L1 + R1": 0.21249712841718355
+      },
+      "letter_thumb_percent": {
+        "left": 50.175740868366645,
+        "right": 49.824259131633355
+      },
+      "adjacent_letter_alternation_percent": 70.822798526331,
+      "adjacent_letter_roll_opportunity_percent": 6.611283681282959,
+      "adjacent_letter_comfortable_roll_percent": 2.863541139926317,
+      "space_rearms_per_100_characters": 2.39007497190856,
+      "one_shot_shift_count": 3871,
+      "uppercase_count": 3371,
+      "shifted_symbol_count": 500,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 108574,
+      "unsupported_characters": 0
+    }
+  },
+  "previous_alpha_comparison": {
+    "description": "Previous alpha positions rescored with the same fixed number banks and full-text model.",
+    "assignment": [
+      6,
+      8,
+      19,
+      10,
+      7,
+      17,
+      15,
+      23,
+      4,
+      21,
+      20,
+      11,
+      9,
+      2,
+      5,
+      13,
+      26,
+      1,
+      0,
+      3,
+      12,
+      18,
+      16,
+      22,
+      14,
+      27,
+      28,
+      30,
+      31,
+      24,
+      29,
+      25,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50
+    ],
+    "training": {
+      "objective": 2.156982840232635,
+      "load_objective": 2.1774604085670455,
+      "skipgram_travel_cost": 0.10278912704525574,
+      "letter_count": 854833,
+      "letter_bank_percent": {
+        "Base": 65.15845785083168,
+        "Hold L1": 20.72194218051947,
+        "Hold R1": 13.902364555416087,
+        "Hold L1 + R1": 0.21723541323276008
+      },
+      "letter_thumb_percent": {
+        "left": 50.116923422469654,
+        "right": 49.883076577530346
+      },
+      "adjacent_letter_alternation_percent": 70.74390231345073,
+      "adjacent_letter_roll_opportunity_percent": 6.683220384609161,
+      "adjacent_letter_comfortable_roll_percent": 3.885661665737482,
+      "space_rearms_per_100_characters": 2.3462651347023624,
+      "one_shot_shift_count": 40131,
+      "uppercase_count": 34958,
+      "shifted_symbol_count": 5173,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 1067910,
+      "unsupported_characters": 0
+    },
+    "held_out": {
+      "objective": 2.148385756954475,
+      "load_objective": 2.169327234656319,
+      "skipgram_travel_cost": 0.10291526729979412,
+      "letter_count": 87060,
+      "letter_bank_percent": {
+        "Base": 65.19756489777166,
+        "Hold L1": 20.745462899150013,
+        "Hold R1": 13.844475074661153,
+        "Hold L1 + R1": 0.21249712841718355
+      },
+      "letter_thumb_percent": {
+        "left": 50.175740868366645,
+        "right": 49.824259131633355
+      },
+      "adjacent_letter_alternation_percent": 70.822798526331,
+      "adjacent_letter_roll_opportunity_percent": 6.851116087553277,
+      "adjacent_letter_comfortable_roll_percent": 3.9962435888174537,
+      "space_rearms_per_100_characters": 2.39007497190856,
+      "one_shot_shift_count": 3871,
+      "uppercase_count": 3371,
+      "shifted_symbol_count": 500,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 108574,
+      "unsupported_characters": 0
+    }
+  },
+  "load_objective_increase_percent": {
+    "training": 0.0038073749568212634,
+    "held_out": -0.011337464702276812
+  },
+  "objective_increase_percent": {
+    "training": 0.14883536951488807,
+    "held_out": 0.14144721647453284
+  },
+  "function_keys_scored": false,
+  "held_modifiers_scored": false,
+  "navigation_scored": false,
+  "number_banks": [
+    "1357=09-",
+    "2468[]\\`"
+  ],
+  "current_layout_evaluation": {
+    "number_banks": [
+      "1234=09-",
+      "5678[]\\`"
+    ],
+    "alpha_reoptimized": false,
+    "training": {
+      "objective": 2.155226064124053,
+      "load_objective": 2.1757777960115714,
+      "skipgram_travel_cost": 0.10259874121889409,
+      "letter_count": 854833,
+      "letter_bank_percent": {
+        "Base": 65.15845785083168,
+        "Hold L1": 20.72194218051947,
+        "Hold R1": 13.902364555416087,
+        "Hold L1 + R1": 0.21723541323276008
+      },
+      "letter_thumb_percent": {
+        "left": 50.116923422469654,
+        "right": 49.883076577530346
+      },
+      "adjacent_letter_alternation_percent": 70.74390231345073,
+      "adjacent_letter_roll_opportunity_percent": 6.683220384609161,
+      "adjacent_letter_comfortable_roll_percent": 3.884190659996146,
+      "space_rearms_per_100_characters": 2.3462651347023624,
+      "one_shot_shift_count": 40131,
+      "uppercase_count": 34958,
+      "shifted_symbol_count": 5173,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 1067910,
+      "unsupported_characters": 0
+    },
+    "held_out": {
+      "objective": 2.147119097193609,
+      "load_objective": 2.168220834257731,
+      "skipgram_travel_cost": 0.1028804102704248,
+      "letter_count": 87060,
+      "letter_bank_percent": {
+        "Base": 65.19756489777166,
+        "Hold L1": 20.745462899150013,
+        "Hold R1": 13.844475074661153,
+        "Hold L1 + R1": 0.21249712841718355
+      },
+      "letter_thumb_percent": {
+        "left": 50.175740868366645,
+        "right": 49.824259131633355
+      },
+      "adjacent_letter_alternation_percent": 70.822798526331,
+      "adjacent_letter_roll_opportunity_percent": 6.851116087553277,
+      "adjacent_letter_comfortable_roll_percent": 3.9976883623492023,
+      "space_rearms_per_100_characters": 2.39007497190856,
+      "one_shot_shift_count": 3871,
+      "uppercase_count": 3371,
+      "shifted_symbol_count": 500,
+      "thumb_button_presses_per_letter": 1.0,
+      "same_side_shoulder_pairs_per_character_in_canonical_plan": 0,
+      "modeled_characters": 108574,
+      "unsupported_characters": 0
+    }
+  }
+}
