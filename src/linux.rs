@@ -216,8 +216,9 @@ fn mapping(device: &DeviceInfo) -> Result<Calibration> {
         };
     }
     for (button, candidates, key) in [
-        (Button::L2, [2, 10, 21], 312),
-        (Button::R2, [5, 9, 20], 313),
+        // Prefer dedicated trigger axes: Z/RZ can also describe the right stick.
+        (Button::L2, [10, 2, 21], 312),
+        (Button::R2, [9, 5, 20], 313),
     ] {
         let source = if let Some(code) = candidates
             .into_iter()
@@ -850,6 +851,69 @@ mod tests {
                 .unwrap()
                 .is_neutral()
         );
+    }
+
+    #[test]
+    fn pocket_triggers_use_brake_and_gas_instead_of_idle_z_and_rz() {
+        let mut device = test_device(Some("hid-generic"));
+        device.name = "GameSir-Pocket 1".into();
+        device.id = DeviceId {
+            vendor: 0x3537,
+            product: 0x1132,
+        };
+        device.keys = (304..=319).collect();
+        device.axes.retain(|code, _| ![3, 4].contains(code));
+        for code in [0, 1, 2, 5, 9, 10] {
+            device.axes.insert(
+                code,
+                Axis {
+                    minimum: 0,
+                    maximum: 255,
+                    value: if [9, 10].contains(&code) { 0 } else { 128 },
+                },
+            );
+        }
+        let calibration = mapping(&device).unwrap();
+        assert_eq!(calibration.triggers[&Button::L2].source(), (ABS, 10));
+        assert_eq!(calibration.triggers[&Button::R2].source(), (ABS, 9));
+        let mut normalizer = Normalizer::new(calibration).unwrap();
+        let axis = |code, value| RawEvent {
+            event_type: ABS,
+            code,
+            value,
+        };
+        assert!(
+            normalizer
+                .apply(&[axis(0, 128), axis(1, 128), axis(2, 128), axis(5, 128)])
+                .unwrap()
+                .is_neutral()
+        );
+        for (left, right, expected) in [
+            (255, 0, vec![Button::L2]),
+            (255, 255, vec![Button::L2, Button::R2]),
+            (0, 255, vec![Button::R2]),
+            (0, 0, vec![]),
+        ] {
+            let snapshot = normalizer
+                .apply(&[
+                    RawEvent {
+                        event_type: KEY,
+                        code: 312,
+                        value: i32::from(left != 0),
+                    },
+                    axis(10, left),
+                    RawEvent {
+                        event_type: KEY,
+                        code: 313,
+                        value: i32::from(right != 0),
+                    },
+                    axis(9, right),
+                ])
+                .unwrap();
+            assert_eq!(snapshot.buttons, expected);
+            assert_eq!(snapshot.l2, f64::from(left != 0));
+            assert_eq!(snapshot.r2, f64::from(right != 0));
+        }
     }
 
     #[test]

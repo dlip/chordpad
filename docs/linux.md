@@ -227,7 +227,9 @@ insufficient travel rejects the calibration. `--rest-seconds` and `--sweep-secon
 change those intervals. Existing output files are preserved.
 
 Without a calibration file, trigger endpoints come from the driver's advertised
-range. Press activates at 65% travel and release deactivates at 35%, so small
+range. Automatic mapping prefers ABS_BRAKE/ABS_GAS over ABS_Z/ABS_RZ when both
+pairs are advertised, as on the GameSir Pocket; Z/RZ can describe the right stick.
+Press activates at 65% travel and release deactivates at 35%, so small
 movements around one threshold do not repeatedly toggle a modifier. Calibration
 also supports reversed analog axes. Edit the saved threshold fractions or event
 codes to adjust a controller's mapping; `--calibration` can reuse that mapping
