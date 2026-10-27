@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Fix L2/R2 layer detection on GameSir Pocket controllers on Linux.
+
 ## 1.1.0
 
 - Make the four-bank layout the default on Linux and Android, with matching JSON, offline HTML, and a one-page portrait PDF. Keep legacy layout imports supported.
