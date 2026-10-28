@@ -33,8 +33,8 @@ a { color: inherit; }
 h1 { font-size: 22px; margin-bottom: 5px; }
 p { font-size: 10px; line-height: 1.3; }
 .notice { padding: 5px 8px; }
-main { gap: 6px; margin: 7px 0; }
-section { padding: 4px; }
+main { gap: 5px; margin: 7px 0; }
+section { padding: 3px; }
 h2 { font-size: 13px; margin-bottom: 2px; }
 .hand > p { margin: 0; font-size: 9px; line-height: 12px; }
 .pad { grid-template-rows: repeat(3, 24px); }
@@ -42,7 +42,7 @@ h2 { font-size: 13px; margin-bottom: 2px; }
 .key strong { font-size: 15px; line-height: 14px; }
 .stick-map { grid-auto-rows: 33px; gap: 2px; }
 table { font-size: 10px; }
-td, th { padding: 2px 8px; }
+td, th { padding: 1px 8px; }
 }
 </style>
 <h1>Chordpad layout</h1>
@@ -52,6 +52,9 @@ before that thumb releases. Tap and release to type; hold 300 ms to repeat. No l
 <main>@@BANKS@@@@STICKS@@</main>
 <p>Hold either stick direction before starting a stroke; L2 adds Shift.
 Meta = Super / Command. Stick-click shortcuts ignore held modifiers.</p>
+<p>Without sticks: tap an unused R1+R2 pair for face modifiers, or L1+L2 for D-pad modifiers.
+Hold a mirrored direction above (Y/B/A/X = ↑/→/↓/←), including adjacent pairs, across keys or mouse clicks; release to exit.
+Repeat the tap to cancel. Holding a pair with typing keeps its layer, including R1+R2 navigation.</p>
 <table><tr><th>Control</th><th>Behaviour</th></tr>
 <tr><td>R1 / L1 alone</td><td>Space / Backspace. Hold alone 300 ms to repeat every 80 ms; release stops.</td></tr>
 <tr><td>Late bumpers</td><td>Only the newest stroke accepts additions, for @@WINDOW_MS@@ ms.</td></tr>

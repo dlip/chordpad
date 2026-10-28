@@ -41,8 +41,12 @@ below to evaluate the four-bank model.
 
 Hold **L2 for Shift**, including text selection with navigation. An unused L2
 tap of at most 250 ms arms Shift for the next key; a second unused tap cancels it. Core typing, Shift, navigation, and function keys
-need no thumbsticks. Controllers with sticks additionally provide mirrored
-Ctrl/Alt/Meta directions. Click **L3 for Command+D** or **R3 for
+need no thumbsticks. For mirrored Ctrl/Alt/Meta directions without sticks, tap
+an unused **R1+R2** pair for face-button modifiers or **L1+L2** for the D-pad.
+Hold a direction, including adjacent pairs for diagonals, across keys or mouse
+clicks; releasing the direction exits modifier mode. Repeat the tap to cancel.
+Pairs used while typing retain their layers. Controllers with sticks also
+provide held Ctrl/Alt/Meta directions. Click **L3 for Command+D** or **R3 for
 Command+Shift+D** (Command = Meta / Super on Linux). Short click shortcuts send once on release in every layer and ignore held
 modifiers and stick directions. Holding the click repeats the shortcut.
 You can map L3's Command+D to **Dictate** and R3's Command+Shift+D to

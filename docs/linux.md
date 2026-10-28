@@ -123,6 +123,24 @@ Both sticks provide the same modifiers, mirrored around the controller center:
 | Inward-up | Command + Ctrl + Alt + Shift |
 | Inward-down | Alt + Command |
 
+The four-bank layout also supports controllers without sticks. Tap and release
+an unused **R1 + R2** pair to arm face-button modifier mode, or **L1 + L2** for
+the D-pad. Press the two shoulders together once; either press/release order
+works. Choose and hold a direction using the map above; face buttons Y/B/A/X
+mean up/right/down/left. Adjacent pairs provide diagonals. Modifiers remain
+active across keys and mouse clicks until you release the directional controls;
+release ends that side's modifier mode. Changing an adjacent pair changes the
+held modifiers, like tilting a stick. Both sides combine with physical stick
+modifiers, L2 Shift, and one-shot layers. Fixed L3/R3 shortcuts and media keys
+ignore held modifiers. Repeat an unused pair tap to cancel. Pause, disconnect,
+and reset clear both sides.
+
+A pair used with typing controls keeps its existing layer behavior, including
+R1+R2 navigation and L1+L2 shifted letters. Only unused pairs toggle modifier
+mode. Their normal Space/Backspace taps and sticky Shift/numbers are consumed.
+Start/Select remain Enter/Escape. As with stick modifiers, each typed stroke
+captures its modifiers when it starts, including held repeats.
+
 Inward is right on the left stick and left on the right stick. Stick modifiers
 combine with each other, L2 Shift, and the R2 numbers/symbols layer. They apply to
 characters, editing keys, and explicit shortcuts on either half. The modifier

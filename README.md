@@ -38,6 +38,7 @@ X/Square west, and Y/Triangle north.
 | R1 + R2 + L1 | Editing/media: ↑/↓ volume, ←/→ previous/next track; A Play/Pause, B Stop, Y Print Screen, X Delete |
 | Tap R2 twice | Function keys for the next key; a third tap cancels |
 | Start / Select | Enter / Escape |
+| Tap R1 + R2 / L1 + L2 | Arm held modifiers on face buttons / D-pad |
 | A + B + X + Y | Pause or resume typing |
 | L3 / R3 click | Command+D / Command+Shift+D (Meta/Super) |
 
@@ -48,7 +49,16 @@ F5–F8. Hold Shift while using navigation to select text.
 Either thumbstick adds keyboard modifiers: up is Alt, down is Command/Meta,
 and outward is Ctrl. See the [full modifier map](docs/linux.md#thumbstick-keyboard-modifiers)
 for combinations. L3/R3 shortcuts can be assigned to Dictate and Cancel Dictation
-on your computer. Typing, Shift, navigation, and functions work without sticks.
+on your computer.
+
+Without sticks, tap and release **R1 + R2** to arm face-button modifiers,
+or **L1 + L2** for the D-pad. Hold a mirrored stick direction: right-side B is
+Ctrl, Y is Alt, A is Command; left-side ← is Ctrl, ↑ is Alt, ↓ is Command.
+Adjacent pairs provide diagonal combinations. Type several keys or use your
+mouse while holding the direction; releasing it ends modifier mode.
+Repeat the unused shoulder-pair tap to cancel. Holding a pair and typing keeps
+its existing layer behavior, including R1+R2 navigation. Unused pair taps do not
+send Space/Backspace or arm sticky Shift/numbers.
 
 ## Android
 

@@ -50,7 +50,7 @@ class ReferenceActivity : Activity() {
         root.addView(filter, LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(16), 0, dp(16), 0) })
         val scroll = ScrollView(this); root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val page = column().apply { setPadding(dp(16), 0, dp(16), dp(24)) }; scroll.addView(page)
-        val instructions = if (layout.alphaBanks != null) "One cardinal or face button per character. Bank bumpers can join within 100 ms; release the thumb button to type. A+B+X+Y pauses/resumes."
+        val instructions = if (layout.alphaBanks != null) "One cardinal or face button per character. Bank bumpers can join within 100 ms; release the thumb button to type. Tap an unused R1+R2 pair for face modifiers, or L1+L2 for the D-pad. Hold a mirrored stick direction, including adjacent pairs, across typed keys; release it to exit. Repeat the tap to cancel. Pairs used with typing keep their layers. A+B+X+Y pauses/resumes."
             else "Hold modifiers before starting a chord; release ordinary controls to type. A+B+X+Y pauses/resumes."
         page.addView(text("A / Cross × · B / Circle ○ · X / Square □ · Y / Triangle △\nOptions: Enter · Share: Escape in every layer. $instructions", 14f, muted))
         for (layer in layers) {

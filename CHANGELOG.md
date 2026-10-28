@@ -3,6 +3,7 @@
 ## 1.1.1
 
 - Fix L2/R2 layer detection on GameSir Pocket controllers on Linux.
+- Add held modifiers without thumbsticks on Linux and Android: tap an unused R1+R2 pair for face buttons or L1+L2 for the D-pad, then hold a mirrored direction across keys and mouse actions until release. Keep existing layer behavior when a pair is used with typing.
 
 ## 1.1.0
 

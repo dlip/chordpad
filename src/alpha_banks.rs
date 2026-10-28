@@ -3,7 +3,7 @@ use crate::{
     Result,
     chord::{Event, Phase},
     controller::Snapshot,
-    model::{Action, Button, Chord, Dpad, Key, MenuButton, Modifier, button_mask},
+    model::{Action, Button, Chord, Dpad, Key, MenuButton, Modifier, Side, button_mask},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, time::Instant};
@@ -189,6 +189,7 @@ pub struct Engine {
     r2_started: u64,
     r2_used: bool,
     one_shot_r2: Option<Mode>,
+    modifier_mode: ModifierMode,
     started: Instant,
 }
 
@@ -223,6 +224,139 @@ fn thumb_mask(snapshot: &Snapshot) -> u8 {
     result
 }
 
+#[derive(Default)]
+struct ModifierSide {
+    armed: bool,
+    selecting: bool,
+    blocked: bool,
+    gesture: bool,
+    used: bool,
+    suppress_pair: bool,
+    direction: Dpad,
+}
+
+struct ModifierMode {
+    sides: [ModifierSide; 2],
+    previous: Snapshot,
+    suppress_taps: u8,
+}
+
+impl Default for ModifierMode {
+    fn default() -> Self {
+        Self {
+            sides: Default::default(),
+            previous: neutral(),
+            suppress_taps: 0,
+        }
+    }
+}
+
+impl ModifierMode {
+    fn active(&self) -> bool {
+        self.sides.iter().any(|s| s.armed || s.selecting)
+    }
+
+    fn modifiers(&self) -> Vec<Modifier> {
+        let mut modifiers = vec![];
+        for (side, state) in Side::ALL.into_iter().zip(&self.sides) {
+            modifiers.extend(crate::controller::thumbstick_modifiers(
+                side,
+                state.direction,
+            ));
+        }
+        modifiers.sort();
+        modifiers.dedup();
+        modifiers
+    }
+
+    fn filter(&mut self, raw: &Snapshot, repeating_bumpers: u8) -> (Snapshot, Vec<Control>) {
+        let mut filtered = raw.clone();
+        let mut consumed = vec![];
+        self.suppress_taps = 0;
+        let selectors = self.sides.iter().enumerate().fold(0, |mask, (i, state)| {
+            mask | if state.selecting || state.blocked {
+                15 << (i * 4)
+            } else {
+                0
+            }
+        });
+        let typing = thumb_mask(raw) & !selectors != 0 || !raw.menu_buttons.is_empty();
+        for (i, (bumper, trigger)) in [(Button::L1, Button::L2), (Button::R1, Button::R2)]
+            .into_iter()
+            .enumerate()
+        {
+            let state = &mut self.sides[i];
+            let current = (thumb_mask(raw) >> (i * 4)) & 15;
+            let bumper_down = raw.buttons.contains(&bumper);
+            let trigger_down = raw.buttons.contains(&trigger);
+            let pair = bumper_down && trigger_down;
+            let was_pair =
+                self.previous.buttons.contains(&bumper) && self.previous.buttons.contains(&trigger);
+            if pair && !was_pair && !state.gesture && repeating_bumpers & bumper.bit() == 0 {
+                state.gesture = true;
+                state.used = typing;
+                state.suppress_pair = false;
+            }
+            if state.gesture {
+                state.used |= typing;
+                self.suppress_taps |= trigger.bit();
+                consumed.push(Control::Bumper(bumper));
+                if !pair && !state.used && !state.suppress_pair {
+                    state.armed = !(state.armed || state.selecting);
+                    state.selecting = false;
+                    state.direction = Dpad::Neutral;
+                    state.blocked |= current != 0;
+                    state.suppress_pair = true;
+                }
+                if state.suppress_pair {
+                    filtered.buttons.retain(|b| *b != bumper && *b != trigger);
+                }
+                if !bumper_down && !trigger_down {
+                    state.gesture = false;
+                }
+            }
+            if state.blocked && current == 0 {
+                state.blocked = false;
+            }
+            if state.armed && !state.blocked && !pair && current != 0 {
+                state.armed = false;
+                state.selecting = true;
+            }
+            let suppress = state.blocked || state.selecting;
+            if state.selecting {
+                if current & 5 == 5 || current & 10 == 10 {
+                    state.direction = Dpad::Neutral;
+                    state.selecting = false;
+                    state.blocked = true;
+                } else {
+                    let position = (
+                        i8::from(current & 2 != 0) - i8::from(current & 8 != 0),
+                        i8::from(current & 4 != 0) - i8::from(current & 1 != 0),
+                    );
+                    state.direction = Dpad::ALL
+                        .into_iter()
+                        .find(|d| d.position() == position)
+                        .unwrap();
+                    if current == 0 {
+                        state.selecting = false;
+                    }
+                }
+            }
+            if suppress {
+                if i == 0 {
+                    filtered.dpad = Some(Dpad::Neutral);
+                } else {
+                    filtered
+                        .buttons
+                        .retain(|b| ![Button::A, Button::B, Button::X, Button::Y].contains(b));
+                }
+            }
+        }
+        self.previous = raw.clone();
+        (filtered, consumed)
+    }
+}
+
 impl Engine {
     pub fn new(layout: Layout) -> Result<Self> {
         layout.validate()?;
@@ -238,6 +372,7 @@ impl Engine {
             r2_started: 0,
             r2_used: false,
             one_shot_r2: None,
+            modifier_mode: ModifierMode::default(),
             started: Instant::now(),
         })
     }
@@ -256,7 +391,8 @@ impl Engine {
         let discarded = !self.queue.is_empty()
             || !self.repeating.is_empty()
             || self.one_shot_shift
-            || self.one_shot_r2.is_some();
+            || self.one_shot_r2.is_some()
+            || self.modifier_mode.active();
         self.queue.clear();
         self.repeating.clear();
         self.waiting = true;
@@ -265,6 +401,7 @@ impl Engine {
         self.shift_used = false;
         self.one_shot_r2 = None;
         self.r2_used = false;
+        self.modifier_mode = ModifierMode::default();
         Event::Reset {
             reason: reason.into(),
             discarded,
@@ -272,16 +409,34 @@ impl Engine {
     }
 
     fn consume(&mut self, button: Button) {
+        self.consume_control(Control::Bumper(button));
+    }
+
+    fn consume_control(&mut self, control: Control) {
         for stroke in &mut self.queue {
-            if stroke.control == Control::Bumper(button) && !stroke.released {
+            if stroke.control == control && !stroke.released {
                 stroke.consumed = true;
                 stroke.released = true;
             }
         }
+        self.repeating.retain(|stroke| stroke.control != control);
+    }
+
+    pub fn held_modifiers(&self) -> Vec<Modifier> {
+        let snapshot = &self.previous;
+        let mut modifiers = snapshot.modifiers();
+        modifiers.extend(self.modifier_mode.modifiers());
+        if snapshot.buttons.contains(&Button::L2) {
+            modifiers.push(Modifier::Shift);
+        }
+        modifiers.sort();
+        modifiers.dedup();
+        modifiers
     }
 
     fn modifiers(&mut self, snapshot: &Snapshot, one_shot: bool) -> Vec<Modifier> {
         let mut modifiers = snapshot.modifiers();
+        modifiers.extend(self.modifier_mode.modifiers());
         if snapshot.buttons.contains(&Button::L2) || (one_shot && self.one_shot_shift) {
             modifiers.push(Modifier::Shift);
         }
@@ -317,6 +472,8 @@ impl Engine {
             stroke.modifiers.push(Modifier::Shift);
             stroke.modifiers.sort();
         }
+        stroke.modifiers.sort();
+        stroke.modifiers.dedup();
         self.clear_one_shots();
     }
 
@@ -540,6 +697,17 @@ impl Engine {
             self.previous = snapshot.clone();
             return vec![Event::Ready];
         }
+        let repeating_bumpers = self.repeating.iter().fold(0, |mask, stroke| {
+            mask | match stroke.control {
+                Control::Bumper(button) => button.bit(),
+                _ => 0,
+            }
+        });
+        let (filtered, consumed) = self.modifier_mode.filter(snapshot, repeating_bumpers);
+        for &control in &consumed {
+            self.consume_control(control);
+        }
+        let snapshot = &filtered;
         let mut events = self.repeat_strokes_at(snapshot, now);
         let prev = self.previous.input().mask;
         let held = snapshot.input().mask;
@@ -572,6 +740,7 @@ impl Engine {
             self.shift_used = false;
             self.shift_started = now;
         }
+        self.shift_used |= self.modifier_mode.suppress_taps & Button::L2.bit() != 0;
         if released & Button::L2.bit() != 0
             && !self.shift_used
             && now.saturating_sub(self.shift_started) <= self.layout.recognition.trigger_tap_max_ms
@@ -589,6 +758,7 @@ impl Engine {
                 stroke.frozen = true;
             }
         }
+        self.r2_used |= self.modifier_mode.suppress_taps & Button::R2.bit() != 0;
         if released & Button::R2.bit() != 0
             && !self.r2_used
             && now.saturating_sub(self.r2_started) <= self.layout.recognition.trigger_tap_max_ms
@@ -660,6 +830,9 @@ impl Engine {
             if !down && was_down {
                 self.release(Control::Menu(button));
             }
+        }
+        for control in consumed {
+            self.consume_control(control);
         }
         self.previous = snapshot.clone();
         if self.queue.len() > 64 {

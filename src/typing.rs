@@ -323,6 +323,11 @@ impl<O: Output> Runtime<O> {
         {
             modifiers.push(Modifier::Shift);
         }
+        if self.engine.ready()
+            && let Engine::Alpha(engine) = &self.engine
+        {
+            modifiers = engine.held_modifiers();
+        }
         modifiers.sort();
         modifiers.dedup();
         if modifiers != self.held_modifiers {
@@ -338,6 +343,13 @@ impl<O: Output> Runtime<O> {
             return Ok(vec![]);
         }
         let events = self.engine.repeat();
+        if let Engine::Alpha(engine) = &self.engine {
+            let modifiers = engine.held_modifiers();
+            if modifiers != self.held_modifiers {
+                self.output.set_modifiers(&modifiers)?;
+                self.held_modifiers = modifiers;
+            }
+        }
         self.emit(&events)?;
         Ok(events)
     }

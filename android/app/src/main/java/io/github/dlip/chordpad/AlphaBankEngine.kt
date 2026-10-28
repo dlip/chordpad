@@ -18,12 +18,15 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
     private var r2Started = 0L
     private var r2Used = false
     private var oneShotR2 = 0
+    private var modifierMode = ModifierMode()
+    val heldModifiers get() = previous.modifiers or modifierMode.modifiers() or if (previous.buttons and L2 != 0) Action.SHIFT else 0
     var status = "Release all controls"; private set
     fun ready() = !waiting
 
     fun reset() {
         queue.clear(); repeating.clear(); waiting = true; previous = Frame.NEUTRAL
         oneShotShift = false; shiftUsed = false; r2Used = false; oneShotR2 = 0
+        modifierMode = ModifierMode()
         status = "Release all controls"
     }
 
@@ -37,6 +40,7 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
     }
     private fun consume(control: Int) {
         for (s in queue) if (s.control == control && !s.released) { s.consumed = true; s.released = true }
+        repeating.removeAll { it.control == control }
     }
     private fun clearOneShots() { oneShotShift = false; oneShotR2 = 0 }
     private fun bankButtons(frame: Frame): Int {
@@ -88,7 +92,8 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
         val modifiers = when {
             control >= 12 -> 0
             else -> {
-                val mask = frame.modifiers or if (held and L2 != 0 || (usesOneShots && oneShotShift)) Action.SHIFT else 0
+                val mask = frame.modifiers or modifierMode.modifiers() or
+                    if (held and L2 != 0 || (usesOneShots && oneShotShift)) Action.SHIFT else 0
                 shiftUsed = shiftUsed || held and L2 != 0
                 mask
             }
@@ -123,15 +128,18 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
     }
 
     private fun updateStatus() {
-        status = listOfNotNull("Ready", if (oneShotShift) "Shift (next key)" else null, when (oneShotR2) { 1 -> "Numbers (next key)"; 2 -> "Functions (next key)"; else -> null }).joinToString(" · ")
+        status = (listOfNotNull("Ready", if (oneShotShift) "Shift (next key)" else null, when (oneShotR2) { 1 -> "Numbers (next key)"; 2 -> "Functions (next key)"; else -> null }) + modifierMode.status()).joinToString(" · ")
     }
 
-    fun update(frame: Frame, now: Long): List<Action> {
-        if (!frame.valid()) { reset(); status = "Invalid D-pad position"; return emptyList() }
+    fun update(raw: Frame, now: Long): List<Action> {
+        if (!raw.valid()) { reset(); status = "Invalid D-pad position"; return emptyList() }
         if (waiting) {
-            if (frame.neutral()) { waiting = false; previous = frame; status = "Ready" }
+            if (raw.neutral()) { waiting = false; previous = raw; status = "Ready" }
             return emptyList()
         }
+        val repeatingBumpers = repeating.fold(0) { mask, stroke -> mask or when (stroke.control) { 8 -> L1; 9 -> R1; else -> 0 } }
+        val (frame, consumed) = modifierMode.filter(raw, repeatingBumpers)
+        consumed.forEach(::consume)
         val output = repeatStrokes(frame, now).toMutableList()
         val held = frame.buttons
         val pressed = held and previous.buttons.inv()
@@ -147,6 +155,7 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
         }
         for (i in 0..7) if (previousThumbs and currentThumbs.inv() and (1 shl i) != 0) release(i)
         if (pressed and L2 != 0) { shiftUsed = false; shiftStarted = now }
+        shiftUsed = shiftUsed || modifierMode.suppressTaps and L2 != 0
         if (released and L2 != 0 && !shiftUsed && now - shiftStarted <= layout.tapMax) {
             oneShotShift = !oneShotShift
         }
@@ -155,6 +164,7 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
             r2Used = bankButtons(frame) and R1 != 0 || queue.any { !it.released && it.control < 8 }
             for (s in queue) s.frozen = true
         }
+        r2Used = r2Used || modifierMode.suppressTaps and R2 != 0
         if (released and R2 != 0 && !r2Used && now - r2Started <= layout.tapMax) {
             oneShotR2 = (oneShotR2 + 1) % 3
         }
@@ -177,6 +187,7 @@ class AlphaBankEngine(private val layout: AlphaBankLayout) {
             if (down && !wasDown) press(10 + i, frame, now)
             if (!down && wasDown) release(10 + i)
         }
+        consumed.forEach(::consume)
         previous = frame
         if (queue.size > 64) { reset(); status = "Too many pending strokes; release all controls"; return emptyList() }
         output.addAll(flush())

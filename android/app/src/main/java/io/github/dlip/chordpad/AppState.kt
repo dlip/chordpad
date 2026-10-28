@@ -232,7 +232,7 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
         val actions = if (mode == "chords") engine.update(latest) else direct.update(latest, SystemClock.uptimeMillis())
         if (mode == "chords") { status = engine.status; ready = engine.ready() }
         setModifiers(if (ready) {
-            if (mode == "direct") direct.heldModifiers else latest.modifiers or if (latest.buttons and L2 != 0) Action.SHIFT else 0
+            if (mode == "direct") direct.heldModifiers else engine.heldModifiers(latest)
         } else 0)
         emit(actions)
     }
@@ -259,6 +259,7 @@ class AppState(private val context: Context) : InputManager.InputDeviceListener 
             if (!paused && ready && mode == "direct") emit(direct.repeat(SystemClock.uptimeMillis()))
             if (!paused && ready && mode == "chords") {
                 val actions = engine.repeat()
+                setModifiers(engine.heldModifiers(latest))
                 if (actions.isNotEmpty()) { status = engine.status; emit(actions); changed() }
             }
             handler.postDelayed(this, if (mode == "chords" && layout.alphaBanks != null) 20L else 80L)

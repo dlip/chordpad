@@ -116,6 +116,7 @@ def candidate_layout(assignment):
             "function_layer": "Unused R2 taps cycle numbers, functions, off on release, with no inter-tap deadline. Each tap must last at most 250 ms. The next key consumes the selected layer and returns to alpha. Used holds do not advance the cycle. L1 selects the second bank.",
             "one_shot_shift": "An unused L2 tap of at most 250 ms arms Shift for the next key; a second unused tap cancels it. A used or longer hold does not rearm it. Keyboard modifiers are captured at stroke start.",
             "held_shift": "L2 also works as momentary Shift. Linux sends held modifiers to the OS immediately. Android supports Shift-click/tap in focused editors and global mouse modifiers through the optional ADB helper. Fixed L3/R3 shortcuts ignore held and one-shot modifiers.",
+            "button_modifiers": "Tap and release an unused R1+R2 pair to arm face-button modifiers, or L1+L2 for the D-pad. Hold a mirrored stick direction, including adjacent pairs for diagonals, across typed keys or mouse actions. Releasing the directional controls ends that side's mode. Repeat an unused pair tap to cancel. Pairs used with typing keep their layers, including R1+R2 navigation. Unused pairs consume Space/Backspace and sticky Shift/numbers. Reset clears both sides.",
             "navigation_layer": "Physically hold R1+R2; L1 selects editing/media. Navigation overrides and consumes either one-shot R2 layer on the next key and consumes R1's Space tap and R2's layer tap. All mapped outputs repeat while held.",
             "reset": "Pause, focus change, disconnect, or reset clears both one-shot selections and requires neutral controls.",
         },
@@ -128,6 +129,7 @@ def candidate_layout(assignment):
                               "L2_tap": "Shift next key; tap again to cancel",
                               "L2_hold": "Shift", "R2_tap": "Numbers → functions → off; next key clears selection", "R2_hold": "Momentary numbers",
                               "R1_R2_hold": "Navigation", "Start": "Enter", "Select": "Escape",
+                              "R1_R2_tap": "Arm face-button modifiers until direction release", "L1_L2_tap": "Arm D-pad modifiers until direction release",
                               "L3": "Command+D", "R3": "Command+Shift+D",
                               "A_B_X_Y": "Pause/resume"},
     }

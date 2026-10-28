@@ -118,6 +118,7 @@ shows the same layout.
 | R1 + R2 + L1 | Editing/media: ↑/↓ volume, ←/→ previous/next track, A Play/Pause, B Stop, Y Print Screen, X Delete |
 | Tap R2 twice; third tap turns off | Next key uses function positions; add L1 for F5–F8 |
 | Options / Share | Enter / Escape in every layer |
+| Tap R1 + R2 / L1 + L2 | Arm held modifiers on face buttons / D-pad |
 | L3 / R3 click | Command+D / Command+Shift+D |
 | A + B + X + Y | Pause / resume |
 
@@ -136,6 +137,17 @@ focus resets clear both.
 Held Shift combines with navigation for selection and is captured at stroke
 start. An unused L2 tap shifts the next key only. Standard US shifted
 symbols and uppercase letters are supported. Caps Lock is not implemented.
+
+For modifiers without sticks, tap and release **R1 + R2** for face-button
+modifier mode, or **L1 + L2** for the D-pad. Hold a mirrored stick direction:
+Y/↑ is Alt, A/↓ is Command, and outward (B/←) is Ctrl. Adjacent pairs provide
+diagonal combinations. Modifiers stay active across typed keys and mouse
+clicks until you release the direction; release ends that side's mode.
+Repeat an unused pair tap to cancel. A pair used with typing keeps its existing
+layer behavior, including R1+R2 navigation. Unused pair taps consume normal
+Space/Backspace and sticky Shift/numbers. Pause, disconnect, and focus resets
+clear modifier mode. Editor and global mouse modifiers work while the direction
+is held.
 
 Tilt either stick for mirrored keyboard modifiers: up Alt, down Command/Meta,
 outward Ctrl, inward Ctrl+Alt+Command, inward-up Ctrl+Alt+Shift+Command, and

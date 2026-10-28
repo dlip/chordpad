@@ -419,9 +419,13 @@ fn menu_keys_capture_shift_and_reset_discards_every_pending_mode() {
 }
 
 #[derive(Clone, Default)]
-struct Capture(Rc<RefCell<Captured>>);
+struct Capture(Rc<RefCell<Captured>>, Rc<RefCell<Vec<Vec<Modifier>>>>);
 type Captured = Vec<(Action, Vec<Modifier>)>;
 impl Output for Capture {
+    fn set_modifiers(&mut self, modifiers: &[Modifier]) -> chordpad::Result<()> {
+        self.1.borrow_mut().push(modifiers.to_vec());
+        Ok(())
+    }
     fn send(&mut self, action: &Action) -> chordpad::Result<()> {
         self.send_modified(action, &[])
     }
@@ -432,8 +436,54 @@ impl Output for Capture {
         Ok(())
     }
     fn release_all(&mut self) -> chordpad::Result<()> {
+        self.1.borrow_mut().push(vec![]);
         Ok(())
     }
+}
+
+#[test]
+fn button_modifier_selection_holds_os_keys_and_pause_clears_it() {
+    let capture = Capture::default();
+    let log = capture.0.clone();
+    let holds = capture.1.clone();
+    let mut runtime =
+        Runtime::with_layout(TypingLayout::Alpha(layout()), &[A, B, X, Y], false, capture).unwrap();
+    let idle = state(&[], Dpad::Neutral);
+    let selected = state(&[B], Dpad::Neutral);
+    let toggle = state(&[R1, R2], Dpad::Neutral);
+    runtime.update(&idle).unwrap();
+    runtime.update(&toggle).unwrap();
+    runtime.update(&idle).unwrap();
+    runtime.update(&selected).unwrap();
+    assert_eq!(holds.borrow().last(), Some(&vec![Modifier::Ctrl]));
+    runtime.update(&state(&[B], Dpad::Up)).unwrap();
+    runtime.update(&selected).unwrap();
+    runtime.update(&state(&[B], Dpad::Left)).unwrap();
+    runtime.update(&selected).unwrap();
+    assert_eq!(
+        *log.borrow(),
+        [
+            (Action::Character('s'), vec![Modifier::Ctrl]),
+            (Action::Character('t'), vec![Modifier::Ctrl]),
+        ]
+    );
+    assert_eq!(holds.borrow().last(), Some(&vec![Modifier::Ctrl]));
+    runtime.update(&idle).unwrap();
+    assert_eq!(holds.borrow().last(), Some(&vec![]));
+    runtime.update(&state(&[A], Dpad::Neutral)).unwrap();
+    runtime.update(&idle).unwrap();
+    assert_eq!(log.borrow().last(), Some(&(Action::Character('a'), vec![])));
+    runtime.update(&toggle).unwrap();
+    runtime.update(&idle).unwrap();
+    runtime.update(&selected).unwrap();
+    runtime.set_paused(true).unwrap();
+    assert_eq!(holds.borrow().last(), Some(&vec![]));
+    runtime.update(&idle).unwrap();
+    runtime.set_paused(false).unwrap();
+    runtime.update(&idle).unwrap();
+    runtime.update(&selected).unwrap();
+    runtime.update(&idle).unwrap();
+    assert_eq!(log.borrow().last(), Some(&(Action::Character('o'), vec![])));
 }
 
 #[test]

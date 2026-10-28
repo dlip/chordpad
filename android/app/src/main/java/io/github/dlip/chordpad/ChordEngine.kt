@@ -31,6 +31,7 @@ class ChordEngine(private val layout: ChordLayout) {
         private set
 
     fun ready() = alpha?.ready() ?: !waiting
+    fun heldModifiers(frame: Frame) = alpha?.heldModifiers ?: (frame.modifiers or if (frame.buttons and L2 != 0) Action.SHIFT else 0)
 
     fun reset() {
         alpha?.reset()
